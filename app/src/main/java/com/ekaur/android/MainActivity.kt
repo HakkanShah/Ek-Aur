@@ -113,7 +113,12 @@ private fun AppScaffold(container: AppContainer) {
 @Composable
 private fun HomeScreen(container: AppContainer, serviceEnabled: Boolean) {
     val context = LocalContext.current
-    val count by container.eventLog.liveCount.collectAsState()
+    // Today's persisted total, not the in-memory session counter -- this is the
+    // number that survives the process being killed.
+    val count by container.counterRepository.observeTodayCount()
+        .collectAsState(initial = 0)
+    val activeMs by container.counterRepository.observeTodayActiveMs()
+        .collectAsState(initial = 0L)
     val connected by container.serviceStatus.connected.collectAsState()
     val state by container.serviceStatus.detectorState.collectAsState()
 
@@ -139,10 +144,18 @@ private fun HomeScreen(container: AppContainer, serviceEnabled: Boolean) {
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            text = "is session me",
+            text = "reels aaj",
             style = MaterialTheme.typography.bodyLarge,
             color = Smoke,
         )
+
+        if (activeMs > 0) {
+            Text(
+                text = activeMs.asDuration() + " scroll kiya",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ash,
+            )
+        }
 
         Spacer(Modifier.height(32.dp))
 
@@ -181,12 +194,16 @@ private fun HomeScreen(container: AppContainer, serviceEnabled: Boolean) {
             }
         }
 
-        Spacer(Modifier.height(20.dp))
+    }
+}
 
-        Text(
-            text = "count abhi memory me hai, save nahi hota.\nkal ke build me database aayega.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Ash,
-        )
+private fun Long.asDuration(): String {
+    val totalMinutes = this / 60_000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return when {
+        hours > 0 -> "${hours}h ${minutes}m"
+        totalMinutes > 0 -> "${totalMinutes}m"
+        else -> "${this / 1000}s"
     }
 }

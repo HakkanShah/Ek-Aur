@@ -55,6 +55,8 @@ fun DiagnosticsScreen(
     val lastPackage by status.lastEventPackage.collectAsState()
     val eventsSeen by status.eventsSeen.collectAsState()
     val liveCount by eventLog.liveCount.collectAsState()
+    val writeFailures by eventLog.writeFailures.collectAsState()
+    val lastWriteError by eventLog.lastWriteError.collectAsState()
     val crash = crashReporter.pendingReport()
 
     Column(
@@ -81,6 +83,10 @@ fun DiagnosticsScreen(
             StatRow("last event", lastEventAt.asAgo())
             StatRow("last package", lastPackage ?: "--")
             StatRow("live count", liveCount.toString(), Acid)
+            if (writeFailures > 0) {
+                StatRow("db write fail", writeFailures.toString(), Heat)
+                StatRow("last error", lastWriteError ?: "--", Heat)
+            }
 
             if (!serviceEnabled) {
                 Spacer(Modifier.height(14.dp))

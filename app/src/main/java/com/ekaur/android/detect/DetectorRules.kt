@@ -29,6 +29,16 @@ data class AppRules(
     val playerClassHints: List<String>,
 
     /**
+     * Views that look exactly like the player but are not it.
+     *
+     * Instagram's top-level tab strip is also a one-item-at-a-time pager, so it
+     * reports `fromIndex == toIndex` just like Reels does. Swiping between tabs
+     * would otherwise advance its position and count as reels. Checked before
+     * the shape rule.
+     */
+    val nonPlayerViewIdHints: List<String>,
+
+    /**
      * How long scroll activity must be quiet before a burst counts as one swipe.
      * Only used when an event reports no positions at all.
      */
@@ -43,15 +53,26 @@ data class AppRules(
     fun matchesPackage(pkg: String): Boolean = pkg == packageName
 
     /**
-     * Classifies a scroll by how many items it left visible.
+     * Classifies a scroll, in priority order:
      *
-     * One visible item means a snapping pager -- the Reels player. Several means
-     * an ordinary list -- the feed, which must never count. The id and class
-     * hints only raise confidence; they are not required, so detection survives
-     * Instagram renaming them.
+     * 1. A view id known to be the player -- definitely the player.
+     * 2. A view id known to only look like the player -- definitely not.
+     * 3. Otherwise judge by shape: one visible item is a snapping pager, several
+     *    is an ordinary list.
+     *
+     * Falling through to shape means an Instagram rename degrades detection
+     * rather than killing it, while the denylist closes the one case where a
+     * different pager would otherwise be counted as reels.
      */
     fun shapeOf(signal: ScrollSignal): ScrollShape {
         if (signal.kind != ScrollSignal.Kind.ViewScrolled) return ScrollShape.Unknown
+
+        val id = signal.viewId?.lowercase()
+        if (id != null) {
+            if (nonPlayerViewIdHints.any { id.contains(it.lowercase()) }) return ScrollShape.List
+            if (playerViewIdHints.any { id.contains(it.lowercase()) }) return ScrollShape.Player
+        }
+
         val from = signal.fromIndex
         val to = signal.toIndex
         if (from < 0 || to < 0) return ScrollShape.Unknown
@@ -81,6 +102,12 @@ object DetectorRules {
         ),
         playerClassHints = listOf(
             "viewpager",
+        ),
+        // Instagram's top-level tab strip: a five-page pager showing one tab at
+        // a time, so structurally indistinguishable from the Reels player.
+        // Seen in a device dump as swipeable_tab_view_pager with itemCount=5.
+        nonPlayerViewIdHints = listOf(
+            "swipeable_tab_view_pager",
         ),
     )
 

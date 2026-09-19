@@ -24,6 +24,24 @@ class EventLog(private val capacity: Int = 2_000) {
     private val _capturing = MutableStateFlow(true)
     val capturing: StateFlow<Boolean> = _capturing.asStateFlow()
 
+    /**
+     * Last database write failure, if any.
+     *
+     * Surfaced on the diagnostics screen because with no logcat a failing write
+     * is indistinguishable from detection having stopped: the number simply
+     * stops moving.
+     */
+    private val _lastWriteError = MutableStateFlow<String?>(null)
+    val lastWriteError: StateFlow<String?> = _lastWriteError.asStateFlow()
+
+    private val _writeFailures = MutableStateFlow(0)
+    val writeFailures: StateFlow<Int> = _writeFailures.asStateFlow()
+
+    fun recordWriteFailure(error: Throwable) {
+        _lastWriteError.value = "${error::class.simpleName}: ${error.message}"
+        _writeFailures.value += 1
+    }
+
     fun record(event: CapturedEvent) {
         if (!_capturing.value) return
         _events.update { current ->

@@ -1,6 +1,9 @@
 package com.ekaur.android.di
 
 import android.content.Context
+import com.ekaur.android.data.local.EkAurDatabase
+import com.ekaur.android.data.repo.CounterRepository
+import com.ekaur.android.data.repo.DayClock
 import com.ekaur.android.diagnostics.CrashReporter
 import com.ekaur.android.diagnostics.EventLog
 import com.ekaur.android.diagnostics.ServiceStatus
@@ -20,4 +23,11 @@ class AppContainer(appContext: Context) {
     val serviceStatus: ServiceStatus = ServiceStatus()
 
     val crashReporter: CrashReporter = CrashReporter(appContext)
+
+    val clock: DayClock = DayClock()
+
+    // Opened lazily so the database file is not touched until something counts.
+    val database: EkAurDatabase by lazy { EkAurDatabase.build(appContext) }
+
+    val counterRepository: CounterRepository by lazy { CounterRepository(database, clock) }
 }

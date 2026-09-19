@@ -85,7 +85,14 @@ class ReelDetector(
                 state = DetectionState.InReels
                 lastReelsActivityMs = signal.timestampMs
                 startSessionIfNeeded(signal.timestampMs, events)
-                countByPosition(signal, events)
+                // A view can be known to be the player by id while this
+                // particular event carries no position; then only the timing
+                // fallback is available.
+                if (signal.fromIndex >= 0) {
+                    countByPosition(signal, events)
+                } else {
+                    accumulateBurst(signal, signalRules)
+                }
             }
 
             ScrollShape.List -> {

@@ -38,12 +38,17 @@ private fun feedScroll(t: Long, from: Int, to: Int, desc: String? = null) = Scro
 )
 
 /** A scroll reporting no positions at all -- exercises the fallback path. */
-private fun blindScroll(t: Long, dy: Int, pkg: String = IG) = ScrollSignal(
+private fun blindScroll(
+    t: Long,
+    dy: Int,
+    pkg: String = IG,
+    view: String? = PLAYER_VIEW,
+) = ScrollSignal(
     packageName = pkg,
     kind = Kind.ViewScrolled,
     timestampMs = t,
     className = "androidx.viewpager.widget.ViewPager",
-    viewId = PLAYER_VIEW,
+    viewId = view,
     scrollDeltaY = dy,
 )
 
@@ -166,6 +171,34 @@ class ReelDetectorTest {
         assertEquals(0, h.reelCount())
     }
 
+    @Test
+    fun `instagram's tab strip is never counted as reels`() {
+        // swipeable_tab_view_pager shows one tab at a time, so it reports the
+        // same shape as the Reels player. Swiping between Home, Search, Reels
+        // and Profile would otherwise count as four reels.
+        val h = Harness()
+        (0..4).forEach { i ->
+            h.send(
+                playerScroll(1_000L * i, i, view = "com.instagram.android:id/swipeable_tab_view_pager")
+            )
+        }
+        h.tick(10_000)
+
+        assertEquals(0, h.reelCount())
+    }
+
+    @Test
+    fun `tab swiping between reels sessions does not count`() {
+        val h = Harness()
+        h.send(playerScroll(0, 4))
+        h.send(playerScroll(500, 5))       // a real reel
+        h.send(playerScroll(1_000, 0, view = "com.instagram.android:id/swipeable_tab_view_pager"))
+        h.send(playerScroll(1_500, 1, view = "com.instagram.android:id/swipeable_tab_view_pager"))
+        h.send(playerScroll(2_000, 6))     // back in reels, still counts
+
+        assertEquals(2, h.reelCount())
+    }
+
     // --- counting behaviour ----------------------------------------------
 
     @Test
@@ -222,12 +255,28 @@ class ReelDetectorTest {
 
     @Test
     fun `the fallback never runs outside the player`() {
+        // A positionless scroll from some unrelated view, while the feed is what
+        // was last seen. Nothing here says "player", so nothing may count.
         val h = Harness()
         h.send(feedScroll(0, 10, 14))
-        listOf(100L, 130L, 160L).forEach { h.send(blindScroll(it, 200)) }
+        listOf(100L, 130L, 160L).forEach {
+            h.send(blindScroll(it, 200, view = "com.instagram.android:id/some_other_view"))
+        }
         h.tick(1_000)
 
         assertEquals(0, h.reelCount())
+        assertEquals(DetectionState.InApp, h.detector.state)
+    }
+
+    @Test
+    fun `a positionless scroll from the player's own view still counts`() {
+        // The id alone is proof enough of which surface produced it, even when
+        // the event carries no position.
+        val h = Harness()
+        listOf(100L, 130L, 160L).forEach { h.send(blindScroll(it, 80)) }
+        h.tick(700)
+
+        assertEquals(1, h.reelCount())
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.ekaur.android
 
 import android.app.Application
+import com.ekaur.android.data.work.PruneWorker
 import com.ekaur.android.di.AppContainer
 
 class EkAurApp : Application() {
@@ -14,5 +15,6 @@ class EkAurApp : Application() {
         // Installed first thing: without ADB, an uncaught exception is otherwise
         // invisible and just looks like the app quietly stopping.
         container.crashReporter.install()
+        PruneWorker.schedule(this)
     }
 }

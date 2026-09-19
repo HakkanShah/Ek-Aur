@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 import com.ekaur.android.EkAurApp
+import com.ekaur.android.data.repo.CounterRepository
 import com.ekaur.android.detect.DetectionEvent
 import com.ekaur.android.detect.DetectorRules
 import com.ekaur.android.detect.ReelDetector
@@ -32,6 +33,7 @@ class EkAurAccessibilityService : AccessibilityService() {
     private val detector = ReelDetector()
     private lateinit var eventLog: EventLog
     private lateinit var status: ServiceStatus
+    private lateinit var counters: CounterRepository
 
     private var scope: CoroutineScope? = null
     private var tickJob: Job? = null
@@ -41,6 +43,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         val container = (application as EkAurApp).container
         eventLog = container.eventLog
         status = container.serviceStatus
+        counters = container.counterRepository
 
         detector.reset()
         status.onConnected()
@@ -148,13 +151,32 @@ class EkAurAccessibilityService : AccessibilityService() {
         if (::status.isInitialized) status.onDisconnected()
     }
 
+    /**
+     * Persists what the detector concluded.
+     *
+     * Accessibility callbacks arrive on the main thread, so the database work is
+     * handed to the service's own scope rather than blocking event delivery --
+     * a slow write must never cost us a scroll event.
+     */
     private fun handle(events: List<DetectionEvent>) {
         if (events.isEmpty()) return
         if (!::eventLog.isInitialized) return
+
         val reels = events.count { it is DetectionEvent.ReelScrolled }
         if (reels > 0) eventLog.incrementCount(reels)
-        // Sessions are persisted once Room lands; for now they only drive the
-        // detector's own lifecycle.
+
+        val scope = scope ?: return
+        scope.launch {
+            for (event in events) {
+                runCatching {
+                    when (event) {
+                        is DetectionEvent.ReelScrolled -> counters.onReelScrolled(event)
+                        is DetectionEvent.SessionEnded -> counters.onSessionEnded(event)
+                        is DetectionEvent.SessionStarted -> Unit
+                    }
+                }.onFailure { eventLog.recordWriteFailure(it) }
+            }
+        }
     }
 
     private fun Int.toKind(): ScrollSignal.Kind? = when (this) {
