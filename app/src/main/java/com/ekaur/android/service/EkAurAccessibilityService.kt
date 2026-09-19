@@ -18,6 +18,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -37,6 +39,7 @@ class EkAurAccessibilityService : AccessibilityService() {
 
     private var scope: CoroutineScope? = null
     private var tickJob: Job? = null
+    private var overlay: OverlayController? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -48,14 +51,22 @@ class EkAurAccessibilityService : AccessibilityService() {
         detector.reset()
         status.onConnected()
 
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default).also { s ->
-            tickJob = s.launch {
-                // Drives time-based transitions no incoming event would trigger:
-                // a scroll burst settling, and a session going cold.
-                while (isActive) {
-                    delay(TICK_INTERVAL_MS)
-                    handle(detector.onTick(System.currentTimeMillis()))
-                }
+        val s = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        scope = s
+
+        // Today's persisted total drives the pill, so it reads the same number
+        // as the app rather than a separate session counter.
+        val todayCount = counters.observeTodayCount()
+            .stateIn(s, SharingStarted.Eagerly, 0)
+        overlay = OverlayController(this, todayCount, s)
+
+        tickJob = s.launch {
+            // Drives time-based transitions no incoming event would trigger:
+            // a scroll burst settling, and a session going cold.
+            while (isActive) {
+                delay(TICK_INTERVAL_MS)
+                handle(detector.onTick(System.currentTimeMillis()))
+                overlay?.onDetectionState(detector.state)
             }
         }
     }
@@ -128,6 +139,7 @@ class EkAurAccessibilityService : AccessibilityService() {
 
         status.onEvent(packageName, now, detector.state.name)
         handle(produced)
+        overlay?.onDetectionState(detector.state)
     }
 
     override fun onInterrupt() = Unit
@@ -143,6 +155,8 @@ class EkAurAccessibilityService : AccessibilityService() {
     }
 
     private fun teardown() {
+        overlay?.destroy()
+        overlay = null
         tickJob?.cancel()
         tickJob = null
         scope?.cancel()

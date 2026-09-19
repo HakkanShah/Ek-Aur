@@ -14,8 +14,8 @@ android {
         applicationId = "com.ekaur.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
     }
 
     // A stable, committed keystore. The build container is ephemeral, so a
@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
+    implementation(libs.androidx.savedstate)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

@@ -23,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.ekaur.android.di.AppContainer
@@ -34,6 +33,7 @@ import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.debug.DiagnosticsScreen
 import com.ekaur.android.ui.debug.EventInspectorScreen
+import com.ekaur.android.ui.onboarding.SetupScreen
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.EkAurTheme
@@ -42,8 +42,18 @@ import com.ekaur.android.ui.theme.Smoke
 
 private enum class Tab(val label: String) {
     Home("ginti"),
+    Setup("setup"),
     Events("events"),
     Status("status"),
+}
+
+/** The three grants the app needs, re-read whenever the screen comes forward. */
+private data class Permissions(
+    val service: Boolean = false,
+    val overlay: Boolean = false,
+    val battery: Boolean = false,
+) {
+    val allGranted: Boolean get() = service && overlay && battery
 }
 
 class MainActivity : ComponentActivity() {
@@ -67,14 +77,18 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun AppScaffold(container: AppContainer) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var permissions by remember { mutableStateOf(Permissions()) }
     var tab by remember { mutableStateOf(Tab.Home) }
 
-    // The accessibility toggle lives in system settings and fires no callback,
-    // so the state is re-read every time this screen comes back to the front.
-    var serviceEnabled by remember { mutableStateOf(false) }
+    // None of these fire a callback when they change -- the user grants them in
+    // system settings and comes back -- so they are re-read on every resume.
     LifecycleResumeEffect(Unit) {
-        serviceEnabled = ServiceControl.isAccessibilityServiceEnabled(context)
+        permissions = Permissions(
+            service = ServiceControl.isAccessibilityServiceEnabled(context),
+            overlay = ServiceControl.canDrawOverlay(context),
+            battery = ServiceControl.isIgnoringBatteryOptimisations(context),
+        )
         onPauseOrDispose { }
     }
 
@@ -84,8 +98,7 @@ private fun AppScaffold(container: AppContainer) {
             .systemBarsPadding(),
     ) {
         Row(
-            Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Tab.entries.forEach { entry ->
@@ -98,27 +111,27 @@ private fun AppScaffold(container: AppContainer) {
         }
 
         when (tab) {
-            Tab.Home -> HomeScreen(container, serviceEnabled)
+            Tab.Home -> HomeScreen(container, permissions) { tab = Tab.Setup }
+            Tab.Setup -> SetupScreen(serviceEnabled = permissions.service)
             Tab.Events -> EventInspectorScreen(container.eventLog)
             Tab.Status -> DiagnosticsScreen(
                 status = container.serviceStatus,
                 eventLog = container.eventLog,
                 crashReporter = container.crashReporter,
-                serviceEnabled = serviceEnabled,
+                serviceEnabled = permissions.service,
             )
         }
     }
 }
 
 @Composable
-private fun HomeScreen(container: AppContainer, serviceEnabled: Boolean) {
-    val context = LocalContext.current
-    // Today's persisted total, not the in-memory session counter -- this is the
-    // number that survives the process being killed.
-    val count by container.counterRepository.observeTodayCount()
-        .collectAsState(initial = 0)
-    val activeMs by container.counterRepository.observeTodayActiveMs()
-        .collectAsState(initial = 0L)
+private fun HomeScreen(
+    container: AppContainer,
+    permissions: Permissions,
+    onOpenSetup: () -> Unit,
+) {
+    val count by container.counterRepository.observeTodayCount().collectAsState(initial = 0)
+    val activeMs by container.counterRepository.observeTodayActiveMs().collectAsState(initial = 0L)
     val connected by container.serviceStatus.connected.collectAsState()
     val state by container.serviceStatus.detectorState.collectAsState()
 
@@ -130,11 +143,7 @@ private fun HomeScreen(container: AppContainer, serviceEnabled: Boolean) {
     ) {
         Spacer(Modifier.height(48.dp))
 
-        Text(
-            text = "EK AUR",
-            style = MaterialTheme.typography.labelLarge,
-            color = Acid,
-        )
+        Text("EK AUR", style = MaterialTheme.typography.labelLarge, color = Acid)
 
         Spacer(Modifier.height(16.dp))
 
@@ -143,11 +152,7 @@ private fun HomeScreen(container: AppContainer, serviceEnabled: Boolean) {
             style = MaterialTheme.typography.displayLarge,
             color = MaterialTheme.colorScheme.onBackground,
         )
-        Text(
-            text = "reels aaj",
-            style = MaterialTheme.typography.bodyLarge,
-            color = Smoke,
-        )
+        Text("reels aaj", style = MaterialTheme.typography.bodyLarge, color = Smoke)
 
         if (activeMs > 0) {
             Text(
@@ -166,11 +171,13 @@ private fun HomeScreen(container: AppContainer, serviceEnabled: Boolean) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Dot(if (connected) Acid else Heat)
+                Dot(if (permissions.allGranted && connected) Acid else Heat)
                 Text(
                     text = when {
-                        !serviceEnabled -> "service band hai"
+                        !permissions.service -> "service band hai"
                         !connected -> "service on hai, connect nahi hua"
+                        !permissions.overlay -> "ginti chalu, counter dikhega nahi"
+                        !permissions.battery -> "chalu hai, par battery maar sakti hai"
                         else -> "chalu hai  ·  $state"
                     },
                     style = MaterialTheme.typography.bodyLarge,
@@ -178,22 +185,11 @@ private fun HomeScreen(container: AppContainer, serviceEnabled: Boolean) {
                 )
             }
 
-            if (!serviceEnabled) {
+            if (!permissions.allGranted) {
                 Spacer(Modifier.height(14.dp))
-                Text(
-                    text = "settings me Ek Aur ko on karo, tabhi ginti chalu hogi.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Smoke,
-                )
-                Spacer(Modifier.height(12.dp))
-                FlatButton(
-                    text = "settings kholo",
-                    emphasised = true,
-                    onClick = { ServiceControl.openAccessibilitySettings(context) },
-                )
+                FlatButton(text = "setup poora karo", emphasised = true, onClick = onOpenSetup)
             }
         }
-
     }
 }
 
