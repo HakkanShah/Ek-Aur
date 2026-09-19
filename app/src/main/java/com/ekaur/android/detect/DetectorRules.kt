@@ -49,6 +49,18 @@ data class AppRules(
 
     /** How long the player may go quiet before the session is considered over. */
     val sessionGapMs: Long = 90_000,
+
+    /**
+     * How long a list scroll must go without any player scroll before it is
+     * believed to mean "left the player".
+     *
+     * Instagram fires scrolls from an unrelated list *while Reels is open* --
+     * measured on device arriving about 100ms after a player scroll. Treating
+     * those as leaving made the state flip constantly, which made the floating
+     * counter blink. Genuinely leaving Reels showed a multi-second gap, so a
+     * grace window separates the two cleanly.
+     */
+    val playerExitGraceMs: Long = 1_500,
 ) {
     fun matchesPackage(pkg: String): Boolean = pkg == packageName
 

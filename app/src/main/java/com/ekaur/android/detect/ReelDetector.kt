@@ -44,6 +44,9 @@ class ReelDetector(
     private var sessionCount = 0
     private var lastReelsActivityMs = 0L
 
+    /** When a scroll last came from the player itself. Drives the exit grace. */
+    private var lastPlayerScrollMs = 0L
+
     // Fallback burst accumulator
     private var burstOpen = false
     private var burstNet = 0
@@ -83,6 +86,7 @@ class ReelDetector(
         when (signalRules.shapeOf(signal)) {
             ScrollShape.Player -> {
                 state = DetectionState.InReels
+                lastPlayerScrollMs = signal.timestampMs
                 lastReelsActivityMs = signal.timestampMs
                 startSessionIfNeeded(signal.timestampMs, events)
                 // A view can be known to be the player by id while this
@@ -96,8 +100,15 @@ class ReelDetector(
             }
 
             ScrollShape.List -> {
-                // Several items visible: an ordinary list, never the player.
-                if (state == DetectionState.InReels) state = DetectionState.InApp
+                // Several items visible: an ordinary list, never counts.
+                //
+                // But Instagram scrolls a background list while Reels is open,
+                // so this alone does not mean the player is gone -- only a list
+                // scroll with no recent player activity does.
+                val quietFor = signal.timestampMs - lastPlayerScrollMs
+                if (state == DetectionState.InReels && quietFor >= signalRules.playerExitGraceMs) {
+                    state = DetectionState.InApp
+                }
                 // Any pending burst belonged to the player, not to this list.
                 burstOpen = false
                 burstNet = 0
@@ -125,7 +136,17 @@ class ReelDetector(
         val events = mutableListOf<DetectionEvent>()
         flushBurst(nowMs, events)
 
-        val gap = rules?.sessionGapMs ?: return events
+        val activeRules = rules ?: return events
+
+        // Leaving Reels without scrolling anything else produces no further
+        // signal, so the state is closed out on time instead.
+        if (state == DetectionState.InReels &&
+            nowMs - lastPlayerScrollMs >= activeRules.playerExitGraceMs * IDLE_EXIT_FACTOR
+        ) {
+            state = DetectionState.InApp
+        }
+
+        val gap = activeRules.sessionGapMs
         if (sessionActive && nowMs - lastReelsActivityMs >= gap) {
             endSession(nowMs, events)
             // A cold session means the user moved on; stale positions would
@@ -144,6 +165,7 @@ class ReelDetector(
         sessionStartMs = 0
         sessionCount = 0
         lastReelsActivityMs = 0
+        lastPlayerScrollMs = 0
         burstOpen = false
         burstNet = 0
         burstLastMs = 0
@@ -250,5 +272,12 @@ class ReelDetector(
 
     private companion object {
         const val MAX_ITEMS_PER_SIGNAL = 3
+
+        /**
+         * Sitting on one reel watching it is normal, so going idle needs a much
+         * longer silence than a competing list scroll does before the player is
+         * considered closed.
+         */
+        const val IDLE_EXIT_FACTOR = 8
     }
 }

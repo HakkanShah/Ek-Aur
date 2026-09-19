@@ -199,6 +199,82 @@ class ReelDetectorTest {
         assertEquals(2, h.reelCount())
     }
 
+    @Test
+    fun `a background list scroll during reels does not drop out of the player`() {
+        // Measured on device: Instagram scrolls android:id/list while Reels is
+        // open, about 100ms after a player scroll. Treating that as leaving made
+        // the state flip constantly, which made the floating counter blink.
+        val h = Harness()
+        h.send(playerScroll(0, 10))
+        h.send(feedScroll(98, 0, 3))          // the interloper
+        h.send(playerScroll(900, 11))
+        h.send(feedScroll(998, 0, 3))
+        h.send(playerScroll(1_800, 12))
+
+        assertEquals(
+            "player must stay on screen through interleaved list scrolls",
+            DetectionState.InReels,
+            h.detector.state,
+        )
+        assertEquals(2, h.reelCount())
+    }
+
+    @Test
+    fun `a list scroll well after the player went quiet does leave`() {
+        val h = Harness()
+        h.send(playerScroll(0, 10))
+        h.send(playerScroll(500, 11))
+        // Device data showed a real exit left a multi-second gap.
+        h.send(feedScroll(4_200, 0, 3))
+
+        assertEquals(DetectionState.InApp, h.detector.state)
+    }
+
+    @Test
+    fun `leaving reels for DMs stops counting`() {
+        val h = Harness()
+        h.send(playerScroll(0, 0))
+        h.send(playerScroll(500, 1))          // counts
+
+        // A DM thread scrolls its own view, and getting there takes a moment.
+        h.send(
+            ScrollSignal(
+                packageName = IG,
+                kind = Kind.ViewScrolled,
+                timestampMs = 5_000,
+                className = "androidx.recyclerview.widget.RecyclerView",
+                viewId = "com.instagram.android:id/direct_thread_recycler",
+                scrollDeltaY = 300,
+                fromIndex = 2,
+                toIndex = 6,
+            )
+        )
+        h.tick(6_000)
+
+        assertEquals(1, h.reelCount())
+        assertEquals(DetectionState.InApp, h.detector.state)
+    }
+
+    @Test
+    fun `sitting on one reel does not immediately leave the player`() {
+        // Watching a single reel through produces no scrolls at all; that must
+        // not be mistaken for closing Reels.
+        val h = Harness()
+        h.send(playerScroll(0, 3))
+        h.tick(8_000)
+
+        assertEquals(DetectionState.InReels, h.detector.state)
+    }
+
+    @Test
+    fun `leaving reels with no other scrolling eventually closes the player`() {
+        val h = Harness()
+        h.send(playerScroll(0, 3))
+        h.tick(60_000)
+
+        assertEquals(DetectionState.InApp, h.detector.state)
+    }
+
     // --- counting behaviour ----------------------------------------------
 
     @Test
