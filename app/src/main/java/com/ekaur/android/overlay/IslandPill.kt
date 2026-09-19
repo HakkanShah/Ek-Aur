@@ -22,10 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -36,8 +33,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekaur.android.copy.SarcasmCatalogue
-import kotlinx.coroutines.delay
-import java.time.LocalTime
 
 /**
  * The floating counter.
@@ -53,11 +48,9 @@ import java.time.LocalTime
 @Composable
 fun IslandPill(
     count: Int,
+    message: String?,
     modifier: Modifier = Modifier,
 ) {
-    var message by remember { mutableStateOf<String?>(null) }
-    var lastMilestone by remember { mutableIntStateOf(0) }
-
     val heat = heatFor(count)
     val numberColor by animateColorAsState(
         targetValue = lerpColor(PillChalk, PillHeat, heat),
@@ -77,13 +70,6 @@ fun IslandPill(
         if (count <= 0) return@LaunchedEffect
         pulse.snapTo(1.14f)
         pulse.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 900f))
-
-        if (count % SarcasmCatalogue.MILESTONE_EVERY == 0 && count != lastMilestone) {
-            lastMilestone = count
-            message = SarcasmCatalogue.lineFor(count, LocalTime.now().hour)
-            delay(MESSAGE_DURATION_MS)
-            message = null
-        }
     }
 
     Row(
@@ -92,7 +78,7 @@ fun IslandPill(
             .background(PillInk, RoundedCornerShape(50))
             .border(1.dp, edge, RoundedCornerShape(50))
             .animateContentSize(spring(dampingRatio = 0.75f))
-            .widthIn(max = 260.dp)
+            .widthIn(max = 330.dp)
             .padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
@@ -129,9 +115,10 @@ fun IslandPill(
                 Text(
                     text = message.orEmpty(),
                     color = PillChalk,
-                    fontSize = 13.sp,
+                    fontSize = 12.5.sp,
+                    lineHeight = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -155,8 +142,6 @@ private fun lerpColor(from: Color, to: Color, t: Float): Color {
         alpha = 1f,
     )
 }
-
-private const val MESSAGE_DURATION_MS = 3_600L
 
 private val PillInk = Color(0xF00A0A0A)
 private val PillChalk = Color(0xFFF2F2F2)

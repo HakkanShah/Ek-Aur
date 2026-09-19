@@ -28,6 +28,7 @@ import kotlin.math.roundToInt
 class OverlayHost(
     private val context: Context,
     private val counts: StateFlow<Int>,
+    private val announcer: MilestoneAnnouncer,
 ) {
 
     private val windowManager =
@@ -57,7 +58,8 @@ class OverlayHost(
             setViewTreeSavedStateRegistryOwner(owner)
             setContent {
                 val count by counts.collectAsState()
-                IslandPill(count = count)
+                val message by announcer.message.collectAsState()
+                IslandPill(count = count, message = message)
             }
             setOnTouchListener(DragListener(layout))
         }

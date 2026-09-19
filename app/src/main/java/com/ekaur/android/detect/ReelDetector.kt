@@ -32,6 +32,15 @@ class ReelDetector(
     private val rulesFor: (String) -> AppRules? = DetectorRules::forPackage,
 ) {
 
+    /**
+     * Driven from the accessibility callback on the main thread and from the
+     * tick coroutine on a background dispatcher, so every entry point below is
+     * synchronised and this field is volatile. Without that, concurrent writes
+     * corrupted [lastIndexByView] -- dropping entries so advances read as first
+     * sightings and went uncounted -- and torn reads of [lastPlayerScrollMs]
+     * flipped the state mid-scrolling, which made the overlay blink.
+     */
+    @Volatile
     var state: DetectionState = DetectionState.Idle
         private set
 
@@ -57,7 +66,8 @@ class ReelDetector(
     /** Last seen adapter position, per scrolling view. Feed and player never mix. */
     private val lastIndexByView = mutableMapOf<String, Int>()
 
-    fun onSignal(signal: ScrollSignal): List<DetectionEvent> {
+    @Synchronized
+    fun onSignal(signal: ScrollSignal): DetectionResult {
         val events = mutableListOf<DetectionEvent>()
 
         // A pending burst may have settled while we were waiting for this signal.
@@ -67,7 +77,7 @@ class ReelDetector(
         if (signalRules == null) {
             // Foreground moved to an app we do not track.
             leaveApp(signal.timestampMs, events)
-            return events
+            return DetectionResult(events, state)
         }
 
         if (activePackage != signal.packageName) {
@@ -81,7 +91,7 @@ class ReelDetector(
         // Everything below is scroll-driven. Window and content events are
         // deliberately inert: letting them change state is what broke the first
         // version.
-        if (signal.kind != ScrollSignal.Kind.ViewScrolled) return events
+        if (signal.kind != ScrollSignal.Kind.ViewScrolled) return DetectionResult(events, state)
 
         when (signalRules.shapeOf(signal)) {
             ScrollShape.Player -> {
@@ -124,7 +134,7 @@ class ReelDetector(
             }
         }
 
-        return events
+        return DetectionResult(events, state)
     }
 
     /**
@@ -132,11 +142,12 @@ class ReelDetector(
      * burst settling, or a session going cold. The service calls this on a
      * short timer.
      */
-    fun onTick(nowMs: Long): List<DetectionEvent> {
+    @Synchronized
+    fun onTick(nowMs: Long): DetectionResult {
         val events = mutableListOf<DetectionEvent>()
         flushBurst(nowMs, events)
 
-        val activeRules = rules ?: return events
+        val activeRules = rules ?: return DetectionResult(events, state)
 
         // Leaving Reels without scrolling anything else produces no further
         // signal, so the state is closed out on time instead.
@@ -153,10 +164,11 @@ class ReelDetector(
             // produce a bogus jump if they come back to a different reel.
             lastIndexByView.clear()
         }
-        return events
+        return DetectionResult(events, state)
     }
 
     /** Drops all state. Used when the service disconnects. */
+    @Synchronized
     fun reset() {
         state = DetectionState.Idle
         rules = null

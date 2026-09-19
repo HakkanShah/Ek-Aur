@@ -12,6 +12,7 @@ import com.ekaur.android.detect.ScrollSignal
 import com.ekaur.android.diagnostics.CapturedEvent
 import com.ekaur.android.diagnostics.EventLog
 import com.ekaur.android.diagnostics.ServiceStatus
+import com.ekaur.android.overlay.MilestoneAnnouncer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -58,15 +59,19 @@ class EkAurAccessibilityService : AccessibilityService() {
         // as the app rather than a separate session counter.
         val todayCount = counters.observeTodayCount()
             .stateIn(s, SharingStarted.Eagerly, 0)
-        overlay = OverlayController(this, todayCount, s)
+        // Owned here rather than inside the composable, so an announcement is
+        // not cut short when the window hides.
+        val announcer = MilestoneAnnouncer(s, todayCount)
+        overlay = OverlayController(this, todayCount, s, announcer)
 
         tickJob = s.launch {
             // Drives time-based transitions no incoming event would trigger:
             // a scroll burst settling, and a session going cold.
             while (isActive) {
                 delay(TICK_INTERVAL_MS)
-                handle(detector.onTick(System.currentTimeMillis()))
-                overlay?.onDetectionState(detector.state)
+                val result = detector.onTick(System.currentTimeMillis())
+                handle(result.events)
+                overlay?.onDetectionState(result.state)
             }
         }
     }
@@ -86,16 +91,16 @@ class EkAurAccessibilityService : AccessibilityService() {
         // out the session. Nothing about other apps is read or kept.
         if (!tracked) {
             if (kind == ScrollSignal.Kind.WindowStateChanged) {
-                handle(
-                    detector.onSignal(
-                        ScrollSignal(
-                            packageName = packageName,
-                            kind = kind,
-                            timestampMs = now,
-                        )
+                val result = detector.onSignal(
+                    ScrollSignal(
+                        packageName = packageName,
+                        kind = kind,
+                        timestampMs = now,
                     )
                 )
-                status.onEvent(packageName, now, detector.state.name)
+                handle(result.events)
+                status.onEvent(packageName, now, result.state.name)
+                overlay?.onDetectionState(result.state)
             }
             return
         }
@@ -116,8 +121,8 @@ class EkAurAccessibilityService : AccessibilityService() {
             toIndex = event.indexOrNone(event.toIndex),
         )
 
-        val produced = detector.onSignal(signal)
-        val counted = produced.count { it is DetectionEvent.ReelScrolled }
+        val result = detector.onSignal(signal)
+        val counted = result.events.count { it is DetectionEvent.ReelScrolled }
 
         eventLog.record(
             CapturedEvent(
@@ -133,13 +138,13 @@ class EkAurAccessibilityService : AccessibilityService() {
                 toIndex = event.toIndex,
                 itemCount = event.itemCount,
                 counted = counted > 0,
-                state = detector.state.name,
+                state = result.state.name,
             )
         )
 
-        status.onEvent(packageName, now, detector.state.name)
-        handle(produced)
-        overlay?.onDetectionState(detector.state)
+        status.onEvent(packageName, now, result.state.name)
+        handle(result.events)
+        overlay?.onDetectionState(result.state)
     }
 
     override fun onInterrupt() = Unit

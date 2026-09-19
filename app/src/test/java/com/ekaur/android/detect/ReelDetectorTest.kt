@@ -73,8 +73,8 @@ private class Harness {
     val detector = ReelDetector()
     val events = mutableListOf<DetectionEvent>()
 
-    fun send(signal: ScrollSignal) = apply { events += detector.onSignal(signal) }
-    fun tick(atMs: Long) = apply { events += detector.onTick(atMs) }
+    fun send(signal: ScrollSignal) = apply { events += detector.onSignal(signal).events }
+    fun tick(atMs: Long) = apply { events += detector.onTick(atMs).events }
     fun reelCount() = events.reels().size
 }
 
@@ -430,6 +430,81 @@ class ReelDetectorTest {
         h.detector.reset()
 
         assertEquals(DetectionState.Idle, h.detector.state)
-        assertTrue(h.detector.onTick(500_000).isEmpty())
+        assertTrue(h.detector.onTick(500_000).events.isEmpty())
+    }
+
+    // --- concurrency ------------------------------------------------------
+
+    @Test
+    fun `signals and ticks from different threads agree on the count`() {
+        // The service feeds signals from the accessibility callback on the main
+        // thread while a coroutine ticks on a background dispatcher. Both reach
+        // the same burst accumulator, so unguarded they can each see an open
+        // burst and each emit for it -- or trample the position map, which on
+        // device lost 19 of 38 advances in one contiguous run.
+        //
+        // The burst path is used here because it is the one both entry points
+        // write to, which makes the race reachable without relying on luck.
+        val detector = ReelDetector()
+        val swipes = 4_000
+        val clock = java.util.concurrent.atomic.AtomicLong(1_000_000L)
+        val stop = java.util.concurrent.atomic.AtomicBoolean(false)
+        val fromTicks = java.util.concurrent.atomic.AtomicInteger(0)
+        val tickerFailed = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
+
+        val ticker = Thread {
+            try {
+                while (!stop.get()) {
+                    fromTicks.addAndGet(
+                        detector.onTick(clock.get())
+                            .events
+                            .count { it is DetectionEvent.ReelScrolled }
+                    )
+                }
+            } catch (t: Throwable) {
+                tickerFailed.set(t)
+            }
+        }.apply { start() }
+
+        var fromSignals = 0
+        try {
+            repeat(swipes) {
+                // One swipe: a few positionless scrolls, then time enough for
+                // the burst to settle while the ticker is hammering away.
+                repeat(3) {
+                    fromSignals += detector.onSignal(blindScroll(clock.addAndGet(20), 90))
+                        .events
+                        .count { e -> e is DetectionEvent.ReelScrolled }
+                }
+                clock.addAndGet(400)
+                Thread.yield()
+            }
+            // Let any final burst settle.
+            clock.addAndGet(2_000)
+            Thread.sleep(50)
+        } finally {
+            stop.set(true)
+            ticker.join(10_000)
+        }
+
+        assertEquals("ticker threw: ${tickerFailed.get()}", null, tickerFailed.get())
+        // Exactly one count per swipe, wherever it happened to be emitted.
+        assertEquals(swipes, fromSignals + fromTicks.get())
+    }
+
+    @Test
+    fun `replays the full third dump and loses nothing`() {
+        // Positions 29 through 67 as recorded on device: 38 advances after the
+        // baseline. The racing build counted 19.
+        val h = Harness()
+        var t = 1_000L
+        for (index in 29..67) {
+            h.send(playerScroll(t, index))
+            t += 400
+            h.send(playerScroll(t, index))   // the duplicate each swipe emits
+            t += 600
+        }
+
+        assertEquals(38, h.reelCount())
     }
 }

@@ -24,6 +24,18 @@ sealed interface DetectionEvent {
     }
 }
 
+/**
+ * What one call to the detector concluded.
+ *
+ * The resulting state is returned alongside the events rather than left to be
+ * read off a field afterwards: the detector is driven from two threads, and a
+ * separate read of `state` races whichever call ran last.
+ */
+data class DetectionResult(
+    val events: List<DetectionEvent>,
+    val state: DetectionState,
+)
+
 /** Where the detector currently thinks the user is. */
 enum class DetectionState {
     /** No app we care about is in the foreground. */
