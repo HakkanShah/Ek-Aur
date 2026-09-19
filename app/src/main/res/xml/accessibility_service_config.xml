@@ -4,9 +4,15 @@
   see the foreground moving to some other app so it can close out a session;
   without that it would sit believing Reels is still open. Events from untracked
   apps are discarded immediately in code and never inspected or recorded.
+
+  typeWindowContentChanged is deliberately NOT subscribed to. A device dump
+  measured it at 84% of all traffic (336 of 400 events), which flooded the
+  inspector's buffer and evicted the actual scrolling we were trying to observe.
+  It contributes nothing now that the state machine is driven purely by scroll
+  events, and dropping it is a significant battery saving.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"

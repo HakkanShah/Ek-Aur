@@ -98,7 +98,8 @@ class EkAurAccessibilityService : AccessibilityService() {
             viewId = viewId,
             contentDescription = event.contentDescription?.toString(),
             scrollDeltaY = scrollDeltaY,
-            itemIndex = event.pagerIndex(),
+            fromIndex = event.indexOrNone(event.fromIndex),
+            toIndex = event.indexOrNone(event.toIndex),
         )
 
         val produced = detector.onSignal(signal)
@@ -164,20 +165,16 @@ class EkAurAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Best guess at the pager position this scroll landed on.
-     *
-     * A full-screen snapping pager reports one visible item, so `fromIndex` and
-     * `toIndex` agree and either is the current video. When they disagree the
-     * view is an ordinary list rather than the player, and the detector falls
-     * back to its settle-window path instead of trusting a bogus index.
-     *
-     * Provisional: confirmed against a real device dump before it is relied on.
+     * Positions are only meaningful on a scroll event; elsewhere they are stale
+     * or unset. The detector decides what the pair of them means -- that
+     * judgement stays in pure Kotlin where it can be tested.
      */
-    private fun AccessibilityEvent.pagerIndex(): Int {
-        if (eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) return ScrollSignal.NO_INDEX
-        if (fromIndex < 0) return ScrollSignal.NO_INDEX
-        return if (fromIndex == toIndex) fromIndex else ScrollSignal.NO_INDEX
-    }
+    private fun AccessibilityEvent.indexOrNone(value: Int): Int =
+        if (eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED && value >= 0) {
+            value
+        } else {
+            ScrollSignal.NO_INDEX
+        }
 
     private companion object {
         const val TICK_INTERVAL_MS = 250L

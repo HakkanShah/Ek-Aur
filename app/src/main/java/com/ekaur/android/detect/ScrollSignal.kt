@@ -17,30 +17,46 @@ data class ScrollSignal(
     val timestampMs: Long,
     /** Fully-qualified view/activity class, when the event carries one. */
     val className: String? = null,
-    /** `viewIdResourceName`, e.g. `com.instagram.android:id/clips_viewer_root`. */
+    /** `viewIdResourceName`, e.g. `com.instagram.android:id/clips_viewer_view_pager`. */
     val viewId: String? = null,
     val contentDescription: String? = null,
     /** Net vertical movement reported by the event, when available. */
     val scrollDeltaY: Int = 0,
     /**
-     * Adapter position the scroll landed on. Instagram's Reels player is a
-     * pager, so when this is present it is by far the most reliable "moved to
-     * the next video" signal. [NO_INDEX] when the event carries none.
+     * First and last adapter positions visible after the scroll.
+     *
+     * These are the whole ballgame. A full-screen snapping pager shows exactly
+     * one item, so `fromIndex == toIndex`; an ordinary list shows several, so
+     * they differ. That difference separates the Reels player from the main feed
+     * structurally, without depending on any name Instagram can rename.
      */
-    val itemIndex: Int = NO_INDEX,
+    val fromIndex: Int = NO_INDEX,
+    val toIndex: Int = NO_INDEX,
 ) {
     enum class Kind {
-        /** Foreground window changed -- used to enter/leave the player. */
+        /** Foreground window changed -- used only to notice leaving the app. */
         WindowStateChanged,
 
-        /** Content within the current window changed. */
+        /** Content within the current window changed. No longer subscribed to. */
         WindowContentChanged,
 
-        /** A scrollable view scrolled. The event that actually does the counting. */
+        /** A scrollable view scrolled. The only event that moves the state machine. */
         ViewScrolled,
     }
 
     companion object {
         const val NO_INDEX = -1
     }
+}
+
+/** What a scroll event's shape says about the surface that produced it. */
+enum class ScrollShape {
+    /** Exactly one full-screen item visible -- a snapping pager, i.e. Reels. */
+    Player,
+
+    /** Several items visible -- an ordinary list, i.e. the feed. Never counts. */
+    List,
+
+    /** No usable positions reported; shape unknown. */
+    Unknown,
 }

@@ -1,24 +1,29 @@
 package com.ekaur.android.detect
 
-
 /**
  * Turns a stream of [ScrollSignal]s into "a reel was scrolled".
  *
- * Two counting strategies, in priority order:
+ * Rewritten after a device dump exposed two problems with the first version.
  *
- * 1. **Index-based.** Instagram's Reels player is a snapping pager, so when an
- *    event carries an adapter position, a change in that position *is* the
- *    swipe. Exact, and immune to how fast the user flings.
+ * **Only scroll events move the state machine.** Window and content events used
+ * to flip the detector in and out of the player based on string matches, and
+ * they flapped constantly -- Instagram's Reels screen carries words that read as
+ * not-the-player, and its feed carries a tab described as "Reels". Every flip
+ * reset the counting baseline, so most swipes were swallowed. Nothing but a
+ * scroll can change the state now.
  *
- * 2. **Settle-window fallback.** When no index is available, scroll events are
- *    accumulated into a burst and counted as one swipe once activity goes quiet
- *    for [AppRules.settleWindowMs]. A single swipe fires many scroll events, so
- *    counting them raw would wildly over-count.
+ * **Baselines are kept per view.** A scroll in the feed must not clobber the
+ * position the player was last seen at, so last-known positions are held in a
+ * map keyed by view, and cleared only on leaving the app or after a long idle.
  *
- *    Known limitation: two swipes closer together than the settle window merge
- *    into one count. That is the price of not over-counting, and it only applies
- *    when Instagram stops reporting indices -- the accurate path handles the
- *    normal case.
+ * Counting itself:
+ * 1. **Position-based**, whenever the event reports adapter positions. Reels is a
+ *    snapping pager, so an advance in position is exactly one swipe regardless of
+ *    fling speed.
+ * 2. **Settle-window fallback**, only when no positions are reported at all. A
+ *    swipe fires many scroll events, so they are accumulated and counted once
+ *    activity goes quiet. Trades undercounting very rapid swipes for never
+ *    overcounting one slow one.
  *
  * Holds no clock of its own. Time arrives on signals, or via [onTick], so tests
  * are fully deterministic.
@@ -43,9 +48,11 @@ class ReelDetector(
     private var burstOpen = false
     private var burstNet = 0
     private var burstLastMs = 0L
+    private var burstSettleWindow = 300L
+    private var burstMinScroll = 24
 
-    // Index tracking
-    private var lastIndex = ScrollSignal.NO_INDEX
+    /** Last seen adapter position, per scrolling view. Feed and player never mix. */
+    private val lastIndexByView = mutableMapOf<String, Int>()
 
     fun onSignal(signal: ScrollSignal): List<DetectionEvent> {
         val events = mutableListOf<DetectionEvent>()
@@ -66,18 +73,37 @@ class ReelDetector(
             rules = signalRules
         }
 
-        // A tracked app is in the foreground, so we are at least in-app even if
-        // this signal says nothing about the player.
         if (state == DetectionState.Idle) state = DetectionState.InApp
 
-        val playerVisible = evaluatePlayerVisible(signal, signalRules)
-        if (playerVisible != null) {
-            applyPlayerVisibility(playerVisible, signal.timestampMs, events)
-        }
+        // Everything below is scroll-driven. Window and content events are
+        // deliberately inert: letting them change state is what broke the first
+        // version.
+        if (signal.kind != ScrollSignal.Kind.ViewScrolled) return events
 
-        if (state == DetectionState.InReels && signal.kind == ScrollSignal.Kind.ViewScrolled) {
-            lastReelsActivityMs = signal.timestampMs
-            countScroll(signal, signalRules, events)
+        when (signalRules.shapeOf(signal)) {
+            ScrollShape.Player -> {
+                state = DetectionState.InReels
+                lastReelsActivityMs = signal.timestampMs
+                startSessionIfNeeded(signal.timestampMs, events)
+                countByPosition(signal, events)
+            }
+
+            ScrollShape.List -> {
+                // Several items visible: an ordinary list, never the player.
+                if (state == DetectionState.InReels) state = DetectionState.InApp
+                // Any pending burst belonged to the player, not to this list.
+                burstOpen = false
+                burstNet = 0
+            }
+
+            ScrollShape.Unknown -> {
+                // No positions reported. Only meaningful if we already believe
+                // the player is on screen.
+                if (state == DetectionState.InReels) {
+                    lastReelsActivityMs = signal.timestampMs
+                    accumulateBurst(signal, signalRules)
+                }
+            }
         }
 
         return events
@@ -86,7 +112,7 @@ class ReelDetector(
     /**
      * Drives time-based transitions that no incoming signal would trigger: a
      * burst settling, or a session going cold. The service calls this on a
-     * short timer while the player is on screen.
+     * short timer.
      */
     fun onTick(nowMs: Long): List<DetectionEvent> {
         val events = mutableListOf<DetectionEvent>()
@@ -95,6 +121,9 @@ class ReelDetector(
         val gap = rules?.sessionGapMs ?: return events
         if (sessionActive && nowMs - lastReelsActivityMs >= gap) {
             endSession(nowMs, events)
+            // A cold session means the user moved on; stale positions would
+            // produce a bogus jump if they come back to a different reel.
+            lastIndexByView.clear()
         }
         return events
     }
@@ -111,117 +140,41 @@ class ReelDetector(
         burstOpen = false
         burstNet = 0
         burstLastMs = 0
-        lastIndex = ScrollSignal.NO_INDEX
-    }
-
-    // --- visibility -------------------------------------------------------
-
-    /**
-     * Returns true/false when this signal says something about whether the
-     * player is on screen, or null when it says nothing and the current
-     * assessment should stand.
-     */
-    private fun evaluatePlayerVisible(signal: ScrollSignal, appRules: AppRules): Boolean? {
-        val haystack = listOfNotNull(
-            signal.className,
-            signal.viewId,
-            signal.contentDescription,
-        ).joinToString(" ").lowercase()
-
-        if (haystack.isBlank()) return null
-
-        // Negative hints win: a screen that looks like both is not the player.
-        if (appRules.notPlayerHints.any { haystack.contains(it.lowercase()) }) return false
-
-        val positive = appRules.playerClassHints.any { haystack.contains(it.lowercase()) } ||
-            appRules.playerViewIdHints.any { haystack.contains(it.lowercase()) } ||
-            appRules.playerContentHints.any { haystack.contains(it.lowercase()) }
-
-        if (positive) return true
-
-        // Only a window change is trusted to say "the player is gone". A content
-        // change elsewhere on the same screen should not knock us out of Reels.
-        return if (signal.kind == ScrollSignal.Kind.WindowStateChanged) false else null
-    }
-
-    private fun applyPlayerVisibility(
-        visible: Boolean,
-        nowMs: Long,
-        events: MutableList<DetectionEvent>,
-    ) {
-        if (visible) {
-            if (state != DetectionState.InReels) {
-                state = DetectionState.InReels
-                lastIndex = ScrollSignal.NO_INDEX
-                lastReelsActivityMs = nowMs
-                startSessionIfNeeded(nowMs, events)
-            }
-        } else {
-            if (state == DetectionState.InReels) {
-                // Leaving the player does not end the session immediately -- a
-                // detour into comments and straight back is still one sitting.
-                // onTick closes it once the gap elapses.
-                state = DetectionState.InApp
-                lastIndex = ScrollSignal.NO_INDEX
-            } else if (state == DetectionState.Idle) {
-                state = DetectionState.InApp
-            }
-        }
-    }
-
-    private fun leaveApp(nowMs: Long, events: MutableList<DetectionEvent>) {
-        // Backgrounding is itself a settle: a swipe finished just before the
-        // user left still happened, so flush it rather than dropping it.
-        flushBurst(nowMs, events, force = true)
-        if (sessionActive) endSession(nowMs, events)
-        state = DetectionState.Idle
-        activePackage = null
-        rules = null
-        lastIndex = ScrollSignal.NO_INDEX
-        burstOpen = false
-        burstNet = 0
+        lastIndexByView.clear()
     }
 
     // --- counting ---------------------------------------------------------
 
-    private fun countScroll(
-        signal: ScrollSignal,
-        appRules: AppRules,
-        events: MutableList<DetectionEvent>,
-    ) {
-        if (signal.itemIndex != ScrollSignal.NO_INDEX) {
-            // Accurate path. Any pending fallback burst is now redundant.
-            burstOpen = false
-            burstNet = 0
+    private fun countByPosition(signal: ScrollSignal, events: MutableList<DetectionEvent>) {
+        // A position-carrying event supersedes anything the fallback accumulated.
+        burstOpen = false
+        burstNet = 0
 
-            val previous = lastIndex
-            lastIndex = signal.itemIndex
+        val key = signal.viewKey()
+        val previous = lastIndexByView.put(key, signal.fromIndex)
 
-            if (previous == ScrollSignal.NO_INDEX) return          // first sighting, nothing to diff
-            val delta = signal.itemIndex - previous
-            if (delta <= 0) return                    // scrolled back up, or no movement
+        // First sighting of this view establishes the baseline. Costs at most one
+        // count per session, and only for the very first swipe seen.
+        if (previous == null) return
 
-            // A snapping pager moves one item per swipe; anything larger is
-            // noise or a jump, so cap it rather than inventing counts.
-            repeat(minOf(delta, MAX_ITEMS_PER_SIGNAL)) {
-                emitReel(signal.timestampMs, events)
-            }
-            return
+        val delta = signal.fromIndex - previous
+        if (delta <= 0) return  // scrolled back up to rewatch, or no movement
+
+        // A snapping pager advances one item per swipe; anything larger is noise
+        // or a jump, so cap it rather than inventing counts.
+        repeat(minOf(delta, MAX_ITEMS_PER_SIGNAL)) {
+            emitReel(signal.timestampMs, events)
         }
+    }
 
-        // Fallback path: accumulate until things go quiet.
+    private fun accumulateBurst(signal: ScrollSignal, appRules: AppRules) {
         if (signal.scrollDeltaY == 0) return
         burstOpen = true
         burstNet += signal.scrollDeltaY
         burstLastMs = signal.timestampMs
         burstSettleWindow = appRules.settleWindowMs
         burstMinScroll = appRules.minNetScroll
-        burstPackage = signal.packageName
     }
-
-    private var burstSettleWindow = 300L
-    private var burstMinScroll = 24
-    private var burstPackage: String? = null
 
     private fun flushBurst(
         nowMs: Long,
@@ -232,26 +185,35 @@ class ReelDetector(
         if (!force && nowMs - burstLastMs < burstSettleWindow) return
 
         val net = burstNet
-        val pkg = burstPackage
         burstOpen = false
         burstNet = 0
 
-        // Only forward movement counts; scrolling back up to rewatch is not a
-        // new reel.
-        if (pkg != null && net >= burstMinScroll) {
-            emitReel(burstLastMs, events)
-        }
+        // Only forward movement counts; scrolling back up is not a new reel.
+        if (net >= burstMinScroll) emitReel(burstLastMs, events)
     }
 
     private fun emitReel(timestampMs: Long, events: MutableList<DetectionEvent>) {
-        val pkg = activePackage ?: burstPackage ?: return
+        val pkg = activePackage ?: return
         startSessionIfNeeded(timestampMs, events)
         sessionCount++
         lastReelsActivityMs = timestampMs
         events += DetectionEvent.ReelScrolled(pkg, timestampMs)
     }
 
-    // --- sessions ---------------------------------------------------------
+    // --- lifecycle --------------------------------------------------------
+
+    private fun leaveApp(nowMs: Long, events: MutableList<DetectionEvent>) {
+        // Backgrounding is itself a settle: a swipe finished just before the
+        // user left still happened, so flush it rather than dropping it.
+        flushBurst(nowMs, events, force = true)
+        if (sessionActive) endSession(nowMs, events)
+        state = DetectionState.Idle
+        activePackage = null
+        rules = null
+        lastIndexByView.clear()
+        burstOpen = false
+        burstNet = 0
+    }
 
     private fun startSessionIfNeeded(nowMs: Long, events: MutableList<DetectionEvent>) {
         if (sessionActive) return
@@ -264,7 +226,7 @@ class ReelDetector(
 
     private fun endSession(nowMs: Long, events: MutableList<DetectionEvent>) {
         if (!sessionActive) return
-        val pkg = activePackage ?: burstPackage
+        val pkg = activePackage
         sessionActive = false
         if (pkg != null) {
             events += DetectionEvent.SessionEnded(
@@ -276,6 +238,8 @@ class ReelDetector(
         }
         sessionCount = 0
     }
+
+    private fun ScrollSignal.viewKey(): String = viewId ?: className ?: "unknown"
 
     private companion object {
         const val MAX_ITEMS_PER_SIGNAL = 3

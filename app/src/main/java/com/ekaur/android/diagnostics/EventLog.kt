@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.update
  * Nothing here is persisted -- durable counting arrives with Room in the next
  * phase.
  */
-class EventLog(private val capacity: Int = 400) {
+class EventLog(private val capacity: Int = 2_000) {
 
     private val _events = MutableStateFlow<List<CapturedEvent>>(emptyList())
     val events: StateFlow<List<CapturedEvent>> = _events.asStateFlow()

@@ -8,40 +8,58 @@ import org.junit.Test
 private const val IG = "com.instagram.android"
 private const val OTHER = "com.whatsapp"
 
-/** Instagram's Reels player coming to the foreground. */
-private fun enterReels(t: Long) = ScrollSignal(
-    packageName = IG,
-    kind = Kind.WindowStateChanged,
-    timestampMs = t,
-    className = "com.instagram.clips.viewer.ClipsViewerFragment",
-    viewId = "com.instagram.android:id/clips_viewer_root",
-)
+private const val PLAYER_VIEW = "com.instagram.android:id/clips_viewer_view_pager"
+private const val FEED_VIEW = "com.instagram.android:id/feed_recycler_view"
 
-/** The main feed -- a tracked app, but nothing that should ever count. */
-private fun enterFeed(t: Long) = ScrollSignal(
-    packageName = IG,
-    kind = Kind.WindowStateChanged,
-    timestampMs = t,
-    className = "com.instagram.mainfeed.MainFeedFragment",
-    viewId = "com.instagram.android:id/main_feed_recycler",
-)
-
-/** A scroll that reports the pager position -- the accurate path. */
-private fun scrollTo(t: Long, index: Int) = ScrollSignal(
+/**
+ * A scroll in the Reels player: one full-screen item, so both positions agree.
+ * Shape taken from a real device dump.
+ */
+private fun playerScroll(t: Long, index: Int, view: String = PLAYER_VIEW) = ScrollSignal(
     packageName = IG,
     kind = Kind.ViewScrolled,
     timestampMs = t,
-    viewId = "com.instagram.android:id/clips_viewer_view_pager",
-    itemIndex = index,
+    className = "androidx.viewpager.widget.ViewPager",
+    viewId = view,
+    fromIndex = index,
+    toIndex = index,
 )
 
-/** A scroll with no position reported -- the settle-window fallback path. */
-private fun scrollBy(t: Long, dy: Int, pkg: String = IG) = ScrollSignal(
+/** A scroll in the main feed: several items visible, so the positions differ. */
+private fun feedScroll(t: Long, from: Int, to: Int, desc: String? = null) = ScrollSignal(
+    packageName = IG,
+    kind = Kind.ViewScrolled,
+    timestampMs = t,
+    className = "androidx.recyclerview.widget.RecyclerView",
+    viewId = FEED_VIEW,
+    contentDescription = desc,
+    fromIndex = from,
+    toIndex = to,
+)
+
+/** A scroll reporting no positions at all -- exercises the fallback path. */
+private fun blindScroll(t: Long, dy: Int, pkg: String = IG) = ScrollSignal(
     packageName = pkg,
     kind = Kind.ViewScrolled,
     timestampMs = t,
-    viewId = "com.instagram.android:id/clips_viewer_view_pager",
+    className = "androidx.viewpager.widget.ViewPager",
+    viewId = PLAYER_VIEW,
     scrollDeltaY = dy,
+)
+
+private fun contentEvent(t: Long, desc: String) = ScrollSignal(
+    packageName = IG,
+    kind = Kind.WindowContentChanged,
+    timestampMs = t,
+    className = "android.view.ViewGroup",
+    contentDescription = desc,
+)
+
+private fun foreground(t: Long, pkg: String) = ScrollSignal(
+    packageName = pkg,
+    kind = Kind.WindowStateChanged,
+    timestampMs = t,
+    className = if (pkg == IG) "com.instagram.mainactivity.InstagramMainActivity" else "x.Main",
 )
 
 private fun List<DetectionEvent>.reels() = filterIsInstance<DetectionEvent.ReelScrolled>()
@@ -57,160 +75,179 @@ private class Harness {
 
 class ReelDetectorTest {
 
-    // --- accurate, index-based path ---------------------------------------
+    // --- the real dump ----------------------------------------------------
 
     @Test
-    fun `counts one reel per pager advance`() {
-        val h = Harness().send(enterReels(0))
-        // First scroll only establishes the baseline position.
-        h.send(scrollTo(100, 0))
-        h.send(scrollTo(1_000, 1))
-        h.send(scrollTo(2_000, 2))
-        h.send(scrollTo(3_000, 3))
+    fun `replays the recorded device sequence and counts three advances`() {
+        // Verbatim from a device dump: positions 11,11,12,12,12,13,13,14,14.
+        // Three genuine advances. The first version of the detector scored 1
+        // here because string matching kept flipping it out of the player and
+        // resetting the baseline.
+        val h = Harness()
+        listOf(
+            774912L to 11, 775231L to 11,
+            776124L to 12, 776308L to 12, 776334L to 12,
+            777759L to 13, 777924L to 13,
+            778746L to 14, 779671L to 14,
+        ).forEach { (t, i) -> h.send(playerScroll(t, i)) }
 
         assertEquals(3, h.reelCount())
     }
 
     @Test
-    fun `scrolling back up does not count`() {
-        val h = Harness().send(enterReels(0))
-        h.send(scrollTo(100, 5))
-        h.send(scrollTo(1_000, 6))   // forward: counts
-        h.send(scrollTo(2_000, 5))   // back up: does not
-        h.send(scrollTo(3_000, 4))   // still going back: does not
+    fun `feed scroll shapes from the dump never count`() {
+        // Also verbatim: the feed reports a span of visible items, never one.
+        val h = Harness()
+        listOf(
+            25 to 27, 25 to 28, 26 to 28, 27 to 30, 30 to 33,
+            36 to 43, 43 to 47, 47 to 53,
+        ).forEachIndexed { i, (from, to) -> h.send(feedScroll(1_000L * i, from, to)) }
+        h.tick(20_000)
 
-        assertEquals(1, h.reelCount())
+        assertEquals(0, h.reelCount())
+        assertEquals(DetectionState.InApp, h.detector.state)
     }
 
-    @Test
-    fun `a jump in position is capped rather than inventing counts`() {
-        val h = Harness().send(enterReels(0))
-        h.send(scrollTo(100, 0))
-        h.send(scrollTo(1_000, 40))  // nonsense delta from a noisy event
-
-        assertTrue("should be capped, was ${h.reelCount()}", h.reelCount() <= 3)
-    }
-
-    // --- settle-window fallback -------------------------------------------
+    // --- the bugs the dump exposed ---------------------------------------
 
     @Test
-    fun `one swipe firing many scroll events counts once`() {
-        val h = Harness().send(enterReels(0))
-        // A single swipe: a burst of events over ~150ms.
-        listOf(100L, 130L, 160L, 190L, 220L, 250L).forEach { h.send(scrollBy(it, 60)) }
-        h.tick(700)   // quiet long enough to settle
-
-        assertEquals(1, h.reelCount())
-    }
-
-    @Test
-    fun `separate swipes each count once`() {
-        val h = Harness().send(enterReels(0))
-
-        listOf(100L, 140L, 180L).forEach { h.send(scrollBy(it, 70)) }
-        h.tick(600)
-        listOf(1_000L, 1_040L, 1_080L).forEach { h.send(scrollBy(it, 70)) }
-        h.tick(1_500)
+    fun `a comment description on the reels screen does not stop counting`() {
+        // The Reels comment button reports "Comment number is35. View comments",
+        // which the old rules read as not-the-player and bailed out on.
+        val h = Harness()
+        h.send(playerScroll(0, 5))
+        h.send(contentEvent(100, "Comment number is35. View comments"))
+        h.send(playerScroll(500, 6))
+        h.send(contentEvent(600, "Comment number is67. View comments"))
+        h.send(playerScroll(1_000, 7))
 
         assertEquals(2, h.reelCount())
+        assertEquals(DetectionState.InReels, h.detector.state)
     }
 
     @Test
-    fun `a nudge too small to be a swipe does not count`() {
-        val h = Harness().send(enterReels(0))
-        h.send(scrollBy(100, 5))     // below minNetScroll
-        h.tick(700)
+    fun `the feed's Reels tab description does not start counting`() {
+        // The main feed contains a tab described literally as "Reels", which the
+        // old rules treated as proof the player was open.
+        val h = Harness()
+        h.send(contentEvent(0, "Reels"))
+        h.send(feedScroll(100, 10, 13, desc = "Reels"))
+        h.send(feedScroll(500, 13, 16, desc = "Reels"))
+        h.tick(2_000)
 
         assertEquals(0, h.reelCount())
     }
 
     @Test
-    fun `dragging back up does not count on the fallback path`() {
-        val h = Harness().send(enterReels(0))
-        listOf(100L, 140L, 180L).forEach { h.send(scrollBy(it, -80)) }
-        h.tick(700)
+    fun `feed scrolling between reels does not reset the player baseline`() {
+        // Positions are tracked per view, so a detour through the feed cannot
+        // make the next reel look like a fresh first sighting.
+        val h = Harness()
+        h.send(playerScroll(0, 20))        // baseline
+        h.send(playerScroll(500, 21))      // counts
+        h.send(feedScroll(1_000, 40, 45))  // detour
+        h.send(feedScroll(1_200, 45, 50))
+        h.send(playerScroll(2_000, 22))    // must still count
+        h.send(playerScroll(2_500, 23))
 
+        assertEquals(3, h.reelCount())
+    }
+
+    @Test
+    fun `window events alone never enter the player`() {
+        // Instagram is a single-Activity app: window events only ever report
+        // InstagramMainActivity, so they can never mean "Reels opened".
+        val h = Harness()
+        h.send(foreground(0, IG))
+        h.send(foreground(1_000, IG))
+        h.send(contentEvent(1_500, "clips_viewer_root"))
+
+        assertEquals(DetectionState.InApp, h.detector.state)
         assertEquals(0, h.reelCount())
     }
 
-    // --- state discrimination ---------------------------------------------
+    // --- counting behaviour ----------------------------------------------
 
     @Test
-    fun `scrolling the main feed never counts`() {
-        val h = Harness().send(enterFeed(0))
-        listOf(100L, 200L, 300L, 400L).forEach {
-            h.send(
-                ScrollSignal(
-                    packageName = IG,
-                    kind = Kind.ViewScrolled,
-                    timestampMs = it,
-                    viewId = "com.instagram.android:id/main_feed_recycler",
-                    scrollDeltaY = 200,
-                )
-            )
-        }
+    fun `fifteen swipes count fourteen, losing only the baseline`() {
+        // A swipe produces a scroll event after the fact, so 15 swipes arrive as
+        // 15 events. The first establishes the starting position, leaving 14
+        // observable advances. This is the number to expect on device.
+        val h = Harness()
+        repeat(15) { i -> h.send(playerScroll(1_000L * i, 20 + i)) }
+
+        assertEquals(14, h.reelCount())
+    }
+
+    @Test
+    fun `repeated events at the same position count once`() {
+        val h = Harness()
+        h.send(playerScroll(0, 3))
+        repeat(6) { i -> h.send(playerScroll(100L * i + 100, 4)) }
+
+        assertEquals(1, h.reelCount())
+    }
+
+    @Test
+    fun `scrolling back up does not count`() {
+        val h = Harness()
+        h.send(playerScroll(0, 5))
+        h.send(playerScroll(500, 6))    // counts
+        h.send(playerScroll(1_000, 5))  // back up
+        h.send(playerScroll(1_500, 4))
+
+        assertEquals(1, h.reelCount())
+    }
+
+    @Test
+    fun `a wild jump in position is capped`() {
+        val h = Harness()
+        h.send(playerScroll(0, 0))
+        h.send(playerScroll(1_000, 40))
+
+        assertTrue("expected a cap, got ${h.reelCount()}", h.reelCount() <= 3)
+    }
+
+    // --- fallback path ----------------------------------------------------
+
+    @Test
+    fun `a swipe reporting no positions counts once via the settle window`() {
+        val h = Harness()
+        h.send(playerScroll(0, 1))  // establishes that the player is on screen
+        listOf(100L, 130L, 160L, 190L).forEach { h.send(blindScroll(it, 60)) }
+        h.tick(700)
+
+        assertEquals(1, h.reelCount())
+    }
+
+    @Test
+    fun `the fallback never runs outside the player`() {
+        val h = Harness()
+        h.send(feedScroll(0, 10, 14))
+        listOf(100L, 130L, 160L).forEach { h.send(blindScroll(it, 200)) }
         h.tick(1_000)
 
         assertEquals(0, h.reelCount())
-        assertEquals(DetectionState.InApp, h.detector.state)
     }
 
     @Test
-    fun `leaving reels for DMs stops counting`() {
-        val h = Harness().send(enterReels(0))
-        h.send(scrollTo(100, 0))
-        h.send(scrollTo(500, 1))          // counts
-
-        h.send(
-            ScrollSignal(
-                packageName = IG,
-                kind = Kind.WindowStateChanged,
-                timestampMs = 1_000,
-                className = "com.instagram.direct.DirectThreadFragment",
-                viewId = "com.instagram.android:id/direct_thread_recycler",
-            )
-        )
-        // Scrolling a DM thread reports the thread's own view, not the player's.
-        h.send(
-            ScrollSignal(
-                packageName = IG,
-                kind = Kind.ViewScrolled,
-                timestampMs = 1_200,
-                viewId = "com.instagram.android:id/direct_thread_recycler",
-                scrollDeltaY = 300,
-            )
-        )
+    fun `backgrounding mid-swipe flushes exactly once`() {
+        val h = Harness()
+        h.send(playerScroll(0, 1))
+        listOf(100L, 140L, 180L).forEach { h.send(blindScroll(it, 80)) }
+        h.send(foreground(250, OTHER))
         h.tick(2_000)
 
         assertEquals(1, h.reelCount())
-        assertEquals(DetectionState.InApp, h.detector.state)
     }
 
-    @Test
-    fun `a player scroll re-enters reels even if the window event was missed`() {
-        // Accessibility window events do get dropped. A scroll that is
-        // unmistakably the player should be enough to resume counting on its
-        // own, rather than going silent until the next window change.
-        val h = Harness().send(enterFeed(0))
-        h.send(scrollTo(1_000, 4))
-        h.send(scrollTo(2_000, 5))
-
-        assertEquals(DetectionState.InReels, h.detector.state)
-        assertEquals(1, h.reelCount())
-    }
+    // --- lifecycle --------------------------------------------------------
 
     @Test
     fun `an untracked app is ignored entirely`() {
         val h = Harness()
-        h.send(
-            ScrollSignal(
-                packageName = OTHER,
-                kind = Kind.WindowStateChanged,
-                timestampMs = 0,
-                className = "com.whatsapp.Conversation",
-            )
-        )
-        h.send(scrollBy(100, 500, pkg = OTHER))
+        h.send(foreground(0, OTHER))
+        h.send(blindScroll(100, 500, pkg = OTHER))
         h.tick(1_000)
 
         assertEquals(0, h.reelCount())
@@ -218,57 +255,14 @@ class ReelDetectorTest {
     }
 
     @Test
-    fun `a content change elsewhere does not knock us out of reels`() {
-        val h = Harness().send(enterReels(0))
-        h.send(scrollTo(100, 0))
-        // Some unrelated subtree updates; this must not end Reels.
-        h.send(
-            ScrollSignal(
-                packageName = IG,
-                kind = Kind.WindowContentChanged,
-                timestampMs = 500,
-                className = "android.widget.FrameLayout",
-            )
-        )
-        h.send(scrollTo(1_000, 1))
-
-        assertEquals(1, h.reelCount())
-        assertEquals(DetectionState.InReels, h.detector.state)
-    }
-
-    // --- backgrounding ----------------------------------------------------
-
-    @Test
-    fun `backgrounding mid-swipe flushes exactly once`() {
-        val h = Harness().send(enterReels(0))
-        listOf(100L, 140L, 180L).forEach { h.send(scrollBy(it, 80)) }
-
-        // User leaves before the settle window elapses.
-        h.send(
-            ScrollSignal(
-                packageName = OTHER,
-                kind = Kind.WindowStateChanged,
-                timestampMs = 250,
-                className = "com.whatsapp.Conversation",
-            )
-        )
-        h.tick(2_000)
-
-        assertEquals(1, h.reelCount())
-    }
-
-    // --- sessions ---------------------------------------------------------
-
-    @Test
-    fun `a session opens on entering reels and closes when it goes cold`() {
-        val h = Harness().send(enterReels(0))
-        h.send(scrollTo(100, 0))
-        h.send(scrollTo(1_000, 1))
-        h.send(scrollTo(2_000, 2))
+    fun `a session opens on the first reel and closes when it goes cold`() {
+        val h = Harness()
+        h.send(playerScroll(0, 0))
+        h.send(playerScroll(1_000, 1))
+        h.send(playerScroll(2_000, 2))
 
         assertEquals(1, h.events.filterIsInstance<DetectionEvent.SessionStarted>().size)
 
-        // Past the session gap with no activity.
         h.tick(2_000 + 120_000)
 
         val ended = h.events.filterIsInstance<DetectionEvent.SessionEnded>()
@@ -277,29 +271,36 @@ class ReelDetectorTest {
     }
 
     @Test
-    fun `a brief detour out of reels keeps one session`() {
-        val h = Harness().send(enterReels(0))
-        h.send(scrollTo(100, 0))
-        h.send(scrollTo(500, 1))
+    fun `a feed detour keeps one session`() {
+        val h = Harness()
+        h.send(playerScroll(0, 0))
+        h.send(playerScroll(500, 1))
+        h.send(feedScroll(1_000, 20, 24))
+        h.send(playerScroll(3_000, 2))
 
-        h.send(enterFeed(1_000))          // stepped out
-        h.send(enterReels(3_000))         // and straight back
-        h.send(scrollTo(3_100, 0))
-        h.send(scrollTo(3_500, 1))
+        assertEquals(1, h.events.filterIsInstance<DetectionEvent.SessionStarted>().size)
+        assertEquals(2, h.reelCount())
+    }
 
-        assertEquals(
-            "detour should not start a second session",
-            1,
-            h.events.filterIsInstance<DetectionEvent.SessionStarted>().size,
-        )
+    @Test
+    fun `a cold session clears stale positions`() {
+        val h = Harness()
+        h.send(playerScroll(0, 50))
+        h.send(playerScroll(500, 51))
+        h.tick(500 + 120_000)   // session goes cold
+
+        // Coming back at an unrelated position must not register as a huge jump.
+        h.send(playerScroll(200_000, 4))
+        h.send(playerScroll(201_000, 5))
+
         assertEquals(2, h.reelCount())
     }
 
     @Test
     fun `reset clears everything`() {
-        val h = Harness().send(enterReels(0))
-        h.send(scrollTo(100, 0))
-        h.send(scrollTo(500, 1))
+        val h = Harness()
+        h.send(playerScroll(0, 0))
+        h.send(playerScroll(500, 1))
 
         h.detector.reset()
 
