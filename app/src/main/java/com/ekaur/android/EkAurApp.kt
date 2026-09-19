@@ -11,5 +11,8 @@ class EkAurApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // Installed first thing: without ADB, an uncaught exception is otherwise
+        // invisible and just looks like the app quietly stopping.
+        container.crashReporter.install()
     }
 }

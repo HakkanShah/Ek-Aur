@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ek Aur</string>
+    <string name="accessibility_service_description">Instagram Reels me kitne reels scroll kiye, wo ginne ke liye. Sab kuch phone me hi rehta hai — kahin bhejata nahi.</string>
 </resources>
