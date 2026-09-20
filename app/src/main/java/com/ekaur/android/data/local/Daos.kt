@@ -59,6 +59,32 @@ interface DailyCountDao {
 
     @Query("SELECT * FROM daily_counts ORDER BY date DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<DailyCountEntity>>
+
+    /**
+     * Every row from [from] onwards, by date rather than by row count.
+     *
+     * A row limit would be wrong here: the table is keyed `(date, packageName)`,
+     * so the day a second app is tracked, "the last 30 rows" becomes the last
+     * fifteen days and the chart silently loses half its range.
+     */
+    @Query("SELECT * FROM daily_counts WHERE date >= :from ORDER BY date DESC")
+    fun observeSince(from: String): Flow<List<DailyCountEntity>>
+
+    /**
+     * The heaviest day on record, summed across apps.
+     *
+     * Returned as a list rather than a nullable row so an empty database is an
+     * empty list -- the ordinary case on a fresh install, not a null to handle.
+     */
+    @Query(
+        """
+        SELECT date, SUM(reelCount) AS total FROM daily_counts
+        GROUP BY date
+        ORDER BY total DESC, date DESC
+        LIMIT 1
+        """
+    )
+    fun observeBestDay(): Flow<List<DayTotal>>
 }
 
 @Dao

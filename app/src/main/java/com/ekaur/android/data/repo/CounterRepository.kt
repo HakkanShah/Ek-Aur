@@ -1,6 +1,8 @@
 package com.ekaur.android.data.repo
 
 import androidx.room.withTransaction
+import com.ekaur.android.data.local.DailyCountEntity
+import com.ekaur.android.data.local.DayTotal
 import com.ekaur.android.data.local.EkAurDatabase
 import com.ekaur.android.data.local.MilestoneFiredEntity
 import com.ekaur.android.data.local.ScrollEventEntity
@@ -8,6 +10,7 @@ import com.ekaur.android.data.local.SessionRecordEntity
 import com.ekaur.android.detect.DetectionEvent
 import com.ekaur.android.milestone.MilestoneLog
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * The single place detection results become durable.
@@ -74,6 +77,18 @@ class CounterRepository(
     fun observeRecentSessions(limit: Int = 20) = db.sessions().observeRecent(limit)
 
     fun observeRecentDays(limit: Int = 30) = db.dailyCounts().observeRecent(limit)
+
+    /** Every daily total from [from] onwards, for charting a date window. */
+    fun observeDaysSince(from: String): Flow<List<DailyCountEntity>> =
+        db.dailyCounts().observeSince(from)
+
+    /** The heaviest day so far, or null until there has been one. */
+    fun observeBestDay(): Flow<DayTotal?> =
+        db.dailyCounts().observeBestDay().map { it.firstOrNull() }
+
+    /** Local dates for the last [days] days, oldest first, to chart against. */
+    fun lastDays(days: Int, nowMs: Long = System.currentTimeMillis()): List<String> =
+        clock.lastDays(days, nowMs)
 
     /**
      * Which milestones have already been used up on [date].

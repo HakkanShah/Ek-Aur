@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -91,6 +93,52 @@ fun Dot(color: Color, modifier: Modifier = Modifier) {
             .size(8.dp)
             .background(color, CircleShape)
     )
+}
+
+/**
+ * One headline number with its name under it.
+ *
+ * Three of these side by side answer "how much, lately" better than a chart of
+ * three bars would -- the comparison is the point, and a bar chart of three
+ * numbers is the classic way to miss it. The value wears a text colour, never
+ * the accent: colour is for marks.
+ */
+@Composable
+fun StatTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    caption: String? = null,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
+                color = Chalk,
+                maxLines = 1,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+                maxLines = 1,
+            )
+            if (caption != null) {
+                Text(
+                    text = caption,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Ash,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 }
 
 @Composable

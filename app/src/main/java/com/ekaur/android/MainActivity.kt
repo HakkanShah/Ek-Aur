@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,6 +36,8 @@ import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.debug.DiagnosticsScreen
 import com.ekaur.android.ui.debug.EventInspectorScreen
 import com.ekaur.android.ui.onboarding.SetupScreen
+import com.ekaur.android.ui.stats.StatsScreen
+import com.ekaur.android.ui.stats.formatDuration
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.EkAurTheme
@@ -42,6 +46,7 @@ import com.ekaur.android.ui.theme.Smoke
 
 private enum class Tab(val label: String) {
     Home("ginti"),
+    Stats("hisaab"),
     Setup("setup"),
     Events("events"),
     Status("status"),
@@ -98,7 +103,11 @@ private fun AppScaffold(container: AppContainer) {
             .systemBarsPadding(),
     ) {
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            // Scrollable because five labels no longer fit across a narrow
+            // phone, and a wrapped or squashed tab row looks broken.
+            Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Tab.entries.forEach { entry ->
@@ -112,6 +121,7 @@ private fun AppScaffold(container: AppContainer) {
 
         when (tab) {
             Tab.Home -> HomeScreen(container, permissions) { tab = Tab.Setup }
+            Tab.Stats -> StatsScreen(container.counterRepository)
             Tab.Setup -> SetupScreen(serviceEnabled = permissions.service)
             Tab.Events -> EventInspectorScreen(container.eventLog)
             Tab.Status -> DiagnosticsScreen(
@@ -156,7 +166,7 @@ private fun HomeScreen(
 
         if (activeMs > 0) {
             Text(
-                text = activeMs.asDuration() + " scroll kiya",
+                text = formatDuration(activeMs) + " scroll kiya",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
@@ -190,16 +200,5 @@ private fun HomeScreen(
                 FlatButton(text = "setup poora karo", emphasised = true, onClick = onOpenSetup)
             }
         }
-    }
-}
-
-private fun Long.asDuration(): String {
-    val totalMinutes = this / 60_000
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
-    return when {
-        hours > 0 -> "${hours}h ${minutes}m"
-        totalMinutes > 0 -> "${totalMinutes}m"
-        else -> "${this / 1000}s"
     }
 }

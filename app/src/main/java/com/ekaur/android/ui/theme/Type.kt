@@ -25,6 +25,16 @@ val Typography = Typography(
         lineHeight = 54.sp,
         letterSpacing = (-2).sp,
     ),
+    // Stat tiles: big enough to read as a figure, small enough that three sit
+    // side by side on a phone. Proportional digits, not tabular -- equal-width
+    // digits make a number like 121 look loose at this size.
+    headlineMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Black,
+        fontSize = 28.sp,
+        lineHeight = 32.sp,
+        letterSpacing = (-1.2).sp,
+    ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,

@@ -61,6 +61,15 @@ data class SessionRecordEntity(
     val durationMs: Long get() = endedAtMs - startedAtMs
 }
 
+/**
+ * A date and what it added up to. Not a table -- the shape a grouped query
+ * returns.
+ */
+data class DayTotal(
+    val date: String,
+    val total: Int,
+)
+
 /** Dedupe record so a milestone fires at most once a day. Unused until later. */
 @Entity(tableName = "milestones_fired", primaryKeys = ["date", "milestoneId"])
 data class MilestoneFiredEntity(

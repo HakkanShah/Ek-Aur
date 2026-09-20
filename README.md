@@ -73,6 +73,23 @@ never inspected or recorded.
 
 ---
 
+## The dashboard
+
+The **hisaab** tab reads everything back out of the database: today, the last
+seven days, and the heaviest day so far; a column per hour of today; a column per
+day over 7, 14 or 30; and the last eight sittings with how long each ran.
+
+Tapping any column names it — `3pm · 24 reels` — so no number is locked behind a
+gesture. A day nobody scrolled is a gap in the series rather than a day that
+quietly disappears and shifts every later column along.
+
+There is one series on that screen, so there is one colour. The column's height
+carries the count; shading them darker-where-taller would say the same thing
+twice. Only the tallest column is labelled. The screen states numbers and never
+comments on them.
+
+---
+
 ## When it says something
 
 A line every ten reels, and on top of that a set of milestones that fire **at
@@ -116,7 +133,8 @@ overlay/     the floating counter, its placement maths, and the announcement tim
 milestone/   pure Kotlin — which milestone fires, and when
 data/        Room: raw events (7 days), hourly and daily totals, sessions
 copy/        the Hinglish lines
-ui/          app screens: counter, setup, event inspector, diagnostics
+ui/          app screens: counter, dashboard, setup, event inspector, diagnostics
+ui/stats/    the dashboard; its series maths is plain Kotlin and unit tested
 ```
 
 `detect/` is deliberately free of Android types. Detection is the part most
