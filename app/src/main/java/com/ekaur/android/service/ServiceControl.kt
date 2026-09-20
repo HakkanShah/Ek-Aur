@@ -70,6 +70,27 @@ object ServiceControl {
     }
 
     /**
+     * Opens Ek Aur's own accessibility page, where the per-service shortcut lives.
+     *
+     * That page carries the toggle that puts the service on the accessibility
+     * floating button -- the fastest way to switch counting off for a payment
+     * and back on, since the button is reachable from any screen, the bank app
+     * included. The deep link with the component only lands on the right page on
+     * some builds; realme and a few others ignore the extra, so this falls back
+     * to the full accessibility list, and the setup screen spells out the row to
+     * tap for the rest.
+     */
+    fun openAccessibilityServiceDetails(context: Context) {
+        val component = ComponentName(context, EkAurAccessibilityService::class.java)
+        val details = Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
+            .putExtra(Intent.EXTRA_COMPONENT_NAME, component.flattenToString())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        runCatching { context.startActivity(details) }
+            .onFailure { openAccessibilitySettings(context) }
+    }
+
+    /**
      * Switches the counting off for a payment, and reports whether it worked.
      *
      * A UPI or banking app is required to warn about any accessibility service,

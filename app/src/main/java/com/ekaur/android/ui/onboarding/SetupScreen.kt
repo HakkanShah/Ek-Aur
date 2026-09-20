@@ -269,25 +269,59 @@ fun SetupScreen(
             SectionLabel("payment / UPI app")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "ye app screen padhti hi nahi aur sirf Instagram dekh sakti hai — " +
-                    "tera bank, UPI, password kuch isko dikhta hi nahi. isiliye zyada " +
-                    "payment apps ab warning nahi denge, aur tujhe kuch band karne ki " +
-                    "zarurat nahi.",
+                text = "koi bank ya UPI app is app ko \"suspicious\" bata sakti hai aur " +
+                    "payment rok sakti hai. ghabrao mat — ye har us app pe hota hai jo " +
+                    "Play Store se nahi aayi. ChatGPT bhi screen padhta hai par usko " +
+                    "chhoot isliye milti hai kyunki wo Play Store se hai. app me kuch " +
+                    "kharab nahi.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "agar phir bhi koi app payment rok de, to use band karna padega — " +
-                    "ye Android ka niyam hai, koi app khud ko wapas on nahi kar sakti. " +
-                    "sabse tez tarika: notification wale parde me \"Ek Aur\" ka tile " +
-                    "laga lo, phir ek tap me band, ek tap me on.",
+                text = "iska ek hi hal hai: payment ke waqt Ek Aur ko band karo, baad me " +
+                    "on. sabse tez tarika niche — ek tap me on/off, kahin se bhi.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
 
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = "1. floating button (sabse tez)",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Chalk,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "niche wale button se Ek Aur ka page kholo → \"shortcut\" ya " +
+                    "\"accessibility button\" on karo. phir screen pe ek chhota button " +
+                    "aayega jise dabate hi Ek Aur band/on ho jayega — payment app ke " +
+                    "upar bhi.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ash,
+            )
+            Spacer(Modifier.height(10.dp))
+            FlatButton(
+                text = "shortcut set karo",
+                emphasised = true,
+                onClick = { ServiceControl.openAccessibilityServiceDetails(context) },
+            )
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "2. Quick Settings tile",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Chalk,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "notification wale parde me \"Ek Aur\" ka tile laga lo, phir ek " +
+                    "tap me band, ek tap me on.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ash,
+            )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 FlatButton(
                     text = "tile add karo",
                     emphasised = false,
@@ -295,22 +329,28 @@ fun SetupScreen(
                 )
             }
 
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "3. yahin se band karo",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Chalk,
+            )
             if (paymentPaused) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = "band kar diya. payment ke baad wapas on karne ke liye " +
-                        "accessibility settings kholo.",
+                        "accessibility settings kholo (ya floating button dabao).",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Acid,
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 FlatButton(
                     text = "wapas on karo",
-                    emphasised = true,
+                    emphasised = false,
                     onClick = { ServiceControl.openAccessibilitySettings(context) },
                 )
             } else {
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 FlatButton(
                     text = "payment ke liye abhi band karo",
                     emphasised = false,

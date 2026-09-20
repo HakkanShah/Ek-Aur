@@ -243,46 +243,46 @@ Cards are written to a cache folder that only the share sheet can reach
 
 ## Payment and UPI apps
 
-A UPI or banking app may warn you to uninstall this the moment its accessibility
-service is on. This is not a bug and it is not this app in particular: banking
-apps are required to warn about accessibility services, because reading another
-app's screen is how credential-stealing malware works.
+A UPI or banking app may warn about this app, and a few will **block the payment**
+outright, the moment its accessibility service is on. This is expected, it is not
+a bug, and — importantly — it is **not fixable in the code**. Here is why.
 
-The app is built to give such a check the least alarming answer there is, so
-that most payment apps never warn and **you never have to toggle anything**:
+The warning is not about what the app can *do*. It is about **who Google Play
+recognises**. Banking apps use Google's Play Integrity *App Access Risk* verdict,
+which sorts every screen- or accessibility-capable app into `KNOWN_INSTALLED`
+(apps Google Play recognises, or the phone shipped with) versus `UNKNOWN`, and
+[verified accessibility apps are automatically
+excluded](https://developer.android.com/google/play/integrity/verdicts#app_access_risk_verdict).
+So ChatGPT — whose accessibility service genuinely reads your whole screen — is
+waved through for being a Play Store app, while a **sideloaded** Ek Aur, which
+reads *nothing*, is flagged for being unknown to Play. The service is already as
+minimal as it can be (no screen-content capability, scoped to Instagram alone),
+but no change to it moves a verdict that is about install source, not capability.
 
-- **It cannot read the screen.** The service declares no window-content
-  capability at all. It counts a swipe from the scroll event's own report that a
-  one-item pager advanced — a number carried on the event — and never reads a
-  single view's text. A banking check that looks for a screen reader finds one
-  that is not.
-- **It can only see Instagram.** Scoped to `com.instagram.android`, so the system
-  never delivers it an event or a window from any other app. A payment screen is
-  invisible to it, not by policy but because Android does not hand it over.
+The three ways out of that verdict are all outside the code: ship on the Play
+Store so installs are `KNOWN_INSTALLED` (a reels-counter would fail Google's
+accessibility policy, and this app is sideloaded by design), get onto the bank's
+own allowlist (not a thing for a hobby app), or **switch the service off for the
+payment**. Cloaking the service from Android's list is the malware technique and
+is deliberately not done.
 
-The cost is paid only in counting, and it is small: without the view id, the
-app can no longer tell Instagram's five-tab strip — also a one-item pager — from
-Reels, so swiping between the main tabs may add the odd stray count. A rare
-over-count is a fair trade for not looking like spyware to every payment app.
+So the honest answer is a fast toggle. Setup lays out three, quickest first:
 
-**If an app still blocks.** Some UPI apps do not just warn — they refuse the
-payment while *any* accessibility service is enabled, and no app can honestly
-satisfy that and still count a swipe: counting needs the service on, the payment
-needs it off, and Android never lets an app switch its own accessibility back
-on. So the app makes the off/on toggle as close to one tap as possible:
+- **The accessibility floating button.** Setup's *"shortcut set karo"* opens Ek
+  Aur's accessibility page; turn on its **shortcut / accessibility button** and a
+  small floating button appears that toggles the service on and off from *any*
+  screen — the bank app included. One tap off to pay, one tap on to scroll. This
+  is the closest thing to frictionless, and on many phones it skips the
+  "Restricted setting" gate on resume.
+- **A Quick Settings tile.** Add the *"Ek Aur"* tile from setup (*"tile add
+  karo"*, Android 13+) or the shade's edit screen: pull the shade, tap to pause,
+  tap to resume.
+- **The in-app pause** — *"payment ke liye abhi band karo"* in setup — for when
+  the shade is not to hand.
 
-- **A Quick Settings tile.** Add the *"Ek Aur"* tile to your notification shade
-  (there is a *"tile add karo"* button in **setup** on Android 13+, or add it by
-  hand from the shade's edit screen). Then it is pull-the-shade, tap to pause
-  before paying, tap again to jump straight to the switch and resume.
-- **Android's accessibility floating button** does the same job with no menus at
-  all, and on some phones avoids re-showing the "Restricted setting" gate on
-  resume. Assign *Ek Aur* to it in Accessibility settings if the tile's resume
-  step is slow on your phone.
-
-The in-app *"payment ke liye abhi band karo"* button in **setup** is the same
-pause for when the shade is not to hand. None of this is something to do before
-*every* payment — only for the app that actually blocks.
+Android never lets an app switch its own accessibility back on, so resume is
+always a tap you make, not one the app makes for you. None of this is needed
+before *every* payment on *every* app — only for the ones that actually block.
 
 ---
 
