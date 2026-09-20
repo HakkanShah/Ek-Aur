@@ -12,10 +12,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Dot
@@ -41,6 +46,7 @@ fun SetupScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    var reset by remember { mutableStateOf(false) }
     val canOverlay = ServiceControl.canDrawOverlay(context)
     val batteryExempt = ServiceControl.isIgnoringBatteryOptimisations(context)
     val allDone = serviceEnabled && canOverlay && batteryExempt
@@ -114,6 +120,45 @@ fun SetupScreen(
             actionLabel = "battery se chhoot do",
             onAction = { ServiceControl.openBatterySettings(context) },
         )
+
+        Spacer(Modifier.height(12.dp))
+
+        Card {
+            SectionLabel("counter kahin kho gaya?")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "counter ko screen ke bilkul kinare drag kiya ho aur wo " +
+                    "dikh na raha ho, to yahan se wapas beech me le aao.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+            )
+            Spacer(Modifier.height(14.dp))
+            FlatButton(
+                text = if (reset) "ho gaya \u2713" else "counter wapas laao",
+                onClick = {
+                    OverlayPrefs(context).clearPosition()
+                    reset = true
+                },
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Card {
+            SectionLabel("install karte waqt")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "\u2022 Play Protect \"app blocked\" bole to: Play Store \u2192 profile " +
+                    "\u2192 Play Protect \u2192 \u2699 \u2192 scanning band karo, install karo, " +
+                    "phir wapas chalu kar do. Sideloaded app jo accessibility maangta hai, " +
+                    "usko wo hamesha flag karega \u2014 app me kuch galat nahi hai.\n\n" +
+                    "\u2022 \"App not installed\" aaye to purani APK install karne ki koshish " +
+                    "ho rahi hai. Android purane version ko naye ke upar nahi chadhne deta \u2014 " +
+                    "sabse nayi wali file install karo.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+            )
+        }
 
         Spacer(Modifier.height(20.dp))
 

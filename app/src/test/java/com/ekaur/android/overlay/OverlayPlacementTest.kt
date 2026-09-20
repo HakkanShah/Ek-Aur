@@ -86,6 +86,66 @@ class OverlayPlacementTest {
     }
 
     @Test
+    fun `a position saved beyond the right edge comes back on screen`() {
+        // An earlier build let the pill be dragged off the display entirely,
+        // with no way to retrieve it. A stored position like this must never be
+        // applied as-is.
+        val (x, y) = OverlayPlacement.clampOrigin(
+            x = SCREEN + 900,
+            y = 200,
+            screenWidth = SCREEN,
+            screenHeight = 2400,
+            margin = MARGIN,
+        )
+
+        assertTrue("x=$x still off screen", x in MARGIN..(SCREEN - MARGIN))
+        assertEquals(200, y)
+    }
+
+    @Test
+    fun `a position saved beyond the left edge or above the top comes back`() {
+        val (x, y) = OverlayPlacement.clampOrigin(
+            x = -4_000,
+            y = -900,
+            screenWidth = SCREEN,
+            screenHeight = 2400,
+            margin = MARGIN,
+        )
+
+        assertEquals(MARGIN, x)
+        assertEquals(0, y)
+    }
+
+    @Test
+    fun `a position saved below the bottom comes back`() {
+        // What a rotation from landscape to portrait can leave behind.
+        val (_, y) = OverlayPlacement.clampOrigin(
+            x = 100,
+            y = 5_000,
+            screenWidth = SCREEN,
+            screenHeight = 2400,
+            margin = MARGIN,
+        )
+
+        assertTrue("y=$y below the display", y <= 2400 - MARGIN)
+    }
+
+    @Test
+    fun `no stored position can land the window off screen`() {
+        // Sweep well past both edges rather than checking a couple of samples.
+        for (saved in -2_000..(SCREEN + 2_000) step 50) {
+            val (x, _) = OverlayPlacement.clampOrigin(
+                x = saved,
+                y = 0,
+                screenWidth = SCREEN,
+                screenHeight = 2400,
+                margin = MARGIN,
+            )
+            assertTrue("saved=$saved produced x=$x", x in MARGIN..(SCREEN - MARGIN))
+        }
+    }
+
+    @Test
     fun `every position on screen resolves to something fully visible`() {
         // Sweep the whole width rather than trusting a couple of samples.
         for (left in 0..(SCREEN - COLLAPSED) step 10) {

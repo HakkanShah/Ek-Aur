@@ -40,6 +40,26 @@ object OverlayPlacement {
         return clamp(desired, width, screenWidth, margin)
     }
 
+    /**
+     * Keeps a stored origin on screen before the pill has ever been measured.
+     *
+     * A position saved by an older build, or one that no longer fits after a
+     * rotation, must not be applied as-is -- the window would be placed off the
+     * display and the user would have nothing to grab. Exact placement is
+     * refined once the real width is known.
+     */
+    fun clampOrigin(
+        x: Int,
+        y: Int,
+        screenWidth: Int,
+        screenHeight: Int,
+        margin: Int,
+    ): Pair<Int, Int> {
+        val maxX = (screenWidth - margin).coerceAtLeast(margin)
+        val maxY = (screenHeight - margin).coerceAtLeast(0)
+        return x.coerceIn(margin, maxX) to y.coerceIn(0, maxY)
+    }
+
     /** Keeps a window of [width] fully on screen, margins included. */
     fun clamp(x: Int, width: Int, screenWidth: Int, margin: Int): Int {
         val maxX = (screenWidth - width - margin).coerceAtLeast(margin)

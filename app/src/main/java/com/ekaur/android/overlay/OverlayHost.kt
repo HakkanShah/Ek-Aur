@@ -40,7 +40,7 @@ class OverlayHost(
     private var lifecycleOwner: OverlayLifecycleOwner? = null
     private var params: WindowManager.LayoutParams? = null
 
-    private val prefs = context.getSharedPreferences("overlay", Context.MODE_PRIVATE)
+    private val prefs = OverlayPrefs(context)
 
     /** Where the pill sits when it has nothing to say, and which edge it owns. */
     private var collapsedLeft = 0
@@ -52,6 +52,9 @@ class OverlayHost(
 
     private val screenWidth: Int
         get() = context.resources.displayMetrics.widthPixels
+
+    private val screenHeight: Int
+        get() = context.resources.displayMetrics.heightPixels
 
     val isShowing: Boolean get() = composeView != null
 
@@ -130,8 +133,17 @@ class OverlayHost(
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = prefs.getInt(KEY_X, defaultX())
-            y = prefs.getInt(KEY_Y, DEFAULT_Y)
+            // Clamped on read: a position stored by an older build, or one that
+            // no longer fits after a rotation, must never be applied off-screen.
+            val (safeX, safeY) = OverlayPlacement.clampOrigin(
+                x = prefs.x(defaultX()),
+                y = prefs.y(DEFAULT_Y),
+                screenWidth = screenWidth,
+                screenHeight = screenHeight,
+                margin = marginPx,
+            )
+            x = safeX
+            y = safeY
         }
     }
 
@@ -204,8 +216,7 @@ class OverlayHost(
                         screenWidth = screenWidth,
                         margin = marginPx,
                     )
-                    val maxY = (context.resources.displayMetrics.heightPixels - view.height)
-                        .coerceAtLeast(0)
+                    val maxY = (screenHeight - view.height).coerceAtLeast(0)
                     layout.y = (startY + (event.rawY - touchY).roundToInt()).coerceIn(0, maxY)
                     runCatching { windowManager.updateViewLayout(view, layout) }
                     return true
@@ -218,10 +229,7 @@ class OverlayHost(
                     collapsedRight = layout.x + view.width
                     anchorsRight =
                         OverlayPlacement.anchorsRight(layout.x, view.width, screenWidth)
-                    prefs.edit()
-                        .putInt(KEY_X, layout.x)
-                        .putInt(KEY_Y, layout.y)
-                        .apply()
+                    prefs.save(layout.x, layout.y)
                     return true
                 }
             }
@@ -230,8 +238,6 @@ class OverlayHost(
     }
 
     private companion object {
-        const val KEY_X = "x"
-        const val KEY_Y = "y"
         const val DEFAULT_Y = 90
         const val MARGIN_DP = 8f
     }
