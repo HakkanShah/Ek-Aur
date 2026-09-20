@@ -2,9 +2,11 @@ package com.ekaur.android.data.repo
 
 import androidx.room.withTransaction
 import com.ekaur.android.data.local.EkAurDatabase
+import com.ekaur.android.data.local.MilestoneFiredEntity
 import com.ekaur.android.data.local.ScrollEventEntity
 import com.ekaur.android.data.local.SessionRecordEntity
 import com.ekaur.android.detect.DetectionEvent
+import com.ekaur.android.milestone.MilestoneLog
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -16,7 +18,7 @@ import kotlinx.coroutines.flow.Flow
 class CounterRepository(
     private val db: EkAurDatabase,
     private val clock: DayClock = DayClock(),
-) {
+) : MilestoneLog {
 
     /**
      * Records one scrolled reel.
@@ -72,6 +74,23 @@ class CounterRepository(
     fun observeRecentSessions(limit: Int = 20) = db.sessions().observeRecent(limit)
 
     fun observeRecentDays(limit: Int = 30) = db.dailyCounts().observeRecent(limit)
+
+    /**
+     * Which milestones have already been used up on [date].
+     *
+     * Durable rather than in-memory on purpose: the service is restarted often
+     * enough -- by the OS, by a force stop, by an OEM battery killer -- that an
+     * in-memory record would replay the same milestone several times a day.
+     */
+    override suspend fun firedOn(date: String): Set<String> =
+        db.milestones().firedOn(date).toSet()
+
+    override suspend fun markFired(date: String, milestoneId: String, atMs: Long) {
+        // IGNOREs a clash, so two writes racing the same milestone leave one row.
+        db.milestones().markFired(
+            MilestoneFiredEntity(date = date, milestoneId = milestoneId, firedAtMs = atMs)
+        )
+    }
 
     /** Drops raw events past the retention window. Aggregates are never pruned. */
     suspend fun pruneRawEvents(nowMs: Long = System.currentTimeMillis()): Int =

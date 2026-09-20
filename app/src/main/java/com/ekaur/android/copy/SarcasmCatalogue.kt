@@ -80,6 +80,59 @@ object SarcasmCatalogue {
         "kal ka plan cancel 😵",
     )
 
+    /**
+     * Lines for the milestones that fire at most once a day.
+     *
+     * Keyed by [com.ekaur.android.milestone.Milestone.copyKey], so a rule never
+     * carries its own wording. Kept short: the pill gives a line two rows at a
+     * small size, and an ellipsis mid-joke kills it.
+     */
+    private val byKey: Map<String, List<String>> = mapOf(
+        "reels_50" to listOf(
+            "50 paar 🏏 warm-up done",
+            "half century, aur chalao 🔥",
+            "50 down, thumb ekdum fit 💪",
+        ),
+        "reels_100" to listOf(
+            "sirf 100? abhi warm-up hai 😎",
+            "CENTURY 🏏 helmet utaro",
+            "100 reels, aaram se 📈",
+        ),
+        "reels_200" to listOf(
+            "200 🫠 ab ye hobby nahi rahi",
+            "double century 🏏 legend",
+            "200 paar, scientists confused 🔬",
+        ),
+        "reels_500" to listOf(
+            "500 🥇 thumb ko olympics bhej de",
+            "500 reels 💀 history ban gayi",
+            "500 paar, koi record nahi bacha 🏆",
+        ),
+        "session_30" to listOf(
+            "30 min non-stop 🎯 focus dekho",
+            "aadha ghanta ho gaya, chalte raho ⏱️",
+        ),
+        "session_60" to listOf(
+            "1 ghanta straight 🫡 respect",
+            "60 min non-stop, machine ho 🤖",
+        ),
+        "session_120" to listOf(
+            "2 ghante ⏰ koi record toot raha hai",
+            "2 hours straight 💀 dedication",
+        ),
+        "night_1am" to listOf(
+            "1 baj gaya, abhi to raat hai 🌙",
+            "raat ke 1 baje bhi? respect 🫡",
+        ),
+        "night_3am" to listOf(
+            "raat ke 3 baje 😈 tu committed hai",
+            "3 AM club me welcome 🌚",
+        ),
+    )
+
+    /** Which milestone keys have copy written for them. */
+    val copyKeys: Set<String> get() = byKey.keys
+
     private var lastLine: String? = null
 
     /**
@@ -97,6 +150,20 @@ object SarcasmCatalogue {
             count >= 50 -> building
             else -> early
         }
+        return pick(pool)
+    }
+
+    /**
+     * A line for a once-a-day milestone.
+     *
+     * Falls back to the count-based line if a key has no copy, so a rule added
+     * without its wording degrades to something sensible instead of silence.
+     */
+    fun lineForKey(key: String, count: Int, hour: Int): String =
+        byKey[key]?.let(::pick) ?: lineFor(count, hour)
+
+    /** Picks from [pool], avoiding whatever was said last time. */
+    private fun pick(pool: List<String>): String {
         val choices = pool.filterNot { it == lastLine }.ifEmpty { pool }
         return choices.random().also { lastLine = it }
     }

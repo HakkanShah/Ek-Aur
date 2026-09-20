@@ -3,7 +3,8 @@
 Counts how many Instagram Reels you scroll, and cheers you on while doing it.
 
 A small floating counter sits over Instagram while you're in Reels. Every ten
-reels it widens to congratulate you. It never suggests stopping — the number
+reels it widens to congratulate you, and it has more to say at round numbers, on
+a long sitting, and in the small hours. It never suggests stopping — the number
 does that on its own.
 
 Android only. Sideloaded, not on the Play Store. Everything stays on the phone:
@@ -72,6 +73,23 @@ never inspected or recorded.
 
 ---
 
+## When it says something
+
+A line every ten reels, and on top of that a set of milestones that fire **at
+most once a day**: 50 / 100 / 200 / 500 reels, a sitting crossing 30 minutes /
+1 hour / 2 hours, and still scrolling after 1am or after 3am.
+
+Only one line shows at a time, so when several land together the rest wait for
+later reels. Which ones have fired is stored, not held in memory — the
+accessibility service gets restarted often enough that it would otherwise repeat
+itself all day.
+
+The rules live in `milestone/MilestoneRules.kt` and the wording in
+`copy/SarcasmCatalogue.kt`, keyed separately so a rule never carries its own
+text.
+
+---
+
 ## Building
 
 ```bash
@@ -94,7 +112,8 @@ need replacing if this ever went near the Play Store.
 ```
 detect/      pure Kotlin, zero Android imports — the counting logic, fully unit tested
 service/     accessibility service; translates Android events into plain signals
-overlay/     the floating counter, its placement maths, and the milestone copy timing
+overlay/     the floating counter, its placement maths, and the announcement timing
+milestone/   pure Kotlin — which milestone fires, and when
 data/        Room: raw events (7 days), hourly and daily totals, sessions
 copy/        the Hinglish lines
 ui/          app screens: counter, setup, event inspector, diagnostics

@@ -149,4 +149,30 @@ class CounterRepositoryTest {
 
         assertTrue(db.dailyCounts().forDate("2026-09-20").single().dirty)
     }
+
+    @Test
+    fun `a fired milestone is remembered for the rest of the day`() = runTest {
+        // The engine's once-a-day rule is only as good as this. The service is
+        // restarted often enough -- force stops, OEM battery killers -- that an
+        // in-memory record would replay the same milestone several times a day.
+        repo.markFired("2026-09-20", "reels_100", at(2026, 9, 20, 22, 0))
+
+        assertEquals(setOf("reels_100"), repo.firedOn("2026-09-20"))
+    }
+
+    @Test
+    fun `firing the same milestone twice leaves one record`() = runTest {
+        val date = "2026-09-20"
+        repo.markFired(date, "night_3am", at(2026, 9, 20, 3, 0))
+        repo.markFired(date, "night_3am", at(2026, 9, 20, 3, 5))
+
+        assertEquals(setOf("night_3am"), repo.firedOn(date))
+    }
+
+    @Test
+    fun `tomorrow starts with every milestone available again`() = runTest {
+        repo.markFired("2026-09-20", "reels_100", at(2026, 9, 20, 22, 0))
+
+        assertEquals(emptySet<String>(), repo.firedOn("2026-09-21"))
+    }
 }

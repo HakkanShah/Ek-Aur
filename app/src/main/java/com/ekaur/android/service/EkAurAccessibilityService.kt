@@ -42,6 +42,7 @@ class EkAurAccessibilityService : AccessibilityService() {
     private var scope: CoroutineScope? = null
     private var tickJob: Job? = null
     private var overlay: OverlayController? = null
+    private var announcements: MilestoneAnnouncer? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -61,8 +62,10 @@ class EkAurAccessibilityService : AccessibilityService() {
         val todayCount = counters.observeTodayCount()
             .stateIn(s, SharingStarted.Eagerly, 0)
         // Owned here rather than inside the composable, so an announcement is
-        // not cut short when the window hides.
-        val announcer = MilestoneAnnouncer(s, todayCount)
+        // not cut short when the window hides. The repository is its milestone
+        // log, so a milestone stays fired across a service restart.
+        val announcer = MilestoneAnnouncer(s, todayCount, log = counters)
+        announcements = announcer
         overlay = OverlayController(this, todayCount, s, announcer)
 
         tickJob = s.launch {
@@ -163,6 +166,7 @@ class EkAurAccessibilityService : AccessibilityService() {
     private fun teardown() {
         overlay?.destroy()
         overlay = null
+        announcements = null
         tickJob?.cancel()
         tickJob = null
         scope?.cancel()
@@ -183,7 +187,23 @@ class EkAurAccessibilityService : AccessibilityService() {
         if (!::eventLog.isInitialized) return
 
         val reels = events.count { it is DetectionEvent.ReelScrolled }
-        if (reels > 0) eventLog.incrementCount(reels)
+        if (reels > 0) {
+            eventLog.incrementCount(reels)
+            // Said before the database write that moves the count, so the
+            // announcer can tell a real reel from today's stored total
+            // arriving after a restart.
+            announcements?.onReelCounted()
+        }
+
+        // How long this sitting has run is only knowable here, and it has to be
+        // set before the count that crosses a duration milestone is handled.
+        for (event in events) {
+            when (event) {
+                is DetectionEvent.SessionStarted -> announcements?.onSessionStarted(event.timestampMs)
+                is DetectionEvent.SessionEnded -> announcements?.onSessionEnded()
+                is DetectionEvent.ReelScrolled -> Unit
+            }
+        }
 
         val scope = scope ?: return
         scope.launch {
