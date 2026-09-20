@@ -5,9 +5,9 @@ package com.ekaur.android.overlay
  * to say.
  *
  * Pure arithmetic, kept out of [OverlayHost] so it can be tested without a
- * window. The window is laid out from its left edge, so a pill parked on the
- * right of the screen would expand straight off the display unless its x is
- * recomputed as it widens -- which is exactly what happened on device.
+ * window. The window is anchored to whichever edge the pill is parked on, so it
+ * grows inward on its own as a message arrives; nothing here ever computes a new
+ * position for an expanding pill, because the window is never moved by one.
  */
 object OverlayPlacement {
 
@@ -21,24 +21,15 @@ object OverlayPlacement {
         (x + width / 2) > screenWidth / 2
 
     /**
-     * The x to use for a pill of [width], given where it sits when collapsed.
+     * How wide the pill may grow before it reaches the far margin.
      *
-     * Anchored right, the collapsed right edge is held and the window's left
-     * edge moves out to meet the new width. Anchored left, the left edge simply
-     * stays. Either way the result is clamped inside the display, which covers
-     * the case where a line is too long to fit on the chosen side at all.
+     * [offset] is measured from the anchored edge, so this is the same
+     * expression under either anchoring. Constraining the pill to this instead
+     * of a fixed width is what lets the window stay where it is: a message can
+     * never grow past the room it has, so nothing ever needs repositioning.
      */
-    fun resolveX(
-        collapsedLeft: Int,
-        collapsedRight: Int,
-        width: Int,
-        screenWidth: Int,
-        anchorsRight: Boolean,
-        margin: Int,
-    ): Int {
-        val desired = if (anchorsRight) collapsedRight - width else collapsedLeft
-        return clamp(desired, width, screenWidth, margin)
-    }
+    fun availableWidth(offset: Int, screenWidth: Int, margin: Int): Int =
+        (screenWidth - margin - offset).coerceAtLeast(0)
 
     /**
      * Keeps a stored origin on screen before the pill has ever been measured.

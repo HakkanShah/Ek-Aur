@@ -10,12 +10,11 @@ import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.roundToInt
 
@@ -42,22 +41,26 @@ class OverlayHost(
 
     private val prefs = OverlayPrefs(context)
 
-    /** Where the pill sits when it has nothing to say, and which edge it owns. */
-    private var collapsedLeft = 0
-    private var collapsedRight = 0
-    private var anchorsRight = false
+    /** Where the pill rests. Never written while a message is on screen. */
+    private val placement = PillPlacement()
+
+    /** Which edge the window is anchored to right now. */
+    private var anchoredRight = false
+
+    /** The last collapsed width seen, so identical measurements cost nothing. */
+    private var lastCollapsedWidth = -1
+
+    /** Set when a drag ended mid-message and its anchoring still has to land. */
+    private var placementPending = false
 
     /**
-     * The width the window was last placed for.
+     * How wide the pill may grow, in pixels.
      *
-     * Size changes arrive from layout, so anything that animates a dimension
-     * delivers one per frame. Repositioning a window is a cross-process call;
-     * doing it eight times for a single message made the pill stutter. Nothing
-     * animates width any more, but the guard stays so a future animation cannot
-     * bring that back.
+     * Handed to the pill rather than a fixed cap so a message is bounded by the
+     * room it actually has beside it. Recomputed on show and at the end of a
+     * drag, never during one, so the line is never re-measured mid-gesture.
      */
-    private var lastPlacedWidth = -1
-    private var lastPlacedExpanded = false
+    private val availableWidth = MutableStateFlow(0)
 
     private val marginPx: Int
         get() = (MARGIN_DP * context.resources.displayMetrics.density).roundToInt()
@@ -87,14 +90,17 @@ class OverlayHost(
             setContent {
                 val count by counts.collectAsState()
                 val message by announcer.message.collectAsState()
+                val maxWidth by availableWidth.collectAsState()
                 IslandPill(
                     count = count,
                     message = message,
-                    // Re-placed on every size change so an expanding message
-                    // grows inward from the edge the pill is parked on.
-                    modifier = Modifier.onSizeChanged { size ->
-                        onPillMeasured(size.width, expanded = message != null)
-                    },
+                    maxWidthPx = maxWidth,
+                    // Reports the width of the pill without its message, which
+                    // is the only width this window is ever placed against. An
+                    // expanded pill must never influence where the pill rests,
+                    // and it does not need to: the anchored edge is fixed, so
+                    // the window grows inward by itself when a message arrives.
+                    onCollapsedWidth = ::onCollapsedMeasured,
                 )
             }
             setOnTouchListener(DragListener(layout))
@@ -125,8 +131,8 @@ class OverlayHost(
         params = null
         // The next show builds fresh params, so the remembered width belongs to
         // a window that no longer exists and must not suppress its placement.
-        lastPlacedWidth = -1
-        lastPlacedExpanded = false
+        lastCollapsedWidth = -1
+        placementPending = false
     }
 
     private fun buildParams(): WindowManager.LayoutParams {
@@ -137,7 +143,7 @@ class OverlayHost(
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        return WindowManager.LayoutParams(
+        val layout = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             type,
@@ -148,7 +154,10 @@ class OverlayHost(
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            gravity = Gravity.TOP or Gravity.START
+            // Absolute LEFT rather than START: an RTL locale must not flip which
+            // edge the pill is anchored to. Swapped to RIGHT once the collapsed
+            // width is known and the pill turns out to be parked on that half.
+            gravity = Gravity.TOP or Gravity.LEFT
             // Clamped on read: a position stored by an older build, or one that
             // no longer fits after a rotation, must never be applied off-screen.
             val (safeX, safeY) = OverlayPlacement.clampOrigin(
@@ -161,41 +170,55 @@ class OverlayHost(
             x = safeX
             y = safeY
         }
+
+        // The window starts left-anchored at the stored position, which is the
+        // same absolute place it would sit under either anchoring. If the pill
+        // turns out to be parked on the right half, the first collapsed
+        // measurement swaps the gravity for an identical position -- so the
+        // swap is invisible, and nothing has moved.
+        anchoredRight = false
+        lastCollapsedWidth = -1
+        placementPending = false
+        placement.settle(layout.x)
+        availableWidth.value =
+            OverlayPlacement.availableWidth(layout.x, screenWidth, marginPx)
+        return layout
     }
 
     /**
-     * Re-places the window whenever the pill's width changes.
+     * Learns where the pill rests, and anchors the window to the nearer edge.
      *
-     * The collapsed layout defines the anchor; an expanded one is positioned
-     * relative to it so the pill appears to stay put while the message opens
-     * away from the nearer screen edge.
+     * Runs only for collapsed measurements, and in practice only when the pill
+     * is first shown or the number gains a digit. A message never reaches this:
+     * the anchored edge stays fixed while the window grows inward, so there is
+     * nothing to reposition and nothing that could overwrite the resting spot.
      */
-    private fun onPillMeasured(width: Int, expanded: Boolean) {
+    private fun onCollapsedMeasured(width: Int) {
         if (width <= 0) return
-        if (width == lastPlacedWidth && expanded == lastPlacedExpanded) return
+        if (width == lastCollapsedWidth && !placementPending) return
         val view = composeView ?: return
         val layout = params ?: return
 
-        lastPlacedWidth = width
-        lastPlacedExpanded = expanded
+        lastCollapsedWidth = width
+        placementPending = false
+        applyPlacement(view, layout, placement.onCollapsedMeasure(width, screenWidth, marginPx))
+    }
 
-        if (!expanded) {
-            collapsedLeft = layout.x
-            collapsedRight = layout.x + width
-            anchorsRight = OverlayPlacement.anchorsRight(layout.x, width, screenWidth)
-        }
+    /** Applies a resolved [Placement] to the window, if anything changed. */
+    private fun applyPlacement(
+        view: android.view.View,
+        layout: WindowManager.LayoutParams,
+        placed: Placement,
+    ) {
+        availableWidth.value = placed.availableWidth
 
-        val target = OverlayPlacement.resolveX(
-            collapsedLeft = collapsedLeft,
-            collapsedRight = collapsedRight,
-            width = width,
-            screenWidth = screenWidth,
-            anchorsRight = anchorsRight,
-            margin = marginPx,
-        )
-        if (target == layout.x) return
+        val edge = if (placed.anchorsRight) Gravity.RIGHT else Gravity.LEFT
+        val gravity = Gravity.TOP or edge
+        if (layout.gravity == gravity && layout.x == placed.offset) return
 
-        layout.x = target
+        layout.gravity = gravity
+        layout.x = placed.offset
+        anchoredRight = placed.anchorsRight
         // Posted rather than applied inline: this runs from layout, and the
         // window manager must not be reentered mid-pass.
         view.post { runCatching { windowManager.updateViewLayout(view, layout) } }
@@ -228,10 +251,13 @@ class OverlayHost(
                 }
 
                 MotionEvent.ACTION_MOVE -> {
+                    // x is measured from the anchored edge, so under right
+                    // anchoring the offset shrinks as the finger moves right.
+                    val travel = (event.rawX - touchX).roundToInt()
                     // Clamped so the pill cannot be pushed off the display and
                     // left unreachable.
                     layout.x = OverlayPlacement.clamp(
-                        x = startX + (event.rawX - touchX).roundToInt(),
+                        x = startX + if (anchoredRight) -travel else travel,
                         width = view.width,
                         screenWidth = screenWidth,
                         margin = marginPx,
@@ -244,12 +270,27 @@ class OverlayHost(
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     // Dropping it on the other half of the screen flips which
-                    // way the next message opens.
-                    collapsedLeft = layout.x
-                    collapsedRight = layout.x + view.width
-                    anchorsRight =
-                        OverlayPlacement.anchorsRight(layout.x, view.width, screenWidth)
-                    prefs.save(layout.x, layout.y)
+                    // way the next message opens. Dropping it while a message is
+                    // showing keeps the anchored edge, so the pill stays under
+                    // where it was let go once the message goes.
+                    val placed = placement.onDragEnd(
+                        offset = layout.x,
+                        anchoredRight = anchoredRight,
+                        viewWidth = view.width,
+                        screenWidth = screenWidth,
+                        margin = marginPx,
+                    )
+                    if (lastCollapsedWidth > 0 && view.width > lastCollapsedWidth) {
+                        // A message is still on screen. Re-anchoring now would
+                        // shift the line mid-sentence and re-measure it, so the
+                        // new anchoring lands when the pill next collapses.
+                        placementPending = true
+                    } else {
+                        applyPlacement(view, layout, placed)
+                    }
+                    // The resting left edge is stored, never a dragged offset or
+                    // an expanded one, so a reload lands back on the same spot.
+                    prefs.save(placement.restingLeft, layout.y)
                     return true
                 }
             }
