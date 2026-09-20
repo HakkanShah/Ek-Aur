@@ -265,14 +265,24 @@ app can no longer tell Instagram's five-tab strip — also a one-item pager — 
 Reels, so swiping between the main tabs may add the odd stray count. A rare
 over-count is a fair trade for not looking like spyware to every payment app.
 
-**If one stubborn app still warns.** A few banking apps warn about *any*
-accessibility service however narrowly it is built — no app can honestly quiet
-that without defeating the check, which is the point of it. For those, **setup**
-has a *"payment ke liye abhi band karo"* button that switches the service off,
-which removes it from the list the warning reads. It is turned back on the same
-way it was first enabled, in accessibility settings; Android never lets an app
-grant itself this permission. This is a fallback for the rare stubborn app, not
-something to do before every payment.
+**If an app still blocks.** Some UPI apps do not just warn — they refuse the
+payment while *any* accessibility service is enabled, and no app can honestly
+satisfy that and still count a swipe: counting needs the service on, the payment
+needs it off, and Android never lets an app switch its own accessibility back
+on. So the app makes the off/on toggle as close to one tap as possible:
+
+- **A Quick Settings tile.** Add the *"Ek Aur"* tile to your notification shade
+  (there is a *"tile add karo"* button in **setup** on Android 13+, or add it by
+  hand from the shade's edit screen). Then it is pull-the-shade, tap to pause
+  before paying, tap again to jump straight to the switch and resume.
+- **Android's accessibility floating button** does the same job with no menus at
+  all, and on some phones avoids re-showing the "Restricted setting" gate on
+  resume. Assign *Ek Aur* to it in Accessibility settings if the tile's resume
+  step is slow on your phone.
+
+The in-app *"payment ke liye abhi band karo"* button in **setup** is the same
+pause for when the shade is not to hand. None of this is something to do before
+*every* payment — only for the app that actually blocks.
 
 ---
 

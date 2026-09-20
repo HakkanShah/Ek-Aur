@@ -58,6 +58,20 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!-- A shade tile to switch counting off for a payment and back on. A
+             payment app can block while any accessibility service is enabled;
+             this is the one-tap way to pause without digging through settings. -->
+        <service
+            android:name=".service.PauseTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_tally"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- Shares diagnostic dumps out through the share sheet; with no USB on
              the test device this is the only way to get text off the phone. -->
         <provider

@@ -1,5 +1,7 @@
 package com.ekaur.android.ui.onboarding
 
+import android.os.Build
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -276,12 +278,22 @@ fun SetupScreen(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "agar phir bhi koi ek app warning de, to niche wale button se " +
-                    "use band kar sakte ho. har payment pe nahi — sirf jab koi app " +
-                    "zid kare.",
+                text = "agar phir bhi koi app payment rok de, to use band karna padega — " +
+                    "ye Android ka niyam hai, koi app khud ko wapas on nahi kar sakti. " +
+                    "sabse tez tarika: notification wale parde me \"Ek Aur\" ka tile " +
+                    "laga lo, phir ek tap me band, ek tap me on.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Spacer(Modifier.height(12.dp))
+                FlatButton(
+                    text = "tile add karo",
+                    emphasised = false,
+                    onClick = { ServiceControl.requestAddPauseTile(context) },
+                )
+            }
 
             if (paymentPaused) {
                 Spacer(Modifier.height(12.dp))

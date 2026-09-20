@@ -4,11 +4,13 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.text.TextUtils
 import android.view.accessibility.AccessibilityManager
 import android.accessibilityservice.AccessibilityServiceInfo
+import com.ekaur.android.R
 
 /**
  * Whether the accessibility service is switched on, and how to get the user to
@@ -80,6 +82,29 @@ object ServiceControl {
      * nothing to pause and the caller can say so.
      */
     fun pauseForPayment(): Boolean = EkAurAccessibilityService.pauseFromUi()
+
+    /**
+     * Asks Android to add the pause tile straight to the Quick Settings shade.
+     *
+     * Saves the user hunting for it in the tile editor. Only offered from
+     * Android 13, where [android.app.StatusBarManager.requestAddTileService]
+     * exists; below that the tile is added by hand from the shade's edit
+     * screen. The system shows its own confirmation, and ignores a repeat once
+     * the tile is already there, so this is safe to tap more than once.
+     */
+    fun requestAddPauseTile(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val manager = context.getSystemService(android.app.StatusBarManager::class.java) ?: return
+        runCatching {
+            manager.requestAddTileService(
+                ComponentName(context, PauseTileService::class.java),
+                context.getString(R.string.app_name),
+                android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_tile_tally),
+                { it.run() },
+                {},
+            )
+        }
+    }
 
     /** Whether the floating counter is allowed to draw over other apps. */
     fun canDrawOverlay(context: Context): Boolean = Settings.canDrawOverlays(context)
