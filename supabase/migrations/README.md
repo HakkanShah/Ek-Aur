@@ -27,6 +27,24 @@ on the unique index for no reason the user could understand. Checked on the live
 database: as a signed-in user, `username_available('shy_one')` returns **false**
 for a hidden account whose row that user cannot see.
 
+## Account recovery
+
+`account_keys` holds the device key and the recovery code. It has RLS enabled
+and **no policies**, which is the point: profiles is readable by every signed-in
+user so the leaderboard can be built, and a credential stored there would be
+readable by everyone who installs the app. Only the `SECURITY DEFINER` functions
+touch it. Verified: a signed-in user selecting from `account_keys` gets zero
+rows, including for their own row.
+
+`recover_account` repoints the profile's id at the new auth user; the daily
+counts follow through `ON UPDATE CASCADE` rather than being copied, so the move
+cannot be half-done. Verified end to end: an account with 412 counts was
+recovered onto a fresh user with the counts intact and nothing orphaned.
+
+`change_username` enforces the 14-day cooldown server-side. Verified: change,
+then refused with "cooldown: 14 days left", then allowed again after the
+timestamp was moved back 15 days.
+
 ## What the index, not the app, decides
 
 The availability check is advisory. Two people can pass it in the same second,

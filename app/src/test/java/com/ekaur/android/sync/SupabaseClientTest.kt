@@ -222,6 +222,55 @@ class SupabaseClientTest {
     }
 
     @Test
+    fun `recovery returns the old username when the device is known`() {
+        settings.userId = "fresh"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody("\"olduser\""))
+
+        assertEquals("olduser", client.recoverAccount("device-abc", null))
+    }
+
+    @Test
+    fun `an unknown device is not an error, just nobody`() {
+        // The ordinary case for a genuinely new user, so it must not throw.
+        settings.userId = "fresh"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody("null"))
+
+        assertEquals(null, client.recoverAccount("device-unknown", null))
+    }
+
+    @Test
+    fun `with neither a device key nor a code, nothing is asked`() {
+        assertEquals(null, client.recoverAccount(null, null))
+        assertEquals(null, client.recoverAccount(null, "  "))
+        assertEquals("no request should have been made", 0, server.requestCount)
+    }
+
+    @Test
+    fun `a rename inside the cooldown reports the days left`() {
+        settings.userId = "user-1"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+
+        server.enqueue(
+            MockResponse().setResponseCode(400)
+                .setBody("""{"code":"P0001","message":"cooldown: 9 days left"}""")
+        )
+
+        val thrown = runCatching { client.changeUsername("newname") }.exceptionOrNull()
+
+        assertEquals(SyncError.Cooldown(9), (thrown as SyncException).error)
+    }
+
+    @Test
     fun `anonymous sign-in being switched off is its own diagnosis`() {
         server.enqueue(
             MockResponse().setResponseCode(422)

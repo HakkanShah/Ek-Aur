@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What Android's Auto Backup carries to a new phone.
+
+  The session and username are the point: with them restored, a new device
+  walks straight back into the same account. The recovery code is the manual
+  fallback for when this has not run. Auto Backup syncs at most daily and needs
+  Google backup switched on, so it is a convenience, never the guarantee.
+
+  The Room database is deliberately excluded. The counts are rebuilt from the
+  server, and a stale backup restoring old totals over newer ones would make
+  the number go backwards.
+-->
+<full-backup-content>
+    <include domain="sharedpref" path="settings.xml" />
+    <include domain="sharedpref" path="overlay.xml" />
+    <exclude domain="database" path="ekaur.db" />
+</full-backup-content>

@@ -121,4 +121,15 @@ object ServiceControl {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(intent) }
     }
+
+    /** Hands text to the share sheet -- the only way anything leaves this phone. */
+    fun shareText(context: android.content.Context, text: String) {
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_TEXT, text)
+        }
+        runCatching {
+            context.startActivity(android.content.Intent.createChooser(intent, "share"))
+        }
+    }
 }

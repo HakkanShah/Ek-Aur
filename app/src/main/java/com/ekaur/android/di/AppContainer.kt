@@ -9,6 +9,7 @@ import com.ekaur.android.data.repo.DayClock
 import com.ekaur.android.diagnostics.CrashReporter
 import com.ekaur.android.diagnostics.EventLog
 import com.ekaur.android.diagnostics.ServiceStatus
+import com.ekaur.android.sync.DeviceKey
 import com.ekaur.android.sync.Syncer
 
 /**
@@ -34,8 +35,19 @@ class AppContainer(appContext: Context) {
 
     val counterRepository: CounterRepository by lazy { CounterRepository(database, clock) }
 
-    /** Whether the leaderboard is on, and the identity behind it. */
+    /** This device's identity on the leaderboard. */
     val settings: SettingsStore = SettingsStore(appContext)
+
+    /**
+     * Stable across uninstalls, which is what lets a reinstall find its old
+     * account without the user doing anything.
+     */
+    val deviceKey: String? = DeviceKey.of(
+        android.provider.Settings.Secure.getString(
+            appContext.contentResolver,
+            android.provider.Settings.Secure.ANDROID_ID,
+        )
+    )
 
     // Built lazily like the database: an app that never joins the leaderboard
     // never constructs an HTTP client or touches the network.

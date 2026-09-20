@@ -134,6 +134,34 @@ Who can see what is enforced by Postgres, not by the app. Writing is limited to
 your own rows, and `chhup jao` hides both your name and your numbers from
 everyone else through row level security rather than a filter in the UI.
 
+### If you uninstall
+
+Reinstalling on the **same phone** gets your account back on its own, with
+nothing to type. `ANDROID_ID` is stable per signing key and survives an
+uninstall, and this app ships a committed keystore, so the key never moves. The
+app hashes it, asks the server whether that device has been here before, and
+walks straight past the name screen if it has.
+
+A **new phone** is the harder case. Android's Auto Backup often restores the
+session on its own, but it needs Google backup switched on and syncs at most
+daily, so it is a convenience rather than a guarantee. The **recovery code** in
+setup is the deterministic way back. Write it down; it is eight characters.
+
+The device key and the recovery code are credentials, so they are **not** on
+`profiles` — every signed-in user can read that table to build the leaderboard.
+They live in `account_keys`, which has RLS on and no policies at all, so nothing
+but the `SECURITY DEFINER` functions can reach them. Checked: a signed-in user
+selecting from it gets zero rows, including their own.
+
+Recovery moves the profile's id onto the new account and the counts follow
+through `ON UPDATE CASCADE`, so nothing is copied and nothing can be half-moved.
+
+### Changing your username
+
+Once every **14 days**, enforced in the database rather than on the device — a
+cooldown kept in app storage is reset by a reinstall, which makes it no cooldown
+at all. The old name is released immediately.
+
 Schema and the one manual setting are in `supabase/migrations/`.
 
 ---

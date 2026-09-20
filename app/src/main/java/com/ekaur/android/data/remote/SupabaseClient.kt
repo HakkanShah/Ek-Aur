@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
@@ -38,6 +39,9 @@ sealed interface SyncError {
      * which PostgREST reports as 409, the same status as a duplicate.
      */
     data object StaleSession : SyncError
+
+    /** A username was changed too recently. Carries the days still to wait. */
+    data class Cooldown(val daysLeft: Int) : SyncError
 
     /**
      * Anonymous sign-in is switched off for the project.
@@ -173,6 +177,71 @@ class SupabaseClient(
             },
             prefer = "return=representation",
         )
+    }
+
+    /**
+     * Registers this device and returns the recovery code for the account.
+     *
+     * Called right after a username is claimed, and again on later launches so
+     * a device that changed hands still points at the right account.
+     */
+    fun registerDevice(deviceKey: String?): String? {
+        val body = request(
+            url = "$baseUrl/rest/v1/rpc/register_device",
+            payload = buildJsonObject { put("device_key", deviceKey) },
+            auth = true,
+            prefer = null,
+        )
+        return (body as? JsonPrimitive)?.contentOrNull
+    }
+
+    /**
+     * Tries to move an older account onto this freshly created one.
+     *
+     * Returns the recovered username, or null when this device and code are
+     * unknown -- which is the ordinary case for a genuinely new user.
+     */
+    fun recoverAccount(deviceKey: String?, recoveryCode: String?): String? {
+        if (deviceKey == null && recoveryCode.isNullOrBlank()) return null
+
+        val body = request(
+            url = "$baseUrl/rest/v1/rpc/recover_account",
+            payload = buildJsonObject {
+                put("device_key", deviceKey)
+                put("recovery_code", recoveryCode)
+            },
+            auth = true,
+            prefer = null,
+        )
+        return (body as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+    }
+
+    /** The caller's recovery code, for showing again in setup. */
+    fun recoveryCode(): String? {
+        val body = request(
+            url = "$baseUrl/rest/v1/rpc/my_recovery_code",
+            payload = buildJsonObject { },
+            auth = true,
+            prefer = null,
+        )
+        return (body as? JsonPrimitive)?.contentOrNull
+    }
+
+    /**
+     * Changes the username, at most once every 14 days.
+     *
+     * The cooldown is the server's to enforce -- one kept on the device is
+     * reset by a reinstall, which makes it no cooldown at all.
+     */
+    fun changeUsername(newName: String): String {
+        val body = request(
+            url = "$baseUrl/rest/v1/rpc/change_username",
+            payload = buildJsonObject { put("new_name", newName) },
+            auth = true,
+            prefer = null,
+        )
+        return (body as? JsonPrimitive)?.contentOrNull
+            ?: throw SyncException(SyncError.Refused(500, "no name returned"))
     }
 
     /** Sets whether this account appears on other people's leaderboards. */
@@ -358,6 +427,9 @@ class SupabaseClient(
         // is taken -- so this is an ordinary outcome and gets its own case.
         // Order matters: both arrive as 409. The foreign key one means the
         // account is gone, the unique one means the name is.
+        body.contains("cooldown:") -> SyncError.Cooldown(
+            daysLeft = Regex("cooldown: (\\d+) days").find(body)?.groupValues?.get(1)?.toIntOrNull() ?: 14
+        )
         body.contains("23503") || body.contains("_id_fkey") -> SyncError.StaleSession
         body.contains("profiles_username_unique") || body.contains("23505") -> SyncError.NameTaken
         body.contains("anonymous_provider_disabled") -> SyncError.SignupDisabled

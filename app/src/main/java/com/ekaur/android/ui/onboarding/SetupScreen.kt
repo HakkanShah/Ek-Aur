@@ -5,13 +5,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
@@ -22,7 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.SolidColor
+import com.ekaur.android.data.remote.SyncError
+import com.ekaur.android.data.remote.SyncException
 import com.ekaur.android.di.AppContainer
+import com.ekaur.android.sync.Username
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.ui.common.Card
@@ -58,6 +65,24 @@ fun SetupScreen(
     val username by container.settings.username.collectAsState()
     val hidden by container.settings.hidden.collectAsState()
     var hideBusy by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+    var renaming by remember { mutableStateOf(false) }
+    var renameNote by remember { mutableStateOf<String?>(null) }
+    var renameOk by remember { mutableStateOf(false) }
+    var recoveryCode by remember { mutableStateOf(container.settings.recoveryCode) }
+
+    // Fetched once if the device has a session but no stored code -- an account
+    // made before recovery existed, or one restored onto a new phone.
+    LaunchedEffect(Unit) {
+        if (recoveryCode == null) {
+            recoveryCode = withContext(Dispatchers.IO) {
+                runCatching {
+                    container.supabase.registerDevice(container.deviceKey)
+                }.getOrNull()
+            }
+            recoveryCode?.let { container.settings.saveRecoveryCode(it) }
+        }
+    }
     val canOverlay = ServiceControl.canDrawOverlay(context)
     val batteryExempt = ServiceControl.isIgnoringBatteryOptimisations(context)
     val allDone = serviceEnabled && canOverlay && batteryExempt
@@ -149,6 +174,112 @@ fun SetupScreen(
                 onClick = {
                     OverlayPrefs(context).clearPosition()
                     reset = true
+                },
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Card {
+            SectionLabel("naam badlo")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "abhi: " + username.orEmpty(),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Chalk,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "naam 14 din me ek baar badal sakte ho. purana naam turant " +
+                    "kisi aur ko mil sakta hai.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+            )
+            Spacer(Modifier.height(12.dp))
+            BasicTextField(
+                value = newName,
+                onValueChange = { newName = Username.normalise(it).take(Username.MAX) },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = Chalk),
+                cursorBrush = SolidColor(Acid),
+                modifier = Modifier.fillMaxWidth(),
+                decorationBox = { inner ->
+                    if (newName.isEmpty()) {
+                        Text("naya naam", style = MaterialTheme.typography.bodyLarge, color = Ash)
+                    }
+                    inner()
+                },
+            )
+            if (renameNote != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = renameNote!!,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (renameOk) Acid else Heat,
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            FlatButton(
+                text = if (renaming) "ruko..." else "naam badlo",
+                emphasised = Username.isValid(newName) && !renaming,
+                onClick = {
+                    if (!Username.isValid(newName) || renaming) return@FlatButton
+                    renaming = true
+                    renameNote = null
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            runCatching { container.supabase.changeUsername(newName) }
+                        }
+                        renaming = false
+                        result.onSuccess { applied ->
+                            container.settings.saveUsername(applied)
+                            newName = ""
+                            renameOk = true
+                            renameNote = "ho gaya"
+                        }.onFailure { thrown ->
+                            renameOk = false
+                            renameNote = when (val cause = (thrown as? SyncException)?.error) {
+                                // Enforced by the server, so a reinstall does
+                                // not reset it.
+                                is SyncError.Cooldown ->
+                                    "abhi nahi \u2014 ${cause.daysLeft} din aur ruko."
+                                SyncError.NameTaken -> "ye naam le liya gaya hai."
+                                SyncError.Offline -> "internet nahi mila."
+                                else -> "nahi hua. baad me try karo."
+                            }
+                        }
+                    }
+                },
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Card {
+            SectionLabel("recovery code")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "app delete karke wapas install karoge to isi phone pe " +
+                    "account apne aap mil jayega. naye phone pe ye code chahiye " +
+                    "hoga \u2014 kahin likh ke rakh lo.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = recoveryCode ?: "\u2014",
+                style = MaterialTheme.typography.headlineMedium,
+                color = Acid,
+            )
+            Spacer(Modifier.height(12.dp))
+            FlatButton(
+                text = "code share karo",
+                onClick = {
+                    val code = recoveryCode ?: return@FlatButton
+                    ServiceControl.shareText(
+                        context,
+                        "Ek Aur recovery code: " + code + "\n(naye phone pe account wapas lene ke liye)",
+                    )
                 },
             )
         }

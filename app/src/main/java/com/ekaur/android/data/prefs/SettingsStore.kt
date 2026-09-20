@@ -26,6 +26,9 @@ class SettingsStore(context: Context) : SessionStore {
     /** True when this account is kept off other people's leaderboards. */
     val hidden: StateFlow<Boolean> = _hidden.asStateFlow()
 
+    /** Shown in setup, and the only way back on a new phone. */
+    val recoveryCode: String? get() = prefs.getString(KEY_RECOVERY, null)
+
     override val userId: String? get() = prefs.getString(KEY_USER_ID, null)
     override val accessToken: String? get() = prefs.getString(KEY_ACCESS, null)
     override val refreshToken: String? get() = prefs.getString(KEY_REFRESH, null)
@@ -49,6 +52,10 @@ class SettingsStore(context: Context) : SessionStore {
             .remove(KEY_REFRESH)
             .remove(KEY_EXPIRES)
             .apply()
+    }
+
+    fun saveRecoveryCode(code: String) {
+        prefs.edit().putString(KEY_RECOVERY, code).apply()
     }
 
     fun saveUsername(username: String) {
@@ -82,6 +89,7 @@ class SettingsStore(context: Context) : SessionStore {
             .remove(KEY_EXPIRES)
             .remove(KEY_NAME)
             .remove(KEY_HIDDEN)
+            .remove(KEY_RECOVERY)
             .apply()
         _username.value = null
         _hidden.value = false
@@ -92,6 +100,7 @@ class SettingsStore(context: Context) : SessionStore {
         const val KEY_NAME = "display_name"
         const val KEY_USER_ID = "user_id"
         const val KEY_HIDDEN = "hidden"
+        const val KEY_RECOVERY = "recovery_code"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EXPIRES = "expires_at"

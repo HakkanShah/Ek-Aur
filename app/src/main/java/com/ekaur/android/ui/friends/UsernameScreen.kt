@@ -86,6 +86,48 @@ fun UsernameScreen(
     // Answers already paid for. Deleting a character and retyping it is free.
     val known = remember { mutableStateMapOf<String, Boolean>() }
 
+    var restoring by remember { mutableStateOf(true) }
+    var showCodeEntry by remember { mutableStateOf(false) }
+    var code by remember { mutableStateOf("") }
+
+    // Before asking for a name, see whether this phone has been here before.
+    // An uninstall wipes the session but not the device key, so a reinstall
+    // finds its own account and the user never sees this screen at all.
+    LaunchedEffect(Unit) {
+        val recovered = withContext(Dispatchers.IO) {
+            runCatching {
+                container.supabase.ensureSignedIn()
+                container.supabase.recoverAccount(container.deviceKey, null)
+            }.getOrNull()
+        }
+        if (recovered != null) {
+            container.settings.saveUsername(recovered)
+            withContext(Dispatchers.IO) {
+                runCatching { container.supabase.registerDevice(container.deviceKey) }
+                    .getOrNull()
+                    ?.let { container.settings.saveRecoveryCode(it) }
+            }
+            com.ekaur.android.data.work.SyncWorker.schedule(appContext)
+        }
+        restoring = false
+    }
+
+    if (restoring) {
+        Column(
+            modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text("EK AUR", style = MaterialTheme.typography.labelLarge, color = Acid)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "dekh raha hoon tum pehle aa chuke ho ya nahi...",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Smoke,
+            )
+        }
+        return
+    }
+
     val name = Username.normalise(typed)
     val problem = Username.problemWith(typed)
 
@@ -196,6 +238,13 @@ fun UsernameScreen(
                     claiming = false
                     outcome.onSuccess {
                         container.settings.saveUsername(name)
+                        // Registered straight away, so the very first uninstall
+                        // is already recoverable.
+                        withContext(Dispatchers.IO) {
+                            runCatching { container.supabase.registerDevice(container.deviceKey) }
+                                .getOrNull()
+                                ?.let { container.settings.saveRecoveryCode(it) }
+                        }
                         com.ekaur.android.data.work.SyncWorker.schedule(appContext)
                     }.onFailure { thrown ->
                         val cause = (thrown as? SyncException)?.error
@@ -210,6 +259,10 @@ fun UsernameScreen(
                             // Handled inside the client by starting a fresh
                             // account; if it still reaches here, both attempts
                             // failed and the network is the likelier cause.
+                            // Cannot happen here -- nothing has been changed
+                            // yet -- but the compiler is right to insist.
+                            is SyncError.Cooldown ->
+                                "abhi ${cause.daysLeft} din ruko."
                             SyncError.StaleSession ->
                                 "purana account nahi mila. dobara try karo."
                             SyncError.SignupDisabled ->
@@ -228,6 +281,80 @@ fun UsernameScreen(
         if (claimError != null) {
             Spacer(Modifier.height(10.dp))
             Text(claimError!!, style = MaterialTheme.typography.bodyMedium, color = Heat)
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        if (showCodeEntry) {
+            Card {
+                SectionLabel("purana account wapas lao")
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "naye phone pe ho? purane phone ke setup me jo recovery " +
+                        "code tha, wo yahan daalo.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Smoke,
+                )
+                Spacer(Modifier.height(12.dp))
+                BasicTextField(
+                    value = code,
+                    onValueChange = { code = it.uppercase().filter(Char::isLetterOrDigit).take(8) },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Chalk,
+                    ),
+                    cursorBrush = SolidColor(Acid),
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        if (code.isEmpty()) {
+                            Text(
+                                "XXXXXXXX",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 20.sp,
+                                    color = Ash,
+                                ),
+                            )
+                        }
+                        inner()
+                    },
+                )
+                Spacer(Modifier.height(14.dp))
+                FlatButton(
+                    text = "wapas lao",
+                    emphasised = code.length == 8,
+                    onClick = {
+                        if (code.length != 8) return@FlatButton
+                        scope.launch {
+                            val recovered = withContext(Dispatchers.IO) {
+                                runCatching {
+                                    container.supabase.ensureSignedIn()
+                                    container.supabase.recoverAccount(null, code)
+                                }.getOrNull()
+                            }
+                            if (recovered == null) {
+                                claimError = "ye code kaam nahi kiya."
+                            } else {
+                                container.settings.saveUsername(recovered)
+                                withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        container.supabase.registerDevice(container.deviceKey)
+                                    }.getOrNull()?.let { container.settings.saveRecoveryCode(it) }
+                                }
+                                com.ekaur.android.data.work.SyncWorker.schedule(appContext)
+                            }
+                        }
+                    },
+                )
+            }
+        } else {
+            FlatButton(
+                text = "purana account hai? code daalo",
+                onClick = { showCodeEntry = true },
+            )
         }
 
         Spacer(Modifier.height(24.dp))

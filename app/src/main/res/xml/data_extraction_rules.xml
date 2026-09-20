@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Android 12+ equivalent of backup_rules.xml. Same reasoning. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="settings.xml" />
+        <include domain="sharedpref" path="overlay.xml" />
+        <exclude domain="database" path="ekaur.db" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="settings.xml" />
+        <include domain="sharedpref" path="overlay.xml" />
+        <exclude domain="database" path="ekaur.db" />
+    </device-transfer>
+</data-extraction-rules>
