@@ -7,6 +7,7 @@ import com.ekaur.android.EkAurApp
 import com.ekaur.android.data.repo.CounterRepository
 import com.ekaur.android.detect.DetectionEvent
 import com.ekaur.android.detect.DetectorRules
+import com.ekaur.android.detect.ForegroundPolicy
 import com.ekaur.android.detect.ReelDetector
 import com.ekaur.android.detect.ScrollSignal
 import com.ekaur.android.diagnostics.CapturedEvent
@@ -90,7 +91,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         // fact that the foreground moved away is used, so the detector can close
         // out the session. Nothing about other apps is read or kept.
         if (!tracked) {
-            if (kind == ScrollSignal.Kind.WindowStateChanged) {
+            if (kind == ScrollSignal.Kind.WindowStateChanged && hasLeftTrackedApp(packageName)) {
                 val result = detector.onSignal(
                     ScrollSignal(
                         packageName = packageName,
@@ -196,6 +197,23 @@ class EkAurAccessibilityService : AccessibilityService() {
                 }.onFailure { eventLog.recordWriteFailure(it) }
             }
         }
+    }
+
+    /**
+     * Whether a window event from another package really means the user left.
+     *
+     * A notification banner fires the same event as an app switch, so the event
+     * package alone is not enough -- the window actually in front is consulted
+     * instead. Only reached for untracked window events, which are rare, since
+     * reading the active window is neither free nor guaranteed to succeed.
+     */
+    private fun hasLeftTrackedApp(eventPackage: String): Boolean {
+        val foreground = runCatching { rootInActiveWindow?.packageName?.toString() }.getOrNull()
+        return ForegroundPolicy.hasLeftTrackedApp(
+            eventPackage = eventPackage,
+            actualForeground = foreground,
+            isTracked = { DetectorRules.forPackage(it) != null },
+        )
     }
 
     private fun Int.toKind(): ScrollSignal.Kind? = when (this) {

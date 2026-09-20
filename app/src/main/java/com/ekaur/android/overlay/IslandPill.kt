@@ -5,10 +5,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -77,7 +76,7 @@ fun IslandPill(
             .scale(pulse.value)
             .background(PillInk, RoundedCornerShape(50))
             .border(1.dp, edge, RoundedCornerShape(50))
-            .animateContentSize(spring(dampingRatio = 0.75f))
+            .animateContentSize(tween(SIZE_CHANGE_MS))
             .widthIn(max = 330.dp)
             .padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -101,8 +100,11 @@ fun IslandPill(
 
         AnimatedVisibility(
             visible = message != null,
-            enter = fadeIn() + expandHorizontally(expandFrom = Alignment.Start),
-            exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.Start),
+            // Fade only. Expanding the content horizontally uncovered the text
+            // character by character as the pill grew, which read as a typing
+            // effect and ate into the time the line was actually readable.
+            enter = fadeIn(tween(SIZE_CHANGE_MS)),
+            exit = fadeOut(tween(120)),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.width(9.dp))
@@ -142,6 +144,9 @@ private fun lerpColor(from: Color, to: Color, t: Float): Color {
         alpha = 1f,
     )
 }
+
+/** Short enough that the width change is not read as the text being typed out. */
+private const val SIZE_CHANGE_MS = 140
 
 private val PillInk = Color(0xF00A0A0A)
 private val PillChalk = Color(0xFFF2F2F2)

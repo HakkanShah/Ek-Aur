@@ -267,6 +267,43 @@ class ReelDetectorTest {
     }
 
     @Test
+    fun `watching a long reel through does not close the player`() {
+        // Reels routinely run 15-60s with no scroll at all. The old 12s idle
+        // timeout fired while the user was simply watching, and took the
+        // floating counter down with it.
+        val h = Harness()
+        h.send(playerScroll(0, 7))
+
+        listOf(5_000L, 10_000L, 20_000L, 30_000L, 40_000L).forEach { h.tick(it) }
+
+        assertEquals(DetectionState.InReels, h.detector.state)
+    }
+
+    @Test
+    fun `believing the user left costs the next advance its count`() {
+        // Documents why the service checks the real foreground before trusting a
+        // window event from another package: a notification that was mistaken
+        // for an app switch landed here, and silently ate a reel.
+        val withoutInterruption = Harness()
+        withoutInterruption.send(playerScroll(0, 10))
+        withoutInterruption.send(playerScroll(500, 11))
+        withoutInterruption.send(playerScroll(1_000, 12))
+
+        val interrupted = Harness()
+        interrupted.send(playerScroll(0, 10))
+        interrupted.send(playerScroll(500, 11))
+        interrupted.send(foreground(700, OTHER))   // as if the user really left
+        interrupted.send(playerScroll(1_000, 12))
+
+        assertEquals(2, withoutInterruption.reelCount())
+        assertEquals(
+            "a believed app switch resets the baseline, so the next reel is free",
+            1,
+            interrupted.reelCount(),
+        )
+    }
+
+    @Test
     fun `leaving reels with no other scrolling eventually closes the player`() {
         val h = Harness()
         h.send(playerScroll(0, 3))

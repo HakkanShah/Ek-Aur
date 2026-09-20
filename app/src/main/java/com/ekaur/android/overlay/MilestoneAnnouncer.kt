@@ -58,6 +58,11 @@ class MilestoneAnnouncer(
     }
 
     companion object {
-        const val MESSAGE_DURATION_MS = 3_600L
+        /**
+         * Long enough that the line is comfortably readable rather than
+         * glimpsed -- the previous 3.6s included the expand animation, leaving
+         * well under two seconds of settled text.
+         */
+        const val MESSAGE_DURATION_MS = 4_000L
     }
 }

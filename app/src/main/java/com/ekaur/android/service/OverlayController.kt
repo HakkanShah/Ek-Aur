@@ -33,6 +33,11 @@ class OverlayController(
 
     @Volatile
     private var lastState: DetectionState? = null
+
+    /** When the player was last seen, which is what stickiness is measured from. */
+    @Volatile
+    private var lastInReelsAtMs = 0L
+
     private var hideJob: Job? = null
 
     /** Whether the user has granted the draw-over-other-apps permission. */
@@ -47,8 +52,22 @@ class OverlayController(
         if (state == lastState) return
         lastState = state
         when (state) {
-            DetectionState.InReels -> show()
-            DetectionState.InApp, DetectionState.Idle -> hideAfterGrace()
+            DetectionState.InReels -> {
+                lastInReelsAtMs = System.currentTimeMillis()
+                show()
+            }
+
+            // Still inside Instagram. Comments, the feed and tab swipes all land
+            // here, and none of them mean the user is done watching reels, so
+            // the pill outlives them.
+            DetectionState.InApp -> {
+                val sinceReels = System.currentTimeMillis() - lastInReelsAtMs
+                hideAfter((STICKY_AFTER_REELS_MS - sinceReels).coerceAtLeast(0))
+            }
+
+            // Left Instagram entirely -- but a notification or a glance at
+            // another app should not tear the window down either.
+            DetectionState.Idle -> hideAfter(IDLE_GRACE_MS)
         }
     }
 
@@ -64,14 +83,14 @@ class OverlayController(
     }
 
     /**
-     * Removing and re-adding a window is visible, so a brief dip out of the
-     * player waits rather than tearing the pill down immediately. Showing stays
-     * instant; only hiding is delayed.
+     * Removing and re-adding a window is visible, so leaving the player waits
+     * rather than tearing the pill down immediately. Showing stays instant;
+     * only hiding is delayed.
      */
-    private fun hideAfterGrace() {
+    private fun hideAfter(delayMs: Long) {
         hideJob?.cancel()
         hideJob = scope.launch(Dispatchers.Main) {
-            delay(HIDE_GRACE_MS)
+            delay(delayMs)
             windowLock.withLock { host.hide() }
         }
     }
@@ -92,6 +111,15 @@ class OverlayController(
     }
 
     private companion object {
-        const val HIDE_GRACE_MS = 700L
+        /**
+         * How long the pill survives inside Instagram after the player was last
+         * seen. Generous on purpose: the detector's idea of "in reels" is tuned
+         * for counting accuracy, and mirroring it exactly made the pill vanish
+         * while the user was simply watching a video through.
+         */
+        const val STICKY_AFTER_REELS_MS = 20_000L
+
+        /** Covers a notification, a quick app switch, or a glance at something else. */
+        const val IDLE_GRACE_MS = 2_000L
     }
 }

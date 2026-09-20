@@ -286,10 +286,16 @@ class ReelDetector(
         const val MAX_ITEMS_PER_SIGNAL = 3
 
         /**
-         * Sitting on one reel watching it is normal, so going idle needs a much
-         * longer silence than a competing list scroll does before the player is
-         * considered closed.
+         * Sitting and watching one reel through is the normal case, not an
+         * exception: reels routinely run 15-60s with no scroll at all. At the
+         * old factor of 8 this timed out after 12s, so simply watching a video
+         * looked like leaving the player and took the overlay down with it.
+         *
+         * Leaving the app entirely already produces a package change, so this
+         * only has to cover navigating away inside Instagram without scrolling
+         * anything else. Holding the player too long is harmless -- list
+         * scrolls never count.
          */
-        const val IDLE_EXIT_FACTOR = 8
+        const val IDLE_EXIT_FACTOR = 30
     }
 }

@@ -10,6 +10,8 @@ import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
@@ -40,6 +42,17 @@ class OverlayHost(
 
     private val prefs = context.getSharedPreferences("overlay", Context.MODE_PRIVATE)
 
+    /** Where the pill sits when it has nothing to say, and which edge it owns. */
+    private var collapsedLeft = 0
+    private var collapsedRight = 0
+    private var anchorsRight = false
+
+    private val marginPx: Int
+        get() = (MARGIN_DP * context.resources.displayMetrics.density).roundToInt()
+
+    private val screenWidth: Int
+        get() = context.resources.displayMetrics.widthPixels
+
     val isShowing: Boolean get() = composeView != null
 
     fun canDrawOverlay(): Boolean = Settings.canDrawOverlays(context)
@@ -59,7 +72,15 @@ class OverlayHost(
             setContent {
                 val count by counts.collectAsState()
                 val message by announcer.message.collectAsState()
-                IslandPill(count = count, message = message)
+                IslandPill(
+                    count = count,
+                    message = message,
+                    // Re-placed on every size change so an expanding message
+                    // grows inward from the edge the pill is parked on.
+                    modifier = Modifier.onSizeChanged { size ->
+                        onPillMeasured(size.width, expanded = message != null)
+                    },
+                )
             }
             setOnTouchListener(DragListener(layout))
         }
@@ -114,6 +135,40 @@ class OverlayHost(
         }
     }
 
+    /**
+     * Re-places the window whenever the pill's width changes.
+     *
+     * The collapsed layout defines the anchor; an expanded one is positioned
+     * relative to it so the pill appears to stay put while the message opens
+     * away from the nearer screen edge.
+     */
+    private fun onPillMeasured(width: Int, expanded: Boolean) {
+        if (width <= 0) return
+        val view = composeView ?: return
+        val layout = params ?: return
+
+        if (!expanded) {
+            collapsedLeft = layout.x
+            collapsedRight = layout.x + width
+            anchorsRight = OverlayPlacement.anchorsRight(layout.x, width, screenWidth)
+        }
+
+        val target = OverlayPlacement.resolveX(
+            collapsedLeft = collapsedLeft,
+            collapsedRight = collapsedRight,
+            width = width,
+            screenWidth = screenWidth,
+            anchorsRight = anchorsRight,
+            margin = marginPx,
+        )
+        if (target == layout.x) return
+
+        layout.x = target
+        // Posted rather than applied inline: this runs from layout, and the
+        // window manager must not be reentered mid-pass.
+        view.post { runCatching { windowManager.updateViewLayout(view, layout) } }
+    }
+
     private fun defaultX(): Int {
         val width = context.resources.displayMetrics.widthPixels
         // Roughly centred; the pill is small and centres itself well enough.
@@ -141,13 +196,28 @@ class OverlayHost(
                 }
 
                 MotionEvent.ACTION_MOVE -> {
-                    layout.x = startX + (event.rawX - touchX).roundToInt()
-                    layout.y = startY + (event.rawY - touchY).roundToInt()
+                    // Clamped so the pill cannot be pushed off the display and
+                    // left unreachable.
+                    layout.x = OverlayPlacement.clamp(
+                        x = startX + (event.rawX - touchX).roundToInt(),
+                        width = view.width,
+                        screenWidth = screenWidth,
+                        margin = marginPx,
+                    )
+                    val maxY = (context.resources.displayMetrics.heightPixels - view.height)
+                        .coerceAtLeast(0)
+                    layout.y = (startY + (event.rawY - touchY).roundToInt()).coerceIn(0, maxY)
                     runCatching { windowManager.updateViewLayout(view, layout) }
                     return true
                 }
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // Dropping it on the other half of the screen flips which
+                    // way the next message opens.
+                    collapsedLeft = layout.x
+                    collapsedRight = layout.x + view.width
+                    anchorsRight =
+                        OverlayPlacement.anchorsRight(layout.x, view.width, screenWidth)
                     prefs.edit()
                         .putInt(KEY_X, layout.x)
                         .putInt(KEY_Y, layout.y)
@@ -163,5 +233,6 @@ class OverlayHost(
         const val KEY_X = "x"
         const val KEY_Y = "y"
         const val DEFAULT_Y = 90
+        const val MARGIN_DP = 8f
     }
 }
