@@ -127,6 +127,33 @@ object ServiceControl {
         }
     }
 
+    /**
+     * Whether usage access is granted.
+     *
+     * The service reads which app is foreground from usage stats -- that is how
+     * it knows to bring the pill down and switch itself off once the user
+     * leaves Instagram. Checked through [android.app.AppOpsManager] rather than
+     * a permission, because usage access is a special access, not a runtime
+     * grant.
+     */
+    fun hasUsageAccess(context: Context): Boolean {
+        val ops = context.getSystemService(android.app.AppOpsManager::class.java) ?: return false
+        val mode = runCatching {
+            ops.unsafeCheckOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                context.packageName,
+            )
+        }.getOrDefault(android.app.AppOpsManager.MODE_ERRORED)
+        return mode == android.app.AppOpsManager.MODE_ALLOWED
+    }
+
+    fun openUsageAccessSettings(context: Context) {
+        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+    }
+
     /** Whether the floating counter is allowed to draw over other apps. */
     fun canDrawOverlay(context: Context): Boolean = Settings.canDrawOverlays(context)
 

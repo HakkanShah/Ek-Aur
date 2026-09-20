@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Only used when the leaderboard is switched on. With it off the app
          never opens a connection. -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Reads which app is foreground, so the counter comes down and the
+         service switches itself off once the user leaves Instagram. A special
+         access the user grants by hand; it carries no screen content and does
+         not trip a payment app's checks. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- The floating counter over Instagram. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />

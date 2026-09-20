@@ -38,10 +38,38 @@ class OverlayController(
     @Volatile
     private var lastInReelsAtMs = 0L
 
+    /** True once the real foreground left Instagram, cleared when it returns. */
+    @Volatile
+    private var leftForeground = false
+
     private var hideJob: Job? = null
 
     /** Whether the user has granted the draw-over-other-apps permission. */
     fun canDraw(): Boolean = host.canDrawOverlay()
+
+    /**
+     * The real foreground, learned from usage stats on the service tick.
+     *
+     * The detector alone cannot tell "watching one long reel" from "left
+     * Instagram" -- both are silence -- so the pill used to hang on a 45s timer
+     * after the user left. This brings it down the moment they are actually
+     * elsewhere, and holds it up while they are still in Instagram, whatever the
+     * detector's timers are doing. It never touches counting.
+     */
+    fun onForeground(inInstagram: Boolean) {
+        if (inInstagram) {
+            if (leftForeground) {
+                // Back in Instagram: cancel the pending leave-hide. The next
+                // scroll shows the pill again through the ordinary InReels path.
+                leftForeground = false
+                if (lastState == DetectionState.InReels) show()
+            }
+            return
+        }
+        if (leftForeground) return
+        leftForeground = true
+        hideAfter(FOREGROUND_LEAVE_GRACE_MS)
+    }
 
     /**
      * Called on every event and on every tick, so it does nothing unless the
@@ -121,5 +149,12 @@ class OverlayController(
 
         /** Covers a notification, a quick app switch, or a glance at something else. */
         const val IDLE_GRACE_MS = 2_000L
+
+        /**
+         * How long after the real foreground leaves Instagram the pill comes
+         * down. Short, because usage stats report the move for certain, so
+         * there is no watching-a-long-reel case to protect here.
+         */
+        const val FOREGROUND_LEAVE_GRACE_MS = 1_500L
     }
 }

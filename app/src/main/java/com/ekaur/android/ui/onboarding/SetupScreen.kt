@@ -20,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
@@ -86,6 +87,15 @@ fun SetupScreen(
     var avatarNote by remember { mutableStateOf<String?>(null) }
     var avatarOk by remember { mutableStateOf(false) }
     var paymentPaused by remember { mutableStateOf(false) }
+    var usageOk by remember { mutableStateOf(ServiceControl.hasUsageAccess(context)) }
+    var autoOff by remember { mutableStateOf(container.settings.autoOffOnLeave) }
+
+    // Usage access is granted in system settings and comes back with no
+    // callback, so it is re-read whenever the screen returns to the front.
+    LifecycleResumeEffect(Unit) {
+        usageOk = ServiceControl.hasUsageAccess(context)
+        onPauseOrDispose { }
+    }
 
     var pendingPhoto by remember { mutableStateOf<Bitmap?>(null) }
 
@@ -265,6 +275,19 @@ fun SetupScreen(
 
         Spacer(Modifier.height(12.dp))
 
+        SetupStep(
+            index = "04",
+            title = "usage access",
+            why = "isse app ko pata chalta hai ki tum Instagram chhod chuke ho, " +
+                "taaki counter hat jaye aur payment ke waqt Ek Aur apne aap band " +
+                "ho jaye. koi screen nahi padhta, bank apps ko farak nahi padta.",
+            done = usageOk,
+            actionLabel = "usage access do",
+            onAction = { ServiceControl.openUsageAccessSettings(context) },
+        )
+
+        Spacer(Modifier.height(12.dp))
+
         Card {
             SectionLabel("payment / UPI app")
             Spacer(Modifier.height(10.dp))
@@ -279,15 +302,52 @@ fun SetupScreen(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "iska ek hi hal hai: payment ke waqt Ek Aur ko band karo, baad me " +
-                    "on. sabse tez tarika niche — ek tap me on/off, kahin se bhi.",
+                text = "iska hal: jab tum Instagram nahi chala rahe, Ek Aur band rehni " +
+                    "chahiye. neeche wala switch ye apne aap kar deta hai.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
 
             Spacer(Modifier.height(14.dp))
             Text(
-                text = "1. floating button (sabse tez)",
+                text = "Instagram chhodte hi apne aap band",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Chalk,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = if (autoOff) {
+                    "on hai. Instagram band karte hi Ek Aur khud band ho jayegi, to " +
+                        "payment saaf rahega. dobara scroll karne ke liye niche wale " +
+                        "floating button se ise on karna (Android khud on nahi kar sakta)."
+                } else {
+                    "off hai. tumhe har payment se pehle khud band karna padega."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ash,
+            )
+            Spacer(Modifier.height(10.dp))
+            FlatButton(
+                text = if (autoOff) "apne aap band: ON" else "apne aap band: OFF",
+                emphasised = autoOff,
+                onClick = {
+                    autoOff = !autoOff
+                    container.settings.autoOffOnLeave = autoOff
+                },
+            )
+            if (autoOff && !usageOk) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "iske liye upar \"usage access\" dena zaruri hai, warna app ko " +
+                        "pata nahi chalega ki tumne Instagram chhoda.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Heat,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "1. floating button (band/on karne ka sabse tez tarika)",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Chalk,
             )

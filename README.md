@@ -284,6 +284,15 @@ Android never lets an app switch its own accessibility back on, so resume is
 always a tap you make, not one the app makes for you. None of this is needed
 before *every* payment on *every* app — only for the ones that actually block.
 
+**Auto-off keeps it out of the way.** By default Ek Aur switches *itself* off a
+few seconds after you leave Instagram (it reads the foreground through usage
+access — no screen content, and banks do not flag usage access). So the service
+is off whenever you are not scrolling, and payments are clean without you doing
+anything. You still tap it **on** to scroll — auto-*on* is impossible, because
+Android never lets an app grant itself accessibility — and if you forget, the
+missing pill is the reminder. The switch is in **setup**; turn it off there if
+you would rather manage it by hand.
+
 ---
 
 ## Building

@@ -42,6 +42,15 @@ class EkAurAccessibilityService : AccessibilityService() {
     private var tickJob: Job? = null
     private var overlay: OverlayController? = null
     private var announcements: MilestoneAnnouncer? = null
+    private lateinit var settings: com.ekaur.android.data.prefs.SettingsStore
+
+    /** When Instagram was last the foreground app, seeded at connect. */
+    @Volatile
+    private var lastInstagramForegroundMs = 0L
+
+    /** Throttles the usage-stats read, which need not run every 250ms tick. */
+    @Volatile
+    private var lastForegroundCheckMs = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -49,10 +58,15 @@ class EkAurAccessibilityService : AccessibilityService() {
         eventLog = container.eventLog
         status = container.serviceStatus
         counters = container.counterRepository
+        settings = container.settings
 
         instance = this
         detector.reset()
         status.onConnected()
+        // Seed here so a service enabled but never taken into Instagram still
+        // switches itself off after the grace rather than staying on for ever.
+        lastInstagramForegroundMs = System.currentTimeMillis()
+        toast("Ek Aur chalu")
 
         val s = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         scope = s
@@ -73,10 +87,61 @@ class EkAurAccessibilityService : AccessibilityService() {
             // a scroll burst settling, and a session going cold.
             while (isActive) {
                 delay(TICK_INTERVAL_MS)
-                val result = detector.onTick(System.currentTimeMillis())
+                val nowMs = System.currentTimeMillis()
+                val result = detector.onTick(nowMs)
                 handle(result.events)
                 overlay?.onDetectionState(result.state)
+                checkForeground(nowMs)
             }
+        }
+    }
+
+    /**
+     * Reads the real foreground and acts on the user leaving Instagram.
+     *
+     * Two things follow from it, both settled in [AutoOffPolicy] rather than
+     * here: the pill comes down soon after they leave, and the service switches
+     * itself off a little later so a payment app is clean without a manual
+     * pause. Neither touches counting -- a wrong read only affects what is on
+     * screen, never a number. Throttled, since usage stats need not be read on
+     * every 250ms tick.
+     */
+    private fun checkForeground(nowMs: Long) {
+        if (nowMs - lastForegroundCheckMs < FOREGROUND_CHECK_INTERVAL_MS) return
+        lastForegroundCheckMs = nowMs
+
+        val foreground = ForegroundWatch.currentForegroundPackage(this, nowMs)
+        // Null means "cannot tell" -- treated as unchanged, never as "left",
+        // because a wrong "left" would switch the service off mid-scroll.
+        val inInstagram = when (foreground) {
+            null -> return
+            else -> DetectorRules.forPackage(foreground) != null
+        }
+        if (inInstagram) lastInstagramForegroundMs = nowMs
+
+        overlay?.onForeground(inInstagram)
+
+        val shouldDisable = AutoOffPolicy.shouldDisable(
+            enabled = settings.autoOffOnLeave,
+            usageGranted = ServiceControl.hasUsageAccess(this),
+            foregroundIsInstagram = inInstagram,
+            msSinceInstagramForeground = nowMs - lastInstagramForegroundMs,
+            graceMs = AUTO_OFF_GRACE_MS,
+        )
+        if (shouldDisable) {
+            main.post {
+                // onUnbind announces "band"; disableSelf tears the service down.
+                disableSelf()
+            }
+        }
+    }
+
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    private fun toast(text: String) {
+        main.post {
+            android.widget.Toast.makeText(applicationContext, text, android.widget.Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
@@ -143,6 +208,9 @@ class EkAurAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
+        // Fires however the service was switched off -- floating button, tile,
+        // settings, or its own auto-off -- so the user always sees it happen.
+        if (::eventLog.isInitialized) toast("Ek Aur band")
         teardown()
         return super.onUnbind(intent)
     }
@@ -230,6 +298,17 @@ class EkAurAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TICK_INTERVAL_MS = 250L
+
+        /** Usage stats need not be read every tick; ~1.5s is plenty. */
+        private const val FOREGROUND_CHECK_INTERVAL_MS = 1_500L
+
+        /**
+         * How long the user must be out of Instagram before the service switches
+         * itself off. Short enough that a payment right after Instagram is clean,
+         * long enough that a quick reply or a glance at a notification survives.
+         * Tuned on the device.
+         */
+        private const val AUTO_OFF_GRACE_MS = 8_000L
 
         // The one live service, so the UI can switch it off for a payment. Held
         // as a plain reference rather than passed around: nothing outside this

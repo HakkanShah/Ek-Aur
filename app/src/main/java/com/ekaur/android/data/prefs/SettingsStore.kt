@@ -82,6 +82,21 @@ class SettingsStore(context: Context) : SessionStore {
     }
 
     /**
+     * Whether Ek Aur switches itself off once the user leaves Instagram.
+     *
+     * On by default: a payment app blocks while any accessibility service is
+     * enabled, so turning off on leaving keeps payments clean without a manual
+     * step. Read straight from prefs because the accessibility service, which
+     * lives in another process, reads it on its own timer rather than observing
+     * a flow.
+     */
+    var autoOffOnLeave: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_OFF, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AUTO_OFF, value).apply()
+        }
+
+    /**
      * Forgets everything about the account.
      *
      * The counts themselves stay -- they are the user's own data and were never
@@ -110,6 +125,7 @@ class SettingsStore(context: Context) : SessionStore {
         const val KEY_HIDDEN = "hidden"
         const val KEY_RECOVERY = "recovery_code"
         const val KEY_AVATAR = "avatar_version"
+        const val KEY_AUTO_OFF = "auto_off_on_leave"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EXPIRES = "expires_at"
