@@ -14,8 +14,8 @@ android {
         applicationId = "com.ekaur.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.7.1"
+        versionCode = 10
+        versionName = "0.7.2"
     }
 
     // A stable, committed keystore. The build container is ephemeral, so a

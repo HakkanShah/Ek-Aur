@@ -2,7 +2,6 @@ package com.ekaur.android.overlay
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -76,7 +75,12 @@ fun IslandPill(
             .scale(pulse.value)
             .background(PillInk, RoundedCornerShape(50))
             .border(1.dp, edge, RoundedCornerShape(50))
-            .animateContentSize(tween(SIZE_CHANGE_MS))
+            // Deliberately no animateContentSize. Animating the width made
+            // Compose re-measure the message at a different width on every
+            // frame, and because the message is ellipsised it was re-truncated
+            // at a different character each time -- which read as the text
+            // being typed out, with the ellipsis jumping. Snapping to the full
+            // width lays the line out once, whole.
             .widthIn(max = 330.dp)
             .padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -100,11 +104,11 @@ fun IslandPill(
 
         AnimatedVisibility(
             visible = message != null,
-            // Fade only. Expanding the content horizontally uncovered the text
-            // character by character as the pill grew, which read as a typing
-            // effect and ate into the time the line was actually readable.
-            enter = fadeIn(tween(SIZE_CHANGE_MS)),
-            exit = fadeOut(tween(120)),
+            // Fade only -- alpha is a draw-layer property, so it triggers no
+            // re-measure. The line arrives at its full width and fades in
+            // whole, rather than being uncovered a character at a time.
+            enter = fadeIn(tween(FADE_IN_MS)),
+            exit = fadeOut(tween(FADE_OUT_MS)),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.width(9.dp))
@@ -145,8 +149,8 @@ private fun lerpColor(from: Color, to: Color, t: Float): Color {
     )
 }
 
-/** Short enough that the width change is not read as the text being typed out. */
-private const val SIZE_CHANGE_MS = 140
+private const val FADE_IN_MS = 140
+private const val FADE_OUT_MS = 120
 
 private val PillInk = Color(0xF00A0A0A)
 private val PillChalk = Color(0xFFF2F2F2)

@@ -47,6 +47,18 @@ class OverlayHost(
     private var collapsedRight = 0
     private var anchorsRight = false
 
+    /**
+     * The width the window was last placed for.
+     *
+     * Size changes arrive from layout, so anything that animates a dimension
+     * delivers one per frame. Repositioning a window is a cross-process call;
+     * doing it eight times for a single message made the pill stutter. Nothing
+     * animates width any more, but the guard stays so a future animation cannot
+     * bring that back.
+     */
+    private var lastPlacedWidth = -1
+    private var lastPlacedExpanded = false
+
     private val marginPx: Int
         get() = (MARGIN_DP * context.resources.displayMetrics.density).roundToInt()
 
@@ -111,6 +123,10 @@ class OverlayHost(
         composeView = null
         lifecycleOwner = null
         params = null
+        // The next show builds fresh params, so the remembered width belongs to
+        // a window that no longer exists and must not suppress its placement.
+        lastPlacedWidth = -1
+        lastPlacedExpanded = false
     }
 
     private fun buildParams(): WindowManager.LayoutParams {
@@ -156,8 +172,12 @@ class OverlayHost(
      */
     private fun onPillMeasured(width: Int, expanded: Boolean) {
         if (width <= 0) return
+        if (width == lastPlacedWidth && expanded == lastPlacedExpanded) return
         val view = composeView ?: return
         val layout = params ?: return
+
+        lastPlacedWidth = width
+        lastPlacedExpanded = expanded
 
         if (!expanded) {
             collapsedLeft = layout.x
