@@ -29,10 +29,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.data.remote.LeaderboardRow
 import com.ekaur.android.di.AppContainer
+import com.ekaur.android.sync.Avatar
 import com.ekaur.android.sync.SyncResult
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.SectionLabel
+import com.ekaur.android.ui.common.UserAvatar
 import com.ekaur.android.ui.stats.Hairline
 import com.ekaur.android.ui.stats.formatDuration
 import com.ekaur.android.ui.theme.Acid
@@ -120,7 +122,16 @@ fun FriendsScreen(
 
                 else -> rows.forEachIndexed { index, row ->
                     if (index > 0) Hairline()
-                    LeaderRow(rank = index + 1, row = row, isMe = row.username == me)
+                    LeaderRow(
+                        rank = index + 1,
+                        row = row,
+                        isMe = row.username == me,
+                        avatarUrl = Avatar.urlFor(
+                            baseUrl = container.supabase.baseUrl,
+                            userId = row.userId,
+                            version = row.avatarVersion,
+                        ),
+                    )
                 }
             }
         }
@@ -142,7 +153,7 @@ fun FriendsScreen(
 }
 
 @Composable
-private fun LeaderRow(rank: Int, row: LeaderboardRow, isMe: Boolean) {
+private fun LeaderRow(rank: Int, row: LeaderboardRow, isMe: Boolean, avatarUrl: String?) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -160,6 +171,8 @@ private fun LeaderRow(rank: Int, row: LeaderboardRow, isMe: Boolean) {
             fontWeight = if (rank == 1) FontWeight.Black else FontWeight.Normal,
             modifier = Modifier.width(28.dp),
         )
+        UserAvatar(username = row.username, url = avatarUrl, size = 36.dp)
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = row.username + if (isMe) "  (tum)" else "",

@@ -12,6 +12,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,9 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.SolidColor
+import com.ekaur.android.data.remote.AvatarUploader
 import com.ekaur.android.data.remote.SyncError
 import com.ekaur.android.data.remote.SyncException
 import com.ekaur.android.di.AppContainer
+import com.ekaur.android.sync.Avatar
 import com.ekaur.android.sync.Username
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
@@ -36,6 +41,7 @@ import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Dot
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.SectionLabel
+import com.ekaur.android.ui.common.UserAvatar
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
@@ -70,6 +76,39 @@ fun SetupScreen(
     var renameNote by remember { mutableStateOf<String?>(null) }
     var renameOk by remember { mutableStateOf(false) }
     var recoveryCode by remember { mutableStateOf(container.settings.recoveryCode) }
+    var avatarVersion by remember { mutableStateOf(container.settings.avatarVersion) }
+    var uploading by remember { mutableStateOf(false) }
+    var avatarNote by remember { mutableStateOf<String?>(null) }
+    var avatarOk by remember { mutableStateOf(false) }
+
+    // The system photo picker: no gallery permission is asked for, and the app
+    // only ever receives the one image the user chose.
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        uploading = true
+        avatarNote = null
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bytes = AvatarUploader.encode(context, uri)
+                        ?: error("could not read that image")
+                    container.supabase.uploadAvatar(bytes) to bytes.size
+                }
+            }
+            uploading = false
+            result.onSuccess { (version, bytes) ->
+                avatarVersion = version
+                container.settings.saveAvatarVersion(version)
+                avatarOk = true
+                avatarNote = "ho gaya (${bytes / 1024} KB)"
+            }.onFailure {
+                avatarOk = false
+                avatarNote = "photo nahi bhej paaya. dusri try karo."
+            }
+        }
+    }
 
     // Fetched once if the device has a session but no stored code -- an account
     // made before recovery existed, or one restored onto a new phone.
@@ -174,6 +213,59 @@ fun SetupScreen(
                 onClick = {
                     OverlayPrefs(context).clearPosition()
                     reset = true
+                },
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Card {
+            SectionLabel("photo")
+            Spacer(Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                UserAvatar(
+                    username = username.orEmpty(),
+                    url = Avatar.urlFor(
+                        baseUrl = container.supabase.baseUrl,
+                        userId = container.settings.userId.orEmpty(),
+                        version = avatarVersion,
+                    ),
+                    size = 64.dp,
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (uploading) {
+                            "bhej raha hoon..."
+                        } else {
+                            "leaderboard pe naam ke saath dikhegi. chhoti kar ke " +
+                                "bheji jaati hai, poori photo nahi."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Smoke,
+                    )
+                    if (avatarNote != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = avatarNote!!,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (avatarOk) Acid else Heat,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            FlatButton(
+                text = if (avatarVersion == null) "photo chuno" else "photo badlo",
+                emphasised = !uploading,
+                onClick = {
+                    if (!uploading) {
+                        picker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
                 },
             )
         }

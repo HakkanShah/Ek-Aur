@@ -64,6 +64,8 @@ data class LeaderboardRow(
     val username: String,
     val reelCount: Int,
     val activeMs: Long,
+    /** Null when this person has never set a picture. */
+    val avatarVersion: Long? = null,
 )
 
 /**
@@ -75,7 +77,7 @@ data class LeaderboardRow(
  */
 class SupabaseClient(
     private val settings: SessionStore,
-    private val baseUrl: String = BuildConfig.SUPABASE_URL,
+    val baseUrl: String = BuildConfig.SUPABASE_URL,
     private val apiKey: String = BuildConfig.SUPABASE_KEY,
     private val now: () -> Long = { System.currentTimeMillis() },
     private val http: OkHttpClient = defaultClient(),
@@ -244,6 +246,35 @@ class SupabaseClient(
             ?: throw SyncException(SyncError.Refused(500, "no name returned"))
     }
 
+    /**
+     * Replaces this account's picture and returns its new version stamp.
+     *
+     * The file keeps one name for ever, so the stamp is what makes every other
+     * phone stop using the copy it already cached.
+     */
+    fun uploadAvatar(bytes: ByteArray): Long {
+        val userId = settings.userId
+            ?: throw SyncException(SyncError.Refused(401, "not signed in"))
+
+        val request = Request.Builder()
+            .url("$baseUrl/storage/v1/object/avatars/$userId.webp")
+            .post(bytes.toRequestBody(WEBP_MEDIA))
+            // The path never changes, so every upload after the first is a
+            // replacement rather than a new object.
+            .addHeader("x-upsert", "true")
+
+        send(request, auth = true, prefer = null, contentType = "image/webp")
+
+        val body = request(
+            url = "$baseUrl/rest/v1/rpc/touch_avatar",
+            payload = buildJsonObject { },
+            auth = true,
+            prefer = null,
+        )
+        return (body as? JsonPrimitive)?.contentOrNull?.toLongOrNull()
+            ?: throw SyncException(SyncError.Refused(500, "no avatar version returned"))
+    }
+
     /** Sets whether this account appears on other people's leaderboards. */
     fun setHidden(hidden: Boolean) {
         val userId = settings.userId
@@ -267,7 +298,7 @@ class SupabaseClient(
         val body = get(
             "$baseUrl/rest/v1/daily_counts" +
                 "?date=eq.$date" +
-                "&select=user_id,reel_count,active_ms,profiles!inner(username,hidden)" +
+                "&select=user_id,reel_count,active_ms,profiles!inner(username,hidden,avatar_version)" +
                 "&order=reel_count.desc" +
                 "&limit=$limit"
         ).asArray("leaderboard")
@@ -280,6 +311,7 @@ class SupabaseClient(
                 username = profile["username"]?.jsonPrimitive?.content.orEmpty(),
                 reelCount = row["reel_count"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                 activeMs = row["active_ms"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L,
+                avatarVersion = profile["avatar_version"]?.jsonPrimitive?.contentOrNull?.toLongOrNull(),
             )
         }
     }
@@ -390,10 +422,11 @@ class SupabaseClient(
         builder: Request.Builder,
         auth: Boolean,
         prefer: String?,
+        contentType: String = "application/json",
     ): JsonElement {
         builder
             .addHeader("apikey", apiKey)
-            .addHeader("Content-Type", "application/json")
+            .addHeader("Content-Type", contentType)
         if (prefer != null) builder.addHeader("Prefer", prefer)
         // The publishable key is the bearer until there is a session; after
         // that the user's own token is what RLS reads auth.uid() from.
@@ -438,6 +471,7 @@ class SupabaseClient(
 
     private companion object {
         val JSON_MEDIA = "application/json".toMediaType()
+        val WEBP_MEDIA = "image/webp".toMediaType()
 
         fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
             // Short, because every call happens either in a WorkManager job that

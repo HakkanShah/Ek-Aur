@@ -156,6 +156,26 @@ selecting from it gets zero rows, including their own.
 Recovery moves the profile's id onto the new account and the counts follow
 through `ON UPDATE CASCADE`, so nothing is copied and nothing can be half-moved.
 
+### Profile pictures
+
+Optional, and small by the time they leave the phone. A camera photo is
+routinely 4000x3000 and around 48MB decoded, which is enough to kill the app,
+so it is never decoded at full size: the dimensions are read first, the decoder
+runs at a power-of-two shrink factor, and the result is centre-cropped to a
+256px square and encoded as WebP. Typically about 20KB.
+
+The bucket is public-read, because the leaderboard shows these to everyone
+anyway and a public URL is cacheable where a signed one expires. Writing is
+another matter: the storage policy allows exactly one path per person, their own
+uuid. Checked — a signed-in user can write `<their-id>.webp` and is refused
+someone else's path, a traversal like `other.webp/../mine.webp`, and any other
+name in the bucket. The server also refuses anything that is not a WebP under
+256KB, so the limit does not depend on the app behaving.
+
+Somebody without a picture gets their initial on a colour derived from their
+name, so a list of people without pictures is still readable rather than a
+column of identical circles.
+
 ### Changing your username
 
 Once every **14 days**, enforced in the database rather than on the device — a
@@ -193,7 +213,7 @@ milestone/   pure Kotlin — which milestone fires, and when
 data/        Room: raw events (7 days), hourly and daily totals, sessions
 copy/        the Hinglish lines
 ui/          app screens: counter, dashboard, friends, setup, event inspector, diagnostics
-sync/        pure Kotlin — what to upload, when a token expires, username rules
+sync/        pure Kotlin — what to upload, token expiry, username rules, image maths
 data/remote/ the five REST calls the app makes, on OkHttp
 ui/stats/    the dashboard; its series maths is plain Kotlin and unit tested
 ```

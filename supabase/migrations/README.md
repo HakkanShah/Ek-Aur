@@ -45,6 +45,14 @@ recovered onto a fresh user with the counts intact and nothing orphaned.
 then refused with "cooldown: 14 days left", then allowed again after the
 timestamp was moved back 15 days.
 
+## Avatars
+
+`0005_avatars.sql` creates the `avatars` bucket, public-read with a 256KB
+ceiling and `image/webp` as the only accepted type, so the size limit does not
+depend on the client behaving. Write policies allow exactly one path per user.
+Verified: a signed-in user may write `<their-id>.webp`, and is refused another
+user's path, `other.webp/../mine.webp`, and any other name in the bucket.
+
 ## What the index, not the app, decides
 
 The availability check is advisory. Two people can pass it in the same second,

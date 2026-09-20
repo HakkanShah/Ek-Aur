@@ -271,6 +271,26 @@ class SupabaseClientTest {
     }
 
     @Test
+    fun `an uploaded picture gets a fresh version stamp`() {
+        // The file keeps one name for ever, so without a new stamp every other
+        // phone would go on showing the copy it already cached.
+        settings.userId = "user-1"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"Key":"avatars/user-1.webp"}"""))
+        server.enqueue(MockResponse().setResponseCode(200).setBody("1789999999"))
+
+        assertEquals(1789999999L, client.uploadAvatar(ByteArray(2048)))
+
+        val upload = server.takeRequest()
+        assertTrue("goes to its own path", upload.path!!.endsWith("/avatars/user-1.webp"))
+        assertEquals("image/webp", upload.getHeader("Content-Type"))
+        assertEquals("replaces rather than duplicates", "true", upload.getHeader("x-upsert"))
+    }
+
+    @Test
     fun `anonymous sign-in being switched off is its own diagnosis`() {
         server.enqueue(
             MockResponse().setResponseCode(422)
