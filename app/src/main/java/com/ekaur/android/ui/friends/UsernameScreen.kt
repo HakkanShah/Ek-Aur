@@ -207,6 +207,11 @@ fun UsernameScreen(
                                 state = NameState.Taken
                                 "abhi abhi kisi ne le liya. dusra chuno."
                             }
+                            // Handled inside the client by starting a fresh
+                            // account; if it still reaches here, both attempts
+                            // failed and the network is the likelier cause.
+                            SyncError.StaleSession ->
+                                "purana account nahi mila. dobara try karo."
                             SyncError.SignupDisabled ->
                                 "server pe anonymous sign-in band hai."
                             SyncError.Offline ->

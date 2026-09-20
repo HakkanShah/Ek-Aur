@@ -3,6 +3,7 @@ package com.ekaur.android.sync
 import com.ekaur.android.data.local.EkAurDatabase
 import com.ekaur.android.data.prefs.SettingsStore
 import com.ekaur.android.data.remote.SupabaseClient
+import com.ekaur.android.data.remote.SyncError
 import com.ekaur.android.data.remote.SyncException
 
 /** What one sync attempt did, for the diagnostics screen to report. */
@@ -59,7 +60,17 @@ class Syncer(
             }
             SyncResult.Uploaded(settled.size)
         } catch (e: SyncException) {
-            // Everything stays dirty and is retried; nothing is lost by failing.
+            if (e.error == SyncError.StaleSession) {
+                // The account behind this username is gone, so there is nothing
+                // to upload to and retrying forever would be silent. Forgetting
+                // both sends the app back to the name screen, which is the only
+                // honest way out.
+                settings.clearSession()
+                settings.forgetUsername()
+                return SyncResult.Failed("account gone, naam dobara chuno")
+            }
+            // Everything else stays dirty and is retried; nothing is lost by
+            // failing.
             SyncResult.Failed(e.error.toString())
         }
     }

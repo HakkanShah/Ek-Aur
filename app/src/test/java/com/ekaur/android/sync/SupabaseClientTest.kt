@@ -176,6 +176,52 @@ class SupabaseClientTest {
     }
 
     @Test
+    fun `an account deleted server-side is recovered from, not reported as 409`() {
+        // Exactly what happened on the device: the phone held a session for an
+        // account that had been deleted. The token was still valid, so nothing
+        // revealed it until the foreign key to auth.users failed -- which
+        // PostgREST reports as 409, the same status as a duplicate name.
+        settings.userId = "ghost"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+
+        server.enqueue(
+            MockResponse().setResponseCode(409).setBody(
+                """{"code":"23503","message":"violates foreign key constraint \"profiles_id_fkey\""}"""
+            )
+        )
+        server.enqueue(session())
+        server.enqueue(
+            MockResponse().setResponseCode(201).setBody("""[{"username":"hakkan"}]""")
+        )
+
+        client.claimUsername("hakkan")
+
+        assertEquals("failed insert, fresh sign-in, retry", 3, server.requestCount)
+        assertEquals("user-1", settings.userId)
+    }
+
+    @Test
+    fun `a name genuinely taken is not mistaken for a dead account`() {
+        settings.userId = "user-1"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+
+        server.enqueue(
+            MockResponse().setResponseCode(409).setBody(
+                """{"code":"23505","message":"duplicate key value violates unique constraint \"profiles_username_unique\""}"""
+            )
+        )
+
+        val thrown = runCatching { client.claimUsername("hakkan") }.exceptionOrNull()
+
+        assertEquals(SyncError.NameTaken, (thrown as SyncException).error)
+        assertEquals("must not have signed in again", 1, server.requestCount)
+    }
+
+    @Test
     fun `anonymous sign-in being switched off is its own diagnosis`() {
         server.enqueue(
             MockResponse().setResponseCode(422)

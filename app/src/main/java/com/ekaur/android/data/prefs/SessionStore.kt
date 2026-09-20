@@ -14,4 +14,7 @@ interface SessionStore {
     val expiresAtMs: Long?
 
     fun saveSession(userId: String, accessToken: String, refreshToken: String, expiresAtMs: Long)
+
+    /** Forgets the session, so the next call signs in from scratch. */
+    fun clearSession()
 }

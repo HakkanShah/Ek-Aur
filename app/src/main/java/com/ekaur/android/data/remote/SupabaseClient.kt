@@ -31,6 +31,15 @@ sealed interface SyncError {
     data object NameTaken : SyncError
 
     /**
+     * This device remembers an account the server no longer has.
+     *
+     * The token stays cryptographically valid until it expires, so nothing
+     * reveals the account is gone until a foreign key to `auth.users` fails --
+     * which PostgREST reports as 409, the same status as a duplicate.
+     */
+    data object StaleSession : SyncError
+
+    /**
      * Anonymous sign-in is switched off for the project.
      *
      * Its own case because it is a one-switch server setting, not anything the
@@ -135,6 +144,20 @@ class SupabaseClient(
      * actually decides, so a 23505 here is an ordinary outcome, not a fault.
      */
     fun claimUsername(username: String) {
+        try {
+            insertProfile(username)
+        } catch (e: SyncException) {
+            if (e.error != SyncError.StaleSession) throw e
+            // The remembered account no longer exists. Start a new one and
+            // claim the name on that, rather than leaving someone stuck on a
+            // screen they have no way past.
+            settings.clearSession()
+            signInAnonymously()
+            insertProfile(username)
+        }
+    }
+
+    private fun insertProfile(username: String) {
         val userId = settings.userId
             ?: throw SyncException(SyncError.Refused(401, "not signed in"))
 
@@ -333,6 +356,9 @@ class SupabaseClient(
     private fun errorFor(status: Int, body: String): SyncError = when {
         // The unique index, not the availability check, is what decides a name
         // is taken -- so this is an ordinary outcome and gets its own case.
+        // Order matters: both arrive as 409. The foreign key one means the
+        // account is gone, the unique one means the name is.
+        body.contains("23503") || body.contains("_id_fkey") -> SyncError.StaleSession
         body.contains("profiles_username_unique") || body.contains("23505") -> SyncError.NameTaken
         body.contains("anonymous_provider_disabled") -> SyncError.SignupDisabled
         else -> SyncError.Refused(status, body.take(300))

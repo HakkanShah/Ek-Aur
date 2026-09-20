@@ -42,9 +42,24 @@ class SettingsStore(context: Context) : SessionStore {
             .apply()
     }
 
+    override fun clearSession() {
+        prefs.edit()
+            .remove(KEY_USER_ID)
+            .remove(KEY_ACCESS)
+            .remove(KEY_REFRESH)
+            .remove(KEY_EXPIRES)
+            .apply()
+    }
+
     fun saveUsername(username: String) {
         prefs.edit().putString(KEY_NAME, username).apply()
         _username.value = username
+    }
+
+    /** Sends the app back to the name screen. */
+    fun forgetUsername() {
+        prefs.edit().remove(KEY_NAME).apply()
+        _username.value = null
     }
 
     fun setHidden(value: Boolean) {

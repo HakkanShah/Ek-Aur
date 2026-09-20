@@ -9,6 +9,13 @@ class FakeSettings : SessionStore {
     override var refreshToken: String? = null
     override var expiresAtMs: Long? = null
 
+    override fun clearSession() {
+        userId = null
+        accessToken = null
+        refreshToken = null
+        expiresAtMs = null
+    }
+
     override fun saveSession(
         userId: String,
         accessToken: String,
