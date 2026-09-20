@@ -1,32 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  packageNames is restricted to Instagram. This is the whole privilege the
-  service holds: it can receive events from, and read the screen of, exactly
-  one app, and is blind to every other app on the phone.
+  This service holds the smallest privilege that can still count a swipe, and it
+  is written this way for the payment apps.
 
-  It matters most for payment apps. UPI and banking apps are required to warn
-  about accessibility services, because reading another app's screen is how
-  credential-stealing malware works. A service scoped to one app cannot see a
-  banking app at all — no events, no window content — so a check that reads
-  this scope has nothing to flag, and a payment screen is never delivered here
-  even by accident.
+  UPI and banking apps are required to warn about accessibility services,
+  because reading another app's screen is how credential-stealing malware works.
+  The two things such a check looks at are which apps a service can watch, and
+  whether it can read the screen at all. This service gives the least alarming
+  answer to both.
 
-  It costs one thing: the service no longer sees the foreground move to another
-  app, so a sitting is closed by the idle timer rather than the instant the
-  user leaves Instagram. That is a few seconds of a stale session, never a
-  wrong count.
+  packageNames is restricted to Instagram, so the system delivers it events from
+  that one app and nothing else. A payment app, a password field, any other
+  window are not seen — not by policy in code, but because Android never hands
+  them over.
 
-  typeWindowContentChanged is deliberately NOT subscribed to. A device dump
-  measured it at 84% of all traffic (336 of 400 events), which flooded the
-  inspector's buffer and evicted the actual scrolling we were trying to observe.
-  It contributes nothing now that the state machine is driven purely by scroll
-  events, and dropping it is a significant battery saving.
+  canRetrieveWindowContent is deliberately OFF. The service does not read the
+  screen: it counts on the scroll event's own report of a one-item pager
+  advancing (fromIndex == toIndex), which is carried on the event itself and
+  needs no window content. Declaring no content capability is what tells a
+  banking check this is not a screen reader. The cost is small and paid only in
+  detection: without the view id, Instagram's five-tab strip — also a one-item
+  pager — can no longer be told apart from Reels, so swiping between the main
+  tabs may add the odd stray count. A rare over-count is a fair price for not
+  looking like spyware to every payment app on the phone.
+
+  flagReportViewIds is gone with it, since view ids require window content.
+
+  It also means the service no longer sees the foreground move to another app,
+  so a sitting is closed by the idle timer rather than the instant the user
+  leaves Instagram — a few seconds of a stale session, never a wrong count.
+
+  typeWindowContentChanged is not subscribed to either. A device dump measured
+  it at 84% of all traffic (336 of 400 events), which flooded the inspector's
+  buffer and evicted the actual scrolling. It contributes nothing now that the
+  state machine is driven purely by scroll events, and dropping it saves battery.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:packageNames="com.instagram.android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"
-    android:canRetrieveWindowContent="true"
+    android:accessibilityFlags="flagIncludeNotImportantViews"
+    android:canRetrieveWindowContent="false"
     android:description="@string/accessibility_service_description"
     android:notificationTimeout="0" />

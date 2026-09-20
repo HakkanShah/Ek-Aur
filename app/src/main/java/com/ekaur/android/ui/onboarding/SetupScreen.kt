@@ -267,17 +267,18 @@ fun SetupScreen(
             SectionLabel("payment / UPI app")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "koi UPI ya bank app is app ko uninstall karne ki warning de " +
-                    "sakti hai. ye Android ka rule hai — har accessibility app pe " +
-                    "aati hai, kyunki screen padhne wale virus isi tarah kaam karte hain.",
+                text = "ye app screen padhti hi nahi aur sirf Instagram dekh sakti hai — " +
+                    "tera bank, UPI, password kuch isko dikhta hi nahi. isiliye zyada " +
+                    "payment apps ab warning nahi denge, aur tujhe kuch band karne ki " +
+                    "zarurat nahi.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "par ye app sirf Instagram dekh sakti hai — tera bank, UPI, " +
-                    "password kuch isko dikhta hi nahi. paisa bhejne se pehle chaho " +
-                    "to ise ek tap me band kar do, kaam ke baad wapas on.",
+                text = "agar phir bhi koi ek app warning de, to niche wale button se " +
+                    "use band kar sakte ho. har payment pe nahi — sirf jab koi app " +
+                    "zid kare.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )

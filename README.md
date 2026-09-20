@@ -241,36 +241,38 @@ Cards are written to a cache folder that only the share sheet can reach
 
 ---
 
-## Payment and UPI apps warn about this — that's expected
+## Payment and UPI apps
 
-A UPI or banking app may pop a warning telling you to uninstall this app the
-moment its accessibility service is on. This is not a bug and it is not this app
-in particular: **every** app in India that reads the screen trips it. Banking
-apps are required to warn about any accessibility service, because reading
-another app's screen is exactly how credential-stealing malware works. This app
-holds that same kind of permission, so it gets caught by the same net.
+A UPI or banking app may warn you to uninstall this the moment its accessibility
+service is on. This is not a bug and it is not this app in particular: banking
+apps are required to warn about accessibility services, because reading another
+app's screen is how credential-stealing malware works.
 
-Two things make it safe, and one of them is a switch:
+The app is built to give such a check the least alarming answer there is, so
+that most payment apps never warn and **you never have to toggle anything**:
 
-- **The service can only see Instagram.** It is scoped to `com.instagram.android`
-  in its config, which means the system never delivers it a single event or one
-  pixel of any other app — a payment screen, a password field, another app's
-  window are all invisible to it, not by policy but because Android does not hand
-  them over. A banking-app check that reads *which* apps a service can watch sees
-  "Instagram only" and has nothing to flag.
-- **A one-tap pause for the apps whose check is cruder.** Some banking apps warn
-  about *any* accessibility service regardless of how narrowly it is scoped —
-  nothing an app does can honestly quiet that without defeating the check, which
-  is the point of the check. So **setup** has a *"payment ke liye abhi band karo"*
-  button that switches the service off outright; that removes it from the list
-  the warning reads, so the warning stops. Turning it back on is one tap to
-  accessibility settings — Android never lets an app grant itself this
-  permission, which is itself a safety property.
+- **It cannot read the screen.** The service declares no window-content
+  capability at all. It counts a swipe from the scroll event's own report that a
+  one-item pager advanced — a number carried on the event — and never reads a
+  single view's text. A banking check that looks for a screen reader finds one
+  that is not.
+- **It can only see Instagram.** Scoped to `com.instagram.android`, so the system
+  never delivers it an event or a window from any other app. A payment screen is
+  invisible to it, not by policy but because Android does not hand it over.
 
-The cost of scoping to Instagram is small and paid elsewhere: the service can no
-longer notice the moment you switch to another app, so a *sitting* is closed by
-the idle timer a few seconds later instead of instantly. It never affects a
-count.
+The cost is paid only in counting, and it is small: without the view id, the
+app can no longer tell Instagram's five-tab strip — also a one-item pager — from
+Reels, so swiping between the main tabs may add the odd stray count. A rare
+over-count is a fair trade for not looking like spyware to every payment app.
+
+**If one stubborn app still warns.** A few banking apps warn about *any*
+accessibility service however narrowly it is built — no app can honestly quiet
+that without defeating the check, which is the point of it. For those, **setup**
+has a *"payment ke liye abhi band karo"* button that switches the service off,
+which removes it from the list the warning reads. It is turned back on the same
+way it was first enabled, in accessibility settings; Android never lets an app
+grant itself this permission. This is a fallback for the rare stubborn app, not
+something to do before every payment.
 
 ---
 
@@ -314,6 +316,10 @@ cheapest to test and re-derive.
 
 ### When Instagram breaks detection
 
-The **events** tab records every accessibility event with its view ids and
-positions, and exports the lot through the share sheet. That dump is how the
-matching rules get rebuilt in minutes instead of from scratch.
+The **events** tab records every accessibility event with its class, scroll
+positions and item counts, and exports the lot through the share sheet. That
+dump is how the matching rules get rebuilt in minutes instead of from scratch.
+View ids are no longer among them: reading them needs the window-content
+capability, which was dropped so payment apps stop warning (see **Payment and
+UPI apps**). The structural rule the detector actually relies on — one visible
+item is the player, several is the feed — never needed them.

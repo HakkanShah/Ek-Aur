@@ -95,8 +95,11 @@ class EkAurAccessibilityService : AccessibilityService() {
         // the price of not being able to see them, which is the whole point.
         if (DetectorRules.forPackage(packageName) == null) return
 
-        val source = runCatching { event.source }.getOrNull()
-        val viewId = runCatching { source?.viewIdResourceName }.getOrNull()
+        // The service declares no window-content capability, so there is no node
+        // to read and no view id to be had -- counting works off the event's own
+        // report of a one-item pager advancing. Left null rather than queried, so
+        // the code says plainly that the screen is never read.
+        val viewId: String? = null
         val scrollDeltaY = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) event.scrollDeltaY else 0
 
         val signal = ScrollSignal(
