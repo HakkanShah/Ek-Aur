@@ -293,6 +293,12 @@ Android never lets an app grant itself accessibility — and if you forget, the
 missing pill is the reminder. The switch is in **setup**; turn it off there if
 you would rather manage it by hand.
 
+**A home-screen widget shows the state.** The system accessibility button can't
+be restyled by an app, so there is a widget instead: a chip that is acid-green
+and says ON while Ek Aur runs, blacked-out and OFF when it does not, and a tap
+switches it — off instantly, on by dropping you at the switch (Android will not
+let the app flip it on by itself). Add it from your launcher's widget picker.
+
 ---
 
 ## Building

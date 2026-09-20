@@ -81,6 +81,21 @@
             </intent-filter>
         </service>
 
+        <!-- A home-screen toggle: acid when Ek Aur is on, blacked-out when off,
+             a tap to switch it. exported=false; the system targets it by
+             component, and its only pending intent comes from inside the app. -->
+        <receiver
+            android:name=".widget.EkAurWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.ekaur.android.widget.TOGGLE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/ek_aur_widget_info" />
+        </receiver>
+
         <!-- Shares diagnostic dumps out through the share sheet; with no USB on
              the test device this is the only way to get text off the phone. -->
         <provider
