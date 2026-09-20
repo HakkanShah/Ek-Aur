@@ -83,6 +83,7 @@ fun SetupScreen(
     var uploading by remember { mutableStateOf(false) }
     var avatarNote by remember { mutableStateOf<String?>(null) }
     var avatarOk by remember { mutableStateOf(false) }
+    var paymentPaused by remember { mutableStateOf(false) }
 
     var pendingPhoto by remember { mutableStateOf<Bitmap?>(null) }
 
@@ -259,6 +260,58 @@ fun SetupScreen(
             actionLabel = "battery se chhoot do",
             onAction = { ServiceControl.openBatterySettings(context) },
         )
+
+        Spacer(Modifier.height(12.dp))
+
+        Card {
+            SectionLabel("payment / UPI app")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "koi UPI ya bank app is app ko uninstall karne ki warning de " +
+                    "sakti hai. ye Android ka rule hai — har accessibility app pe " +
+                    "aati hai, kyunki screen padhne wale virus isi tarah kaam karte hain.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ash,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "par ye app sirf Instagram dekh sakti hai — tera bank, UPI, " +
+                    "password kuch isko dikhta hi nahi. paisa bhejne se pehle chaho " +
+                    "to ise ek tap me band kar do, kaam ke baad wapas on.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ash,
+            )
+
+            if (paymentPaused) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "band kar diya. payment ke baad wapas on karne ke liye " +
+                        "accessibility settings kholo.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Acid,
+                )
+                Spacer(Modifier.height(12.dp))
+                FlatButton(
+                    text = "wapas on karo",
+                    emphasised = true,
+                    onClick = { ServiceControl.openAccessibilitySettings(context) },
+                )
+            } else {
+                Spacer(Modifier.height(14.dp))
+                FlatButton(
+                    text = "payment ke liye abhi band karo",
+                    emphasised = false,
+                    onClick = {
+                        // If the service is not actually running, treat it as
+                        // already off rather than claiming a pause that did
+                        // nothing -- either way, nothing is left for a UPI app
+                        // to warn about.
+                        ServiceControl.pauseForPayment()
+                        paymentPaused = true
+                    },
+                )
+            }
+        }
 
         Spacer(Modifier.height(12.dp))
 

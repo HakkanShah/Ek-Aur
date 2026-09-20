@@ -1,9 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  packageNames is deliberately NOT restricted to Instagram. The service needs to
-  see the foreground moving to some other app so it can close out a session;
-  without that it would sit believing Reels is still open. Events from untracked
-  apps are discarded immediately in code and never inspected or recorded.
+  packageNames is restricted to Instagram. This is the whole privilege the
+  service holds: it can receive events from, and read the screen of, exactly
+  one app, and is blind to every other app on the phone.
+
+  It matters most for payment apps. UPI and banking apps are required to warn
+  about accessibility services, because reading another app's screen is how
+  credential-stealing malware works. A service scoped to one app cannot see a
+  banking app at all — no events, no window content — so a check that reads
+  this scope has nothing to flag, and a payment screen is never delivered here
+  even by accident.
+
+  It costs one thing: the service no longer sees the foreground move to another
+  app, so a sitting is closed by the idle timer rather than the instant the
+  user leaves Instagram. That is a few seconds of a stale session, never a
+  wrong count.
 
   typeWindowContentChanged is deliberately NOT subscribed to. A device dump
   measured it at 84% of all traffic (336 of 400 events), which flooded the
@@ -12,6 +23,7 @@
   events, and dropping it is a significant battery saving.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:packageNames="com.instagram.android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"

@@ -7,7 +7,6 @@ import com.ekaur.android.EkAurApp
 import com.ekaur.android.data.repo.CounterRepository
 import com.ekaur.android.detect.DetectionEvent
 import com.ekaur.android.detect.DetectorRules
-import com.ekaur.android.detect.ForegroundPolicy
 import com.ekaur.android.detect.ReelDetector
 import com.ekaur.android.detect.ScrollSignal
 import com.ekaur.android.diagnostics.CapturedEvent
@@ -51,6 +50,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         status = container.serviceStatus
         counters = container.counterRepository
 
+        instance = this
         detector.reset()
         status.onConnected()
 
@@ -88,26 +88,12 @@ class EkAurAccessibilityService : AccessibilityService() {
         val kind = event.eventType.toKind() ?: return
         val now = System.currentTimeMillis()
 
-        val tracked = DetectorRules.forPackage(packageName) != null
-
-        // Events from untracked apps are not inspected or recorded -- only the
-        // fact that the foreground moved away is used, so the detector can close
-        // out the session. Nothing about other apps is read or kept.
-        if (!tracked) {
-            if (kind == ScrollSignal.Kind.WindowStateChanged && hasLeftTrackedApp(packageName)) {
-                val result = detector.onSignal(
-                    ScrollSignal(
-                        packageName = packageName,
-                        kind = kind,
-                        timestampMs = now,
-                    )
-                )
-                handle(result.events)
-                status.onEvent(packageName, now, result.state.name)
-                overlay?.onDetectionState(result.state)
-            }
-            return
-        }
+        // The service is scoped to Instagram in its config, so in practice only
+        // Instagram events ever arrive. This stays as a guard: anything else is
+        // ignored outright, never inspected, never recorded. A sitting is closed
+        // by the detector's own idle timer instead of by watching other apps --
+        // the price of not being able to see them, which is the whole point.
+        if (DetectorRules.forPackage(packageName) == null) return
 
         val source = runCatching { event.source }.getOrNull()
         val viewId = runCatching { source?.viewIdResourceName }.getOrNull()
@@ -164,6 +150,7 @@ class EkAurAccessibilityService : AccessibilityService() {
     }
 
     private fun teardown() {
+        if (instance === this) instance = null
         overlay?.destroy()
         overlay = null
         announcements = null
@@ -219,23 +206,6 @@ class EkAurAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Whether a window event from another package really means the user left.
-     *
-     * A notification banner fires the same event as an app switch, so the event
-     * package alone is not enough -- the window actually in front is consulted
-     * instead. Only reached for untracked window events, which are rare, since
-     * reading the active window is neither free nor guaranteed to succeed.
-     */
-    private fun hasLeftTrackedApp(eventPackage: String): Boolean {
-        val foreground = runCatching { rootInActiveWindow?.packageName?.toString() }.getOrNull()
-        return ForegroundPolicy.hasLeftTrackedApp(
-            eventPackage = eventPackage,
-            actualForeground = foreground,
-            isTracked = { DetectorRules.forPackage(it) != null },
-        )
-    }
-
     private fun Int.toKind(): ScrollSignal.Kind? = when (this) {
         AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> ScrollSignal.Kind.WindowStateChanged
         AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> ScrollSignal.Kind.WindowContentChanged
@@ -255,7 +225,31 @@ class EkAurAccessibilityService : AccessibilityService() {
             ScrollSignal.NO_INDEX
         }
 
-    private companion object {
-        const val TICK_INTERVAL_MS = 250L
+    companion object {
+        private const val TICK_INTERVAL_MS = 250L
+
+        // The one live service, so the UI can switch it off for a payment. Held
+        // as a plain reference rather than passed around: nothing outside this
+        // class may reach the service, and it is cleared the moment the service
+        // goes, so a stale one can never be used.
+        @Volatile
+        private var instance: EkAurAccessibilityService? = null
+
+        /**
+         * Turns the service off from inside the app, for when a payment app is
+         * about to be used.
+         *
+         * `disableSelf` removes the service from the system's enabled list at
+         * once, which is what a UPI app's warning is reading -- so this is the
+         * reliable way to quiet even the crudest check. Turning it back on has
+         * to happen in Settings, because an app is never allowed to grant itself
+         * accessibility; [ServiceControl.openAccessibilitySettings] is the way
+         * back. Returns false if the service was not running to begin with.
+         */
+        fun pauseFromUi(): Boolean {
+            val live = instance ?: return false
+            live.disableSelf()
+            return true
+        }
     }
 }

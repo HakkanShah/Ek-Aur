@@ -67,6 +67,20 @@ object ServiceControl {
         runCatching { context.startActivity(intent) }
     }
 
+    /**
+     * Switches the counting off for a payment, and reports whether it worked.
+     *
+     * A UPI or banking app is required to warn about any accessibility service,
+     * and its warning reads the system's enabled list. Switching the service
+     * off removes it from that list at once, so the warning has nothing to
+     * report. It is turned back on the same way it was first enabled, in
+     * Settings -- an app may never grant itself accessibility.
+     *
+     * Returns false only if the service was not running, in which case there is
+     * nothing to pause and the caller can say so.
+     */
+    fun pauseForPayment(): Boolean = EkAurAccessibilityService.pauseFromUi()
+
     /** Whether the floating counter is allowed to draw over other apps. */
     fun canDrawOverlay(context: Context): Boolean = Settings.canDrawOverlays(context)
 

@@ -241,6 +241,39 @@ Cards are written to a cache folder that only the share sheet can reach
 
 ---
 
+## Payment and UPI apps warn about this — that's expected
+
+A UPI or banking app may pop a warning telling you to uninstall this app the
+moment its accessibility service is on. This is not a bug and it is not this app
+in particular: **every** app in India that reads the screen trips it. Banking
+apps are required to warn about any accessibility service, because reading
+another app's screen is exactly how credential-stealing malware works. This app
+holds that same kind of permission, so it gets caught by the same net.
+
+Two things make it safe, and one of them is a switch:
+
+- **The service can only see Instagram.** It is scoped to `com.instagram.android`
+  in its config, which means the system never delivers it a single event or one
+  pixel of any other app — a payment screen, a password field, another app's
+  window are all invisible to it, not by policy but because Android does not hand
+  them over. A banking-app check that reads *which* apps a service can watch sees
+  "Instagram only" and has nothing to flag.
+- **A one-tap pause for the apps whose check is cruder.** Some banking apps warn
+  about *any* accessibility service regardless of how narrowly it is scoped —
+  nothing an app does can honestly quiet that without defeating the check, which
+  is the point of the check. So **setup** has a *"payment ke liye abhi band karo"*
+  button that switches the service off outright; that removes it from the list
+  the warning reads, so the warning stops. Turning it back on is one tap to
+  accessibility settings — Android never lets an app grant itself this
+  permission, which is itself a safety property.
+
+The cost of scoping to Instagram is small and paid elsewhere: the service can no
+longer notice the moment you switch to another app, so a *sitting* is closed by
+the idle timer a few seconds later instead of instantly. It never affects a
+count.
+
+---
+
 ## Building
 
 ```bash
