@@ -158,11 +158,39 @@ through `ON UPDATE CASCADE`, so nothing is copied and nothing can be half-moved.
 
 ### Profile pictures
 
-Optional, and small by the time they leave the phone. A camera photo is
-routinely 4000x3000 and around 48MB decoded, which is enough to kill the app,
-so it is never decoded at full size: the dimensions are read first, the decoder
-runs at a power-of-two shrink factor, and the result is centre-cropped to a
-256px square and encoded as WebP. Typically about 20KB.
+Optional, and small by the time they leave the phone. Pick one from the gallery
+or, for an image the gallery does not list, straight from a file — whatever the
+phone can display is accepted, JPEG and PNG included, and HEIC, the format a lot
+of recent cameras save by default.
+
+Decoding goes through `ImageDecoder`, which is what fixed photos that would not
+open at all: `BitmapFactory` knows JPEG, PNG, WebP, GIF and BMP and nothing
+else, so a HEIC simply came back as nothing with no way to tell why.
+`ImageDecoder` also applies the EXIF rotation, which `BitmapFactory` never did —
+a photo taken in portrait used to end up sideways.
+
+A camera photo is routinely 4000x3000 and around 48MB decoded, which is enough
+to kill the app, so it is never decoded at full size: the decoder is told to
+land the shorter side on 1024 before it allocates anything. The result is
+cropped to a 256px square and encoded as WebP, typically about 20KB.
+
+**You choose the square.** The picture opens on a crop screen — drag to move,
+pinch to zoom, and the circle shows exactly what other people will see. The app
+used to take the centre square and upload it, which is the wrong square most of
+the time; someone standing off to one side lost their head. Opening it and
+pressing straight through still gives that centre square, so nothing got slower
+for anyone who does not care.
+
+The circle is the guide rather than a square because every place the picture is
+shown is round — the leaderboard, the setup screen and the share card all clip
+it. The square around the circle is what gets stored, so nothing in the corners
+is ever seen and nothing framed inside the circle is ever lost.
+
+The framing maths lives in `sync/CropTransform.kt`, pure Kotlin and unit tested,
+because `Bitmap.createBitmap` throws outright on a rect that leaves the source
+by one pixel — and a throw on this phone is a message with nothing behind it.
+That is also why each way a photo can fail to open says which one it was rather
+than sharing one message between them.
 
 The bucket is public-read, because the leaderboard shows these to everyone
 anyway and a public URL is cacheable where a signed one expires. Writing is
@@ -244,6 +272,7 @@ sync/        pure Kotlin — what to upload, token expiry, username rules, image
 data/remote/ the five REST calls the app makes, on OkHttp
 ui/stats/    the dashboard; its series maths is plain Kotlin and unit tested
 share/       the stats card: what it says, how it is drawn, how it leaves the phone
+photo/       reading a chosen photo, and encoding the square the user framed
 ```
 
 `detect/` is deliberately free of Android types. Detection is the part most

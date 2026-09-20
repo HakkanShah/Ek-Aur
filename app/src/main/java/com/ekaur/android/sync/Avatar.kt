@@ -30,6 +30,24 @@ object Avatar {
         return sample
     }
 
+    /**
+     * The size to decode a photo at before the user frames it.
+     *
+     * [sampleSizeFor] can only halve, so a 4032x3024 photo lands at 2016x1512
+     * and about 12MB -- fine on a good phone, not on a cheap one. Where the
+     * decoder can scale freely this pins the shorter side to [target] exactly,
+     * so the working bitmap is the same size whatever came in. A photo already
+     * smaller than that is left alone rather than enlarged.
+     */
+    fun workingSize(width: Int, height: Int, target: Int = 1024): Pair<Int, Int> {
+        if (width <= 0 || height <= 0 || target <= 0) return width to height
+        val shorter = minOf(width, height)
+        if (shorter <= target) return width to height
+        val factor = target.toDouble() / shorter
+        return maxOf(1, Math.round(width * factor).toInt()) to
+            maxOf(1, Math.round(height * factor).toInt())
+    }
+
     /** The centred square to take from a [width] x [height] image. */
     fun centreCrop(width: Int, height: Int): Crop {
         val side = minOf(width, height).coerceAtLeast(0)

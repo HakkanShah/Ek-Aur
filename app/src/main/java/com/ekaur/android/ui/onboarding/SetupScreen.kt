@@ -29,7 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.SolidColor
-import com.ekaur.android.data.remote.AvatarUploader
+import android.graphics.Bitmap
+import android.net.Uri
+import com.ekaur.android.photo.AvatarPhoto
 import com.ekaur.android.data.remote.SyncError
 import com.ekaur.android.data.remote.SyncException
 import com.ekaur.android.di.AppContainer
@@ -37,6 +39,7 @@ import com.ekaur.android.sync.Avatar
 import com.ekaur.android.sync.Username
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
+import com.ekaur.android.ui.avatar.AvatarCropScreen
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Dot
 import com.ekaur.android.ui.common.FlatButton
@@ -81,40 +84,94 @@ fun SetupScreen(
     var avatarNote by remember { mutableStateOf<String?>(null) }
     var avatarOk by remember { mutableStateOf(false) }
 
-    // The system photo picker: no gallery permission is asked for, and the app
-    // only ever receives the one image the user chose.
-    val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    var pendingPhoto by remember { mutableStateOf<Bitmap?>(null) }
+
+    // Decoded the moment a photo is chosen rather than at upload time, so a
+    // file the phone cannot read says so immediately -- and so the user sees
+    // what they are sending before anything is sent.
+    fun openForCrop(uri: Uri?) {
+        if (uri == null) return
+        avatarNote = null
+        avatarOk = false
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                runCatching { AvatarPhoto.decode(context, uri) }
+            }.onSuccess {
+                pendingPhoto = it
+            }.onFailure { thrown ->
+                // Three different faults used to share one message, which said
+                // nothing and cost a round trip to work out. There is no logcat
+                // on this phone; the screen is the only instrument.
+                avatarNote = when ((thrown as? AvatarPhoto.PhotoException)?.failure) {
+                    AvatarPhoto.Failure.CannotOpen ->
+                        "ye file khuli nahi. gallery se dusri chuno."
+                    AvatarPhoto.Failure.NotAnImage ->
+                        "is photo ka format phone padh nahi paaya."
+                    AvatarPhoto.Failure.TooBig ->
+                        "photo bahut badi hai, memory kam pad gayi."
+                    null -> "photo kholne me dikkat aayi. dusri try karo."
+                }
+            }
+        }
+    }
+
+    fun upload(photo: Bitmap, crop: Avatar.Crop) {
         uploading = true
         avatarNote = null
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val bytes = AvatarUploader.encode(context, uri)
-                        ?: error("could not read that image")
+                    val bytes = AvatarPhoto.encode(photo, crop)
                     container.supabase.uploadAvatar(bytes) to bytes.size
                 }
             }
             uploading = false
             result.onSuccess { (version, bytes) ->
+                pendingPhoto = null
                 avatarVersion = version
                 container.settings.saveAvatarVersion(version)
                 avatarOk = true
                 avatarNote = "ho gaya (${bytes / 1024} KB)"
             }.onFailure { thrown ->
-                // Named, because a generic "could not send" already cost one
-                // round trip to diagnose and there is no logcat on this phone.
+                // The crop screen stays open on a failure, so pressing lagao
+                // again retries without re-picking and re-framing the photo.
                 avatarOk = false
                 avatarNote = when (val cause = (thrown as? SyncException)?.error) {
                     SyncError.Offline -> "internet nahi mila."
                     is SyncError.Refused -> "server ne mana kiya (${cause.status})."
-                    null -> "ye photo padhi nahi gayi. dusri try karo."
                     else -> "photo nahi bhej paaya."
                 }
             }
         }
+    }
+
+    // The gallery picker: no storage permission is asked for, and the app only
+    // ever receives the one image the user chose.
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri -> openForCrop(uri) }
+
+    // The way back for a photo the gallery does not list -- a jpg sitting in
+    // Downloads, or anything a chat app saved where the media scanner never
+    // looked. Same decoder, so it accepts whatever the phone can display.
+    val files = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> openForCrop(uri) }
+
+    val cropping = pendingPhoto
+    if (cropping != null) {
+        AvatarCropScreen(
+            photo = cropping,
+            busy = uploading,
+            error = if (avatarOk) null else avatarNote,
+            onCancel = {
+                pendingPhoto = null
+                avatarNote = null
+            },
+            onConfirm = { crop -> upload(cropping, crop) },
+            modifier = modifier,
+        )
+        return
     }
 
     // Fetched once if the device has a session but no stored code -- an account
@@ -274,6 +331,12 @@ fun SetupScreen(
                         )
                     }
                 },
+            )
+            Spacer(Modifier.height(8.dp))
+            FlatButton(
+                text = "file se chuno",
+                emphasised = false,
+                onClick = { if (!uploading) files.launch("image/*") },
             )
         }
 

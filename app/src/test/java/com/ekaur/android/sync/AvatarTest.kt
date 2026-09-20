@@ -87,4 +87,30 @@ class AvatarTest {
         assertEquals("?", Avatar.initialOf(""))
         assertEquals("?", Avatar.initialOf("..."))
     }
+
+    @Test
+    fun `the working size pins the shorter side, whatever came in`() {
+        // The crop screen holds this bitmap in memory, so its size has to be
+        // known rather than whatever a power-of-two step happened to land on.
+        val sizes = listOf(4032 to 3024, 6000 to 8000, 1080 to 1920, 2048 to 2048)
+
+        for ((w, h) in sizes) {
+            val (tw, th) = Avatar.workingSize(w, h, 1024)
+            assertEquals("$w x $h shorter side", 1024, minOf(tw, th))
+            // Aspect ratio must survive, or every avatar comes out stretched.
+            assertEquals(w.toDouble() / h, tw.toDouble() / th, 0.01)
+        }
+    }
+
+    @Test
+    fun `a photo already small enough is not enlarged`() {
+        assertEquals(800 to 600, Avatar.workingSize(800, 600, 1024))
+        assertEquals(1024 to 4000, Avatar.workingSize(1024, 4000, 1024))
+    }
+
+    @Test
+    fun `nonsense dimensions pass straight through`() {
+        assertEquals(0 to 0, Avatar.workingSize(0, 0, 1024))
+        assertEquals(100 to 100, Avatar.workingSize(100, 100, 0))
+    }
 }
