@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -14,8 +15,19 @@ android {
         applicationId = "com.ekaur.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 13
-        versionName = "0.9.0"
+        versionCode = 14
+        versionName = "0.10.0"
+
+        // The project's public address and its publishable key. Both are meant
+        // to ship inside the app -- they identify the project, they are not
+        // credentials, and row level security is what actually protects the
+        // data. Anyone can read them out of any Supabase app's APK.
+        buildConfigField("String", "SUPABASE_URL", "\"https://vgfsuwhhuuodvoyntqbf.supabase.co\"")
+        buildConfigField(
+            "String",
+            "SUPABASE_KEY",
+            "\"sb_publishable_70DYlsA3sLbQiOIO3Tx_jw_fGI-zNts\"",
+        )
     }
 
     // A stable, committed keystore. The build container is ephemeral, so a
@@ -76,6 +88,8 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
@@ -90,4 +104,5 @@ dependencies {
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.arch.core.testing)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
 }

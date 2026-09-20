@@ -3,10 +3,13 @@ package com.ekaur.android.di
 import android.content.Context
 import com.ekaur.android.data.local.EkAurDatabase
 import com.ekaur.android.data.repo.CounterRepository
+import com.ekaur.android.data.prefs.SettingsStore
+import com.ekaur.android.data.remote.SupabaseClient
 import com.ekaur.android.data.repo.DayClock
 import com.ekaur.android.diagnostics.CrashReporter
 import com.ekaur.android.diagnostics.EventLog
 import com.ekaur.android.diagnostics.ServiceStatus
+import com.ekaur.android.sync.Syncer
 
 /**
  * Manual dependency container, built once in [com.ekaur.android.EkAurApp].
@@ -30,4 +33,13 @@ class AppContainer(appContext: Context) {
     val database: EkAurDatabase by lazy { EkAurDatabase.build(appContext) }
 
     val counterRepository: CounterRepository by lazy { CounterRepository(database, clock) }
+
+    /** Whether the leaderboard is on, and the identity behind it. */
+    val settings: SettingsStore = SettingsStore(appContext)
+
+    // Built lazily like the database: an app that never joins the leaderboard
+    // never constructs an HTTP client or touches the network.
+    val supabase: SupabaseClient by lazy { SupabaseClient(settings) }
+
+    val syncer: Syncer by lazy { Syncer(database, settings, supabase) }
 }

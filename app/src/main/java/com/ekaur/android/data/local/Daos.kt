@@ -70,6 +70,33 @@ interface DailyCountDao {
     @Query("SELECT * FROM daily_counts WHERE date >= :from ORDER BY date DESC")
     fun observeSince(from: String): Flow<List<DailyCountEntity>>
 
+    /** Days changed since their last upload, oldest first. */
+    @Query("SELECT * FROM daily_counts WHERE dirty = 1 ORDER BY date ASC LIMIT :limit")
+    suspend fun dirtyRows(limit: Int): List<DailyCountEntity>
+
+    /**
+     * Clears the dirty flag for a day that was uploaded unchanged.
+     *
+     * The count is part of the WHERE clause on purpose: counting carries on
+     * while a request is in flight, so a row that grew mid-upload must stay
+     * dirty rather than be marked as sent.
+     */
+    @Query(
+        """
+        UPDATE daily_counts
+        SET dirty = 0, lastSyncedAtMs = :atMs
+        WHERE date = :date AND packageName = :packageName
+          AND reelCount = :reelCount AND activeMs = :activeMs
+        """
+    )
+    suspend fun markSynced(
+        date: String,
+        packageName: String,
+        reelCount: Int,
+        activeMs: Long,
+        atMs: Long,
+    ): Int
+
     /**
      * The heaviest day on record, summed across apps.
      *

@@ -34,6 +34,7 @@ import com.ekaur.android.ui.common.Dot
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.debug.DiagnosticsScreen
+import com.ekaur.android.ui.friends.FriendsScreen
 import com.ekaur.android.ui.debug.EventInspectorScreen
 import com.ekaur.android.ui.onboarding.SetupScreen
 import com.ekaur.android.ui.stats.StatsScreen
@@ -47,6 +48,7 @@ import com.ekaur.android.ui.theme.Smoke
 private enum class Tab(val label: String) {
     Home("ginti"),
     Stats("hisaab"),
+    Friends("dost"),
     Setup("setup"),
     Events("events"),
     Status("status"),
@@ -122,6 +124,7 @@ private fun AppScaffold(container: AppContainer) {
         when (tab) {
             Tab.Home -> HomeScreen(container, permissions) { tab = Tab.Setup }
             Tab.Stats -> StatsScreen(container.counterRepository)
+            Tab.Friends -> FriendsScreen(container)
             Tab.Setup -> SetupScreen(serviceEnabled = permissions.service)
             Tab.Events -> EventInspectorScreen(container.eventLog)
             Tab.Status -> DiagnosticsScreen(

@@ -7,8 +7,14 @@ reels it widens to congratulate you, and it has more to say at round numbers, on
 a long sitting, and in the small hours. It never suggests stopping — the number
 does that on its own.
 
-Android only. Sideloaded, not on the Play Store. Everything stays on the phone:
-no account, no server, no analytics.
+Android only. Sideloaded, not on the Play Store.
+
+Everything stays on the phone by default: no account, no server, no analytics.
+The friends leaderboard is opt-in and off until you switch it on — until then
+the app creates no account and makes no network request at all. Switch it on and
+the only thing that ever leaves the phone is a daily total: a date, a count, a
+duration. Which reels, when, and every raw event stay local, and the server has
+nowhere to put them.
 
 ---
 
@@ -107,6 +113,22 @@ text.
 
 ---
 
+## The leaderboard
+
+Off until you switch it on in the **dost** tab. Joining asks for a name, creates
+an anonymous account (no email, no password) and hands you a six-character
+friend code to share.
+
+Only daily totals are uploaded, and only ever your own. What a friend can see is
+enforced by the database, not by the app: row level security means a signed-in
+user reading someone else's counts gets **zero rows**, and a friend code cannot
+be resolved by a query at all — that is why adding a friend goes through a single
+`SECURITY DEFINER` function that returns nothing but the matched name.
+
+Schema and the one manual setting are in `supabase/migrations/`.
+
+---
+
 ## Building
 
 ```bash
@@ -133,7 +155,9 @@ overlay/     the floating counter, its placement maths, and the announcement tim
 milestone/   pure Kotlin — which milestone fires, and when
 data/        Room: raw events (7 days), hourly and daily totals, sessions
 copy/        the Hinglish lines
-ui/          app screens: counter, dashboard, setup, event inspector, diagnostics
+ui/          app screens: counter, dashboard, friends, setup, event inspector, diagnostics
+sync/        pure Kotlin — what to upload, when a token expires, friend codes
+data/remote/ the five REST calls the app makes, on OkHttp
 ui/stats/    the dashboard; its series maths is plain Kotlin and unit tested
 ```
 

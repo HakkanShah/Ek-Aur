@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Only used when the leaderboard is switched on. With it off the app
+         never opens a connection. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- The floating counter over Instagram. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Lets the app ask for a battery-optimisation exemption; without it the
