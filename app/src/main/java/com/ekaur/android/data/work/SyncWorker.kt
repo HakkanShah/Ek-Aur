@@ -25,7 +25,7 @@ class SyncWorker(
 
     override suspend fun doWork(): Result {
         val container = (applicationContext as? EkAurApp)?.container ?: return Result.success()
-        if (!container.settings.joined.value) return Result.success()
+        if (container.settings.username.value == null) return Result.success()
 
         return when (val result = runCatching { container.syncer.syncNow() }.getOrNull()) {
             is SyncResult.Failed, null -> Result.retry()

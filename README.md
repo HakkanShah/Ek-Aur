@@ -9,12 +9,15 @@ does that on its own.
 
 Android only. Sideloaded, not on the Play Store.
 
-Everything stays on the phone by default: no account, no server, no analytics.
-The friends leaderboard is opt-in and off until you switch it on — until then
-the app creates no account and makes no network request at all. Switch it on and
-the only thing that ever leaves the phone is a daily total: a date, a count, a
-duration. Which reels, when, and every raw event stay local, and the server has
-nowhere to put them.
+Everyone who installs it is on **one shared leaderboard** — there is no joining
+step and nothing to add. Opening the app the first time asks for a username, and
+that is the whole sign-up.
+
+What leaves the phone is your username and a daily total: a date, a count, a
+duration. Which reels you watched, when you scrolled, and every raw event stay
+local — the server has nowhere to put them. Everybody who has the app can see
+everybody else's name and daily numbers; `chhup jao` in **setup** takes you off
+the list entirely.
 
 ---
 
@@ -115,15 +118,21 @@ text.
 
 ## The leaderboard
 
-Off until you switch it on in the **dost** tab. Joining asks for a name, creates
-an anonymous account (no email, no password) and hands you a six-character
-friend code to share.
+One global list in the **dost** tab, ranked on today's reels so it always agrees
+with the number the pill and the home screen show. The account is anonymous — no
+email, no password — and the username is the only identity.
 
-Only daily totals are uploaded, and only ever your own. What a friend can see is
-enforced by the database, not by the app: row level security means a signed-in
-user reading someone else's counts gets **zero rows**, and a friend code cannot
-be resolved by a query at all — that is why adding a friend goes through a single
-`SECURITY DEFINER` function that returns nothing but the matched name.
+Usernames are lower-case, 3–16 characters of `a-z 0-9 . _`, and unique. The app
+checks availability in three layers so it feels instant and barely touches the
+database: the format rules run on the device on every keystroke, a name that
+passes them is only asked about after typing stops, and every answer is
+remembered. The **unique index is what actually decides** — any check is racy,
+so a name taken in the same second comes back as an ordinary "pick another",
+not an error.
+
+Who can see what is enforced by Postgres, not by the app. Writing is limited to
+your own rows, and `chhup jao` hides both your name and your numbers from
+everyone else through row level security rather than a filter in the UI.
 
 Schema and the one manual setting are in `supabase/migrations/`.
 
@@ -156,7 +165,7 @@ milestone/   pure Kotlin — which milestone fires, and when
 data/        Room: raw events (7 days), hourly and daily totals, sessions
 copy/        the Hinglish lines
 ui/          app screens: counter, dashboard, friends, setup, event inspector, diagnostics
-sync/        pure Kotlin — what to upload, when a token expires, friend codes
+sync/        pure Kotlin — what to upload, when a token expires, username rules
 data/remote/ the five REST calls the app makes, on OkHttp
 ui/stats/    the dashboard; its series maths is plain Kotlin and unit tested
 ```

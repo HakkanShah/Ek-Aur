@@ -30,7 +30,9 @@ class Syncer(
 ) {
 
     suspend fun syncNow(): SyncResult {
-        if (!settings.joined.value) return SyncResult.NotJoined
+        // A username is the whole membership test: everyone who has one is on
+        // the leaderboard, and nobody without one has an account to upload to.
+        if (settings.username.value == null) return SyncResult.NotJoined
         if (settings.userId == null) return SyncResult.NotJoined
 
         val dirty = db.dailyCounts().dirtyRows(SyncPlan.MAX_BATCH)

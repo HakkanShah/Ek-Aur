@@ -1,12 +1,14 @@
 package com.ekaur.android.data.remote
 
 import com.ekaur.android.BuildConfig
-import com.ekaur.android.data.prefs.SettingsStore
+import com.ekaur.android.data.prefs.SessionStore
 import com.ekaur.android.sync.DayUpload
 import com.ekaur.android.sync.TokenState
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
@@ -25,11 +27,8 @@ sealed interface SyncError {
     /** No network, a timeout, or the server did not answer. */
     data object Offline : SyncError
 
-    /** The friend code does not exist. */
-    data object NoSuchCode : SyncError
-
-    /** The user pasted their own code. */
-    data object OwnCode : SyncError
+    /** Someone already has that username. */
+    data object NameTaken : SyncError
 
     /**
      * Anonymous sign-in is switched off for the project.
@@ -46,6 +45,14 @@ sealed interface SyncError {
 
 class SyncException(val error: SyncError) : Exception(error.toString())
 
+/** One person's day, as the leaderboard shows it. */
+data class LeaderboardRow(
+    val userId: String,
+    val username: String,
+    val reelCount: Int,
+    val activeMs: Long,
+)
+
 /**
  * The five calls this app makes to Supabase.
  *
@@ -54,7 +61,7 @@ class SyncException(val error: SyncError) : Exception(error.toString())
  * request is a plain REST call against PostgREST or GoTrue.
  */
 class SupabaseClient(
-    private val settings: SettingsStore,
+    private val settings: SessionStore,
     private val baseUrl: String = BuildConfig.SUPABASE_URL,
     private val apiKey: String = BuildConfig.SUPABASE_KEY,
     private val now: () -> Long = { System.currentTimeMillis() },
@@ -71,7 +78,7 @@ class SupabaseClient(
      * security policy is written against.
      */
     fun signInAnonymously(): String {
-        val body = post("$baseUrl/auth/v1/signup", buildJsonObject { }, auth = false)
+        val body = postObject("$baseUrl/auth/v1/signup", buildJsonObject { }, auth = false)
         return storeSession(body)
     }
 
@@ -83,7 +90,7 @@ class SupabaseClient(
         val refresh = settings.refreshToken
             ?: throw SyncException(SyncError.Refused(401, "no refresh token"))
 
-        val body = post(
+        val body = postObject(
             url = "$baseUrl/auth/v1/token?grant_type=refresh_token",
             payload = buildJsonObject { put("refresh_token", refresh) },
             auth = false,
@@ -92,27 +99,97 @@ class SupabaseClient(
         return settings.accessToken!!
     }
 
-    /** Creates this account's profile row and returns the friend code it was given. */
-    fun createProfile(displayName: String): String {
+    /**
+     * Signs in only if there is not already a session.
+     *
+     * The earlier version signed in on every attempt, so each failed join left
+     * behind an orphan anonymous account -- two presses of the button produced
+     * two accounts. Now the account is made once, on first launch, and a retry
+     * reuses it.
+     */
+    fun ensureSignedIn(): String {
+        settings.userId?.let { existing ->
+            // A stored session is only useful if it can still be renewed.
+            if (settings.refreshToken?.isNotBlank() == true) return existing
+        }
+        return signInAnonymously()
+    }
+
+    /** Whether [name] is free. One boolean over the wire, nothing else. */
+    fun isUsernameAvailable(name: String): Boolean {
+        val body = request(
+            url = "$baseUrl/rest/v1/rpc/username_available",
+            payload = buildJsonObject { put("name", name) },
+            auth = true,
+            prefer = null,
+        )
+        return (body as? JsonPrimitive)?.content?.toBooleanStrictOrNull()
+            ?: throw SyncException(SyncError.Refused(500, "unexpected availability reply: $body"))
+    }
+
+    /**
+     * Claims [username] for this account.
+     *
+     * The availability check before this is a convenience and is always racy --
+     * two people can pass it in the same second. The unique index is what
+     * actually decides, so a 23505 here is an ordinary outcome, not a fault.
+     */
+    fun claimUsername(username: String) {
         val userId = settings.userId
             ?: throw SyncException(SyncError.Refused(401, "not signed in"))
 
-        val rows = post(
-            url = "$baseUrl/rest/v1/profiles?select=friend_code",
+        postArray(
+            url = "$baseUrl/rest/v1/profiles",
             payload = buildJsonArray {
                 add(
                     buildJsonObject {
                         put("id", userId)
-                        put("display_name", displayName.trim())
+                        put("username", username)
                     }
                 )
             },
-            prefer = "return=representation,resolution=merge-duplicates",
+            prefer = "return=representation",
         )
+    }
 
-        return rows.jsonArray.firstOrNull()
-            ?.jsonObject?.get("friend_code")?.jsonPrimitive?.content
-            ?: throw SyncException(SyncError.Refused(500, "no friend code returned"))
+    /** Sets whether this account appears on other people's leaderboards. */
+    fun setHidden(hidden: Boolean) {
+        val userId = settings.userId
+            ?: throw SyncException(SyncError.Refused(401, "not signed in"))
+
+        patch(
+            url = "$baseUrl/rest/v1/profiles?id=eq.$userId",
+            payload = buildJsonObject { put("hidden", hidden) },
+        )
+    }
+
+    /**
+     * Everyone's total for [date], biggest first.
+     *
+     * One call: the username is embedded through the foreign key rather than
+     * fetched separately and stitched together on the device. Hidden people are
+     * filtered by row level security, not by this query -- the server simply
+     * does not return them.
+     */
+    fun leaderboard(date: String, limit: Int = 100): List<LeaderboardRow> {
+        val body = get(
+            "$baseUrl/rest/v1/daily_counts" +
+                "?date=eq.$date" +
+                "&select=user_id,reel_count,active_ms,profiles!inner(username,hidden)" +
+                "&order=reel_count.desc" +
+                "&limit=$limit"
+        ).asArray("leaderboard")
+
+        return body.mapNotNull { element ->
+            val row = element as? JsonObject ?: return@mapNotNull null
+            val profile = row["profiles"] as? JsonObject ?: return@mapNotNull null
+            LeaderboardRow(
+                userId = row["user_id"]?.jsonPrimitive?.content.orEmpty(),
+                username = profile["username"]?.jsonPrimitive?.content.orEmpty(),
+                reelCount = row["reel_count"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                activeMs = row["active_ms"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L,
+            )
+        }
     }
 
     /**
@@ -126,7 +203,7 @@ class SupabaseClient(
         val userId = settings.userId
             ?: throw SyncException(SyncError.Refused(401, "not signed in"))
 
-        post(
+        postArray(
             url = "$baseUrl/rest/v1/daily_counts",
             payload = buildJsonArray {
                 days.forEach { day ->
@@ -140,7 +217,21 @@ class SupabaseClient(
                     )
                 }
             },
-            prefer = "resolution=merge-duplicates,return=minimal",
+            prefer = "resolution=merge-duplicates,return=representation",
+        )
+    }
+
+    private fun get(url: String): JsonElement = send(
+        Request.Builder().url(url).get(),
+        auth = true,
+        prefer = null,
+    )
+
+    private fun patch(url: String, payload: JsonObject) {
+        send(
+            Request.Builder().url(url).patch(payload.toString().toRequestBody(JSON_MEDIA)),
+            auth = true,
+            prefer = "return=minimal",
         )
     }
 
@@ -161,33 +252,56 @@ class SupabaseClient(
         return userId
     }
 
-    private fun post(
+    /**
+     * A POST whose body is expected to be an object.
+     *
+     * Shape is asserted, never coerced. An earlier version forced anything that
+     * was not an object to an empty one, so a PostgREST array reply became `{}`
+     * and the next line died on a cast -- reporting failure for work the server
+     * had already done.
+     */
+    private fun postObject(
         url: String,
         payload: Any,
         auth: Boolean = true,
         prefer: String? = null,
-    ): JsonObject = request(url, payload, auth, prefer).let {
-        if (it is JsonObject) it else buildJsonObject { }
-    }
+    ): JsonObject = request(url, payload, auth, prefer).asObject(url)
+
+    /** A POST whose body is expected to be an array of rows. */
+    private fun postArray(
+        url: String,
+        payload: Any,
+        auth: Boolean = true,
+        prefer: String? = null,
+    ): JsonArray = request(url, payload, auth, prefer).asArray(url)
+
+    private fun JsonElement.asObject(url: String): JsonObject =
+        this as? JsonObject
+            ?: throw SyncException(SyncError.Refused(500, "expected an object from $url, got $this"))
+
+    private fun JsonElement.asArray(url: String): JsonArray =
+        this as? JsonArray
+            ?: throw SyncException(SyncError.Refused(500, "expected an array from $url, got $this"))
 
     private fun request(
         url: String,
         payload: Any,
         auth: Boolean,
         prefer: String?,
-    ): Any {
-        val text = when (payload) {
-            is JsonObject -> payload.toString()
-            is JsonArray -> payload.toString()
-            else -> payload.toString()
-        }
+    ): JsonElement = send(
+        Request.Builder().url(url).post(payload.toString().toRequestBody(JSON_MEDIA)),
+        auth = auth,
+        prefer = prefer,
+    )
 
-        val builder = Request.Builder()
-            .url(url)
+    private fun send(
+        builder: Request.Builder,
+        auth: Boolean,
+        prefer: String?,
+    ): JsonElement {
+        builder
             .addHeader("apikey", apiKey)
             .addHeader("Content-Type", "application/json")
-            .post(text.toRequestBody(JSON_MEDIA))
-
         if (prefer != null) builder.addHeader("Prefer", prefer)
         // The publishable key is the bearer until there is a session; after
         // that the user's own token is what RLS reads auth.uid() from.
@@ -203,7 +317,9 @@ class SupabaseClient(
             val raw = it.body?.string().orEmpty()
             if (!it.isSuccessful) throw SyncException(errorFor(it.code, raw))
             if (raw.isBlank()) return buildJsonObject { }
-            return json.parseToJsonElement(raw)
+            return runCatching { json.parseToJsonElement(raw) }.getOrElse { _ ->
+                throw SyncException(SyncError.Refused(it.code, "unreadable body: " + raw.take(200)))
+            }
         }
     }
 
@@ -215,8 +331,9 @@ class SupabaseClient(
      * reading "something went wrong".
      */
     private fun errorFor(status: Int, body: String): SyncError = when {
-        body.contains("no such code") -> SyncError.NoSuchCode
-        body.contains("your own code") -> SyncError.OwnCode
+        // The unique index, not the availability check, is what decides a name
+        // is taken -- so this is an ordinary outcome and gets its own case.
+        body.contains("profiles_username_unique") || body.contains("23505") -> SyncError.NameTaken
         body.contains("anonymous_provider_disabled") -> SyncError.SignupDisabled
         else -> SyncError.Refused(status, body.take(300))
     }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.ekaur.android.di.AppContainer
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.ui.common.Card
@@ -31,6 +34,9 @@ import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Heat
 import com.ekaur.android.ui.theme.Smoke
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The three things that have to be granted before any of this works.
@@ -42,11 +48,16 @@ import com.ekaur.android.ui.theme.Smoke
  */
 @Composable
 fun SetupScreen(
+    container: AppContainer,
     serviceEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var reset by remember { mutableStateOf(false) }
+    val username by container.settings.username.collectAsState()
+    val hidden by container.settings.hidden.collectAsState()
+    var hideBusy by remember { mutableStateOf(false) }
     val canOverlay = ServiceControl.canDrawOverlay(context)
     val batteryExempt = ServiceControl.isIgnoringBatteryOptimisations(context)
     val allDone = serviceEnabled && canOverlay && batteryExempt
@@ -138,6 +149,46 @@ fun SetupScreen(
                 onClick = {
                     OverlayPrefs(context).clearPosition()
                     reset = true
+                },
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Card {
+            SectionLabel("leaderboard")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = if (hidden) {
+                    "abhi tum chhupe ho. doosron ki list me tumhara naam aur " +
+                        "ginti nahi dikhti."
+                } else {
+                    "tum \"" + username.orEmpty() + "\" naam se list me ho. " +
+                        "sirf naam aur har din ka total dikhta hai."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+            )
+            Spacer(Modifier.height(14.dp))
+            FlatButton(
+                text = when {
+                    hideBusy -> "ruko..."
+                    hidden -> "wapas list me aao"
+                    else -> "chhup jao"
+                },
+                onClick = {
+                    if (hideBusy) return@FlatButton
+                    hideBusy = true
+                    val target = !hidden
+                    scope.launch {
+                        val ok = withContext(Dispatchers.IO) {
+                            runCatching { container.supabase.setHidden(target) }.isSuccess
+                        }
+                        // Only mirrored locally once the server agreed, so the
+                        // switch never claims something the database did not do.
+                        if (ok) container.settings.setHidden(target)
+                        hideBusy = false
+                    }
                 },
             )
         }

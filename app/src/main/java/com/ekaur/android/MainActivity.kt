@@ -35,6 +35,7 @@ import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.debug.DiagnosticsScreen
 import com.ekaur.android.ui.friends.FriendsScreen
+import com.ekaur.android.ui.friends.UsernameScreen
 import com.ekaur.android.ui.debug.EventInspectorScreen
 import com.ekaur.android.ui.onboarding.SetupScreen
 import com.ekaur.android.ui.stats.StatsScreen
@@ -85,6 +86,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AppScaffold(container: AppContainer) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val username by container.settings.username.collectAsState()
+
+    // The one gate in the app. Everyone is on one leaderboard, so a name is the
+    // whole sign-up -- and nothing else is reachable until there is one.
+    if (username == null) {
+        UsernameScreen(container, Modifier.systemBarsPadding())
+        return
+    }
+
     var permissions by remember { mutableStateOf(Permissions()) }
     var tab by remember { mutableStateOf(Tab.Home) }
 
@@ -125,7 +135,7 @@ private fun AppScaffold(container: AppContainer) {
             Tab.Home -> HomeScreen(container, permissions) { tab = Tab.Setup }
             Tab.Stats -> StatsScreen(container.counterRepository)
             Tab.Friends -> FriendsScreen(container)
-            Tab.Setup -> SetupScreen(serviceEnabled = permissions.service)
+            Tab.Setup -> SetupScreen(container = container, serviceEnabled = permissions.service)
             Tab.Events -> EventInspectorScreen(container.eventLog)
             Tab.Status -> DiagnosticsScreen(
                 status = container.serviceStatus,
