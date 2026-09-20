@@ -1,0 +1,65 @@
+package com.ekaur.android.share
+
+import android.content.Context
+import android.graphics.Bitmap
+import androidx.core.graphics.drawable.toBitmap
+import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
+import com.ekaur.android.di.AppContainer
+import com.ekaur.android.sync.Avatar
+import com.ekaur.android.ui.stats.dailySeries
+import com.ekaur.android.ui.stats.hourLabel
+import com.ekaur.android.ui.stats.hourlySeries
+import com.ekaur.android.ui.stats.peakIndex
+import kotlinx.coroutines.flow.first
+
+/**
+ * Collects everything a card needs, in one place, off the main thread.
+ *
+ * All of it is read from Room rather than the server, so a card can be made and
+ * posted with no signal at all -- which is the moment someone is most likely to
+ * be scrolling.
+ */
+object ShareCardBuilder {
+
+    suspend fun gather(container: AppContainer, context: Context): Pair<CardStats, Bitmap?>? {
+        val repo = container.counterRepository
+        val dates = repo.lastDays(7)
+
+        val stats = runCatching {
+            CardStats(
+                username = container.settings.username.value.orEmpty(),
+                reelsToday = repo.observeTodayCount().first(),
+                activeMsToday = repo.observeTodayActiveMs().first(),
+                week = dailySeries(repo.observeDaysSince(dates.first()).first(), dates)
+                    .map { it.reels },
+                bestEver = repo.observeBestDay().first()?.total ?: 0,
+                peakHour = hourlySeries(repo.observeTodayHours().first())
+                    .let { hours -> peakIndex(hours)?.let(::hourLabel) },
+            )
+        }.getOrNull() ?: return null
+
+        return stats to avatarFor(container, context)
+    }
+
+    /**
+     * The user's own picture, fetched through the same loader the leaderboard
+     * uses so a cached copy costs nothing. A failure is not worth reporting --
+     * the card falls back to an initial and still looks like a card.
+     */
+    private suspend fun avatarFor(container: AppContainer, context: Context): Bitmap? {
+        val url = Avatar.urlFor(
+            baseUrl = container.supabase.baseUrl,
+            userId = container.settings.userId.orEmpty(),
+            version = container.settings.avatarVersion,
+        ) ?: return null
+
+        return runCatching {
+            val result = ImageLoader(context)
+                .execute(ImageRequest.Builder(context).data(url).build())
+            (result as? SuccessResult)?.image?.toBitmap()
+        }.getOrNull()
+    }
+}

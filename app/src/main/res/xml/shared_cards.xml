@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The single folder a share card is written to. Scoped this narrowly so the
+  grant handed to another app covers the card and nothing else in the cache.
+-->
+<paths>
+    <cache-path name="cards" path="cards/" />
+</paths>

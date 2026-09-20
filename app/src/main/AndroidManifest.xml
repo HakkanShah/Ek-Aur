@@ -33,6 +33,18 @@
             </intent-filter>
         </activity>
 
+        <!-- Hands a rendered card to whichever app the user picks. Not
+             exported: access is granted per share, per file. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.cards"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_cards" />
+        </provider>
+
         <service
             android:name=".service.EkAurAccessibilityService"
             android:exported="true"

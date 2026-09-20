@@ -27,7 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import com.ekaur.android.di.AppContainer
+import com.ekaur.android.share.CardStats
+import com.ekaur.android.share.ShareCardBuilder
+import com.ekaur.android.ui.share.ShareScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Dot
@@ -97,6 +104,8 @@ private fun AppScaffold(container: AppContainer) {
 
     var permissions by remember { mutableStateOf(Permissions()) }
     var tab by remember { mutableStateOf(Tab.Home) }
+    var sharing by remember { mutableStateOf<CardStats?>(null) }
+    var cardAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
 
     // None of these fire a callback when they change -- the user grants them in
     // system settings and comes back -- so they are re-read on every resume.
@@ -107,6 +116,17 @@ private fun AppScaffold(container: AppContainer) {
             battery = ServiceControl.isIgnoringBatteryOptimisations(context),
         )
         onPauseOrDispose { }
+    }
+
+    val card = sharing
+    if (card != null) {
+        ShareScreen(
+            stats = card,
+            avatar = cardAvatar,
+            onClose = { sharing = null },
+            modifier = Modifier.systemBarsPadding(),
+        )
+        return
     }
 
     Column(
@@ -132,7 +152,15 @@ private fun AppScaffold(container: AppContainer) {
         }
 
         when (tab) {
-            Tab.Home -> HomeScreen(container, permissions) { tab = Tab.Setup }
+            Tab.Home -> HomeScreen(
+                container = container,
+                permissions = permissions,
+                onOpenSetup = { tab = Tab.Setup },
+                onShare = { stats, avatar ->
+                    cardAvatar = avatar
+                    sharing = stats
+                },
+            )
             Tab.Stats -> StatsScreen(container.counterRepository)
             Tab.Friends -> FriendsScreen(container)
             Tab.Setup -> SetupScreen(container = container, serviceEnabled = permissions.service)
@@ -152,7 +180,11 @@ private fun HomeScreen(
     container: AppContainer,
     permissions: Permissions,
     onOpenSetup: () -> Unit,
+    onShare: (CardStats, android.graphics.Bitmap?) -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var building by remember { mutableStateOf(false) }
     val count by container.counterRepository.observeTodayCount().collectAsState(initial = 0)
     val activeMs by container.counterRepository.observeTodayActiveMs().collectAsState(initial = 0L)
     val connected by container.serviceStatus.connected.collectAsState()
@@ -185,7 +217,25 @@ private fun HomeScreen(
             )
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(20.dp))
+
+        FlatButton(
+            text = if (building) "bana raha hoon..." else "card banao",
+            emphasised = count > 0 && !building,
+            onClick = {
+                if (count <= 0 || building) return@FlatButton
+                building = true
+                scope.launch {
+                    val ready = withContext(Dispatchers.IO) {
+                        ShareCardBuilder.gather(container, context)
+                    }
+                    building = false
+                    if (ready != null) onShare(ready.first, ready.second)
+                }
+            },
+        )
+
+        Spacer(Modifier.height(20.dp))
 
         Card {
             SectionLabel("abhi")

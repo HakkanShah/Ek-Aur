@@ -103,9 +103,16 @@ fun SetupScreen(
                 container.settings.saveAvatarVersion(version)
                 avatarOk = true
                 avatarNote = "ho gaya (${bytes / 1024} KB)"
-            }.onFailure {
+            }.onFailure { thrown ->
+                // Named, because a generic "could not send" already cost one
+                // round trip to diagnose and there is no logcat on this phone.
                 avatarOk = false
-                avatarNote = "photo nahi bhej paaya. dusri try karo."
+                avatarNote = when (val cause = (thrown as? SyncException)?.error) {
+                    SyncError.Offline -> "internet nahi mila."
+                    is SyncError.Refused -> "server ne mana kiya (${cause.status})."
+                    null -> "ye photo padhi nahi gayi. dusri try karo."
+                    else -> "photo nahi bhej paaya."
+                }
             }
         }
     }

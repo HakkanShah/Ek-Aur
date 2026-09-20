@@ -186,6 +186,33 @@ Schema and the one manual setting are in `supabase/migrations/`.
 
 ---
 
+## The share card
+
+`card banao` on the home screen renders a card and hands it to the share sheet:
+one image, so it posts the same way to WhatsApp status and chat, an Instagram
+story or post, and X. Two shapes — **story** (9:16) and **post** (1:1) — because
+a 9:16 image is cropped to a square in a feed and a square is padded in a story.
+
+It is drawn on a plain `Canvas` at a fixed 1080px rather than captured from the
+live screen. A screenshot of the UI comes out at whatever size and density the
+phone happens to be, and this is the one thing in the app that lands in front of
+people who have never seen it, so it renders identically everywhere and can be
+checked without a device.
+
+What is on it: the number, big enough to be the whole joke, tinted toward red as
+it climbs; today's time; the last seven days as columns; best day and peak hour;
+then your name, your picture and the link. The line above the link is a dare
+rather than a boast — the number already makes the point, so the card works by
+inviting somebody to prove they are worse.
+
+The card is built from Room, so it works with no signal and with sync off. The
+link is one constant, `CardCopy.LINK`, changed in one place when the site exists.
+
+Cards are written to a cache folder that only the share sheet can reach
+(`FileProvider`, one folder, granted per share), and old ones are cleaned up.
+
+---
+
 ## Building
 
 ```bash
@@ -216,6 +243,7 @@ ui/          app screens: counter, dashboard, friends, setup, event inspector, d
 sync/        pure Kotlin — what to upload, token expiry, username rules, image maths
 data/remote/ the five REST calls the app makes, on OkHttp
 ui/stats/    the dashboard; its series maths is plain Kotlin and unit tested
+share/       the stats card: what it says, how it is drawn, how it leaves the phone
 ```
 
 `detect/` is deliberately free of Android types. Detection is the part most
