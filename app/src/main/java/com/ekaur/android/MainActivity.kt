@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -266,6 +268,7 @@ private fun HomeScreen(
     Column(
         Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -282,14 +285,15 @@ private fun HomeScreen(
             ),
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(12.dp))
 
+        // The number and its label sit together inside the glow, so the halo
+        // wraps the whole hero group instead of leaving a dead gap below the
+        // number the way a 300dp circle behind the number alone did.
         Box(contentAlignment = Alignment.Center) {
-            // A soft gradient halo behind the number, so the hero figure glows
-            // off the pale canvas instead of just sitting on it.
             Box(
                 Modifier
-                    .size(300.dp)
+                    .size(260.dp)
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(SurfaceLav, Color.Transparent),
@@ -297,22 +301,23 @@ private fun HomeScreen(
                         shape = androidx.compose.foundation.shape.CircleShape,
                     )
             )
-            GradientNumber(
-                text = count.toString(),
-                style = MaterialTheme.typography.displayLarge,
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                GradientNumber(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.displayLarge,
+                )
+                Text("Reels today", style = MaterialTheme.typography.bodyLarge, color = Smoke)
+                if (activeMs > 0) {
+                    Text(
+                        text = formatDuration(activeMs) + " watched",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Ash,
+                    )
+                }
+            }
         }
-        Text("Reels today", style = MaterialTheme.typography.bodyLarge, color = Smoke)
 
-        if (activeMs > 0) {
-            Text(
-                text = formatDuration(activeMs) + " watched",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Ash,
-            )
-        }
-
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(20.dp))
 
         FlatButton(
             text = if (building) "making..." else "share card",
@@ -356,5 +361,7 @@ private fun HomeScreen(
                 FlatButton(text = "Finish setup", emphasised = true, onClick = onOpenSetup)
             }
         }
+
+        Spacer(Modifier.height(16.dp))
     }
 }

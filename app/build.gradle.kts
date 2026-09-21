@@ -15,8 +15,8 @@ android {
         applicationId = "com.ekaur.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 30
-        versionName = "0.17.2"
+        versionCode = 31
+        versionName = "0.17.3"
 
         // The project's public address and its publishable key. Both are meant
         // to ship inside the app -- they identify the project, they are not

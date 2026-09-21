@@ -6,7 +6,9 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,8 +17,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,13 +51,17 @@ import com.ekaur.android.ui.common.Dot
 import com.ekaur.android.ui.common.Expandable
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.SectionLabel
+import com.ekaur.android.ui.common.ToggleRow
 import com.ekaur.android.ui.common.UserAvatar
+import com.ekaur.android.ui.stats.Hairline
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Good
 import com.ekaur.android.ui.theme.Heat
 import com.ekaur.android.ui.theme.Smoke
+import com.ekaur.android.ui.theme.SurfaceLav
+import com.ekaur.android.ui.theme.instaGradient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -186,7 +194,7 @@ fun SetupScreen(
     ) {
         Spacer(Modifier.height(12.dp))
 
-        // Status
+        // 1 — Status + permissions, one card
         Card {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -199,12 +207,9 @@ fun SetupScreen(
                     color = Chalk,
                 )
             }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Permissions
-        Card {
+            Spacer(Modifier.height(14.dp))
+            ProgressBar(done = 4 - stepsLeft, total = 4)
+            Spacer(Modifier.height(18.dp))
             SectionLabel("Permissions")
             Spacer(Modifier.height(6.dp))
             PermRow("Accessibility", "Counts your reels. Nothing works without it.", serviceEnabled,
@@ -239,30 +244,19 @@ fun SetupScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = "Turn off when I leave Instagram",
-                style = MaterialTheme.typography.titleLarge,
-                color = Chalk,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = if (autoOff) {
-                    "On — Ek Aur turns itself off when you leave Instagram, so payments " +
-                        "stay clean. Tap it back on to scroll."
+            Spacer(Modifier.height(16.dp))
+            ToggleRow(
+                title = "Turn off when I leave Instagram",
+                subtitle = if (autoOff) {
+                    "Ek Aur turns itself off when you leave, so payments stay clean. " +
+                        "Tap it on to scroll."
                 } else {
-                    "Off — you'll turn it off yourself before each payment."
+                    "You'll turn it off yourself before each payment."
                 },
-                style = MaterialTheme.typography.bodyMedium,
-                color = Ash,
-            )
-            Spacer(Modifier.height(10.dp))
-            FlatButton(
-                text = if (autoOff) "Auto-off: on" else "Auto-off: off",
-                emphasised = autoOff,
-                onClick = {
-                    autoOff = !autoOff
-                    container.settings.autoOffOnLeave = autoOff
+                checked = autoOff,
+                onCheckedChange = {
+                    autoOff = it
+                    container.settings.autoOffOnLeave = it
                 },
             )
             if (autoOff && !usageOk) {
@@ -319,10 +313,12 @@ fun SetupScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // Photo
+        // 3 — Account: photo, name, recovery, visibility in one card
         Card {
-            SectionLabel("Photo")
-            Spacer(Modifier.height(12.dp))
+            SectionLabel("Account")
+            Spacer(Modifier.height(16.dp))
+
+            // Header: avatar + name
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -334,48 +330,66 @@ fun SetupScreen(
                         userId = container.settings.userId.orEmpty(),
                         version = avatarVersion,
                     ),
-                    size = 64.dp,
+                    size = 56.dp,
                 )
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = if (uploading) "Uploading..."
-                        else "Shows next to your name on the leaderboard.",
+                        text = username.orEmpty(),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Chalk,
+                    )
+                    Text(
+                        text = when {
+                            uploading -> "Uploading photo..."
+                            hidden -> "Hidden from the leaderboard"
+                            else -> "On the leaderboard"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = Smoke,
                     )
-                    if (avatarNote != null) {
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = avatarNote!!,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (avatarOk) Acid else Heat,
-                        )
-                    }
                 }
             }
-            Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (avatarNote != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = avatarNote!!,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (avatarOk) Acid else Heat,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 FlatButton(
                     text = if (avatarVersion == null) "Choose photo" else "Change photo",
                     emphasised = !uploading,
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         if (!uploading) picker.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
                     },
                 )
-                FlatButton("From files", onClick = { if (!uploading) files.launch("image/*") })
+                FlatButton(
+                    text = "From files",
+                    modifier = Modifier.weight(1f),
+                    onClick = { if (!uploading) files.launch("image/*") },
+                )
             }
-        }
 
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
+            Hairline()
+            Spacer(Modifier.height(16.dp))
 
-        // Name
-        Card {
-            SectionLabel("Name")
-            Spacer(Modifier.height(8.dp))
-            Text("Now: " + username.orEmpty(), style = MaterialTheme.typography.titleLarge, color = Chalk)
-            Spacer(Modifier.height(4.dp))
+            // Name
+            Text(
+                text = "Name — now \"" + username.orEmpty() + "\"",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Chalk,
+            )
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = "Change once every 14 days. The old name is freed right away.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -404,7 +418,7 @@ fun SetupScreen(
                     color = if (renameOk) Good else Heat,
                 )
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             FlatButton(
                 text = if (renaming) "Saving..." else "Change name",
                 emphasised = Username.isValid(newName) && !renaming,
@@ -434,63 +448,52 @@ fun SetupScreen(
                     }
                 },
             )
-        }
 
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
+            Hairline()
+            Spacer(Modifier.height(16.dp))
 
-        // Recovery
-        Card {
-            SectionLabel("Recovery code")
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "Reinstall on this phone and your account comes back on its own. " +
-                    "On a new phone you'll need this code — write it down.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Smoke,
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = recoveryCode ?: "—",
-                style = MaterialTheme.typography.headlineMedium,
-                color = Acid,
-            )
-            Spacer(Modifier.height(12.dp))
-            FlatButton("Share code", onClick = {
-                val code = recoveryCode ?: return@FlatButton
-                ServiceControl.shareText(
-                    context,
-                    "Ek Aur recovery code: " + code + "\n(to get your account back on a new phone)",
+            // Recovery code, tucked away
+            Expandable("Recovery code") {
+                Text(
+                    text = "Reinstall on this phone and your account comes back on its own. " +
+                        "On a new phone you'll need this code — write it down.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Smoke,
                 )
-            })
-        }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = recoveryCode ?: "—",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Acid,
+                )
+                Spacer(Modifier.height(12.dp))
+                FlatButton("Share code", onClick = {
+                    val code = recoveryCode ?: return@FlatButton
+                    ServiceControl.shareText(
+                        context,
+                        "Ek Aur recovery code: " + code +
+                            "\n(to get your account back on a new phone)",
+                    )
+                })
+            }
 
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
+            Hairline()
+            Spacer(Modifier.height(16.dp))
 
-        // Leaderboard visibility
-        Card {
-            SectionLabel("Leaderboard")
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = if (hidden) {
-                    "You're hidden. Your name and counts don't show on anyone's list."
+            // Leaderboard visibility
+            ToggleRow(
+                title = "Hide me",
+                subtitle = if (hidden) {
+                    "You're hidden — your name and counts show on nobody's list."
                 } else {
-                    "You're on the list as \"" + username.orEmpty() + "\". Only your name and " +
-                        "daily total show."
+                    "You're on the list. Only your name and daily total show."
                 },
-                style = MaterialTheme.typography.bodyMedium,
-                color = Smoke,
-            )
-            Spacer(Modifier.height(14.dp))
-            FlatButton(
-                text = when {
-                    hideBusy -> "Saving..."
-                    hidden -> "Show me again"
-                    else -> "Hide me"
-                },
-                onClick = {
-                    if (hideBusy) return@FlatButton
+                checked = hidden,
+                onCheckedChange = { target ->
+                    if (hideBusy) return@ToggleRow
                     hideBusy = true
-                    val target = !hidden
                     scope.launch {
                         val ok = withContext(Dispatchers.IO) {
                             runCatching { container.supabase.setHidden(target) }.isSuccess
@@ -578,6 +581,29 @@ private fun PermRow(
             Spacer(Modifier.height(10.dp))
             FlatButton(actionLabel, emphasised = true, onClick = onAction)
             extra?.invoke()
+        }
+    }
+}
+
+/** A slim gradient progress bar: how many of the setup steps are done. */
+@Composable
+private fun ProgressBar(done: Int, total: Int) {
+    val fraction = if (total <= 0) 0f else (done.toFloat() / total).coerceIn(0f, 1f)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(8.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .background(color = SurfaceLav),
+    ) {
+        if (fraction > 0f) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(percent = 50))
+                    .background(brush = instaGradient()),
+            )
         }
     }
 }

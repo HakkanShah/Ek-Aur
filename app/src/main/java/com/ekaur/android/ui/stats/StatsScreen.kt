@@ -23,8 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.data.repo.CounterRepository
 import com.ekaur.android.ui.common.Card
-import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.SectionLabel
+import com.ekaur.android.ui.common.SegmentedToggle
 import com.ekaur.android.ui.common.StatTile
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
@@ -78,7 +78,10 @@ fun StatsScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             StatTile(
                 label = "Today",
                 value = today.toString(),
@@ -137,19 +140,15 @@ fun StatsScreen(
             empty = days.all { it.reels == 0 },
             emptyText = "No counts yet.",
             action = {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    RANGES.forEach { option ->
-                        FlatButton(
-                            text = option.toString(),
-                            emphasised = option == range,
-                            onClick = {
-                                range = option
-                                // The old index would point at a different day.
-                                pickedDay = null
-                            },
-                        )
-                    }
-                }
+                SegmentedToggle(
+                    options = RANGES.map { it.toString() },
+                    selectedIndex = RANGES.indexOf(range),
+                    onSelect = {
+                        range = RANGES[it]
+                        // The old index would point at a different day.
+                        pickedDay = null
+                    },
+                )
             },
         ) {
             ColumnChart(
@@ -230,10 +229,10 @@ private fun ChartCard(
     Card {
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionLabel(title)
+            SectionLabel(title, Modifier.weight(1f))
             action?.invoke()
         }
 
