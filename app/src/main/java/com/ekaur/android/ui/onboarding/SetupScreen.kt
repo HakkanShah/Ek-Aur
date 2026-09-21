@@ -424,20 +424,6 @@ fun SetupScreen(
                     },
                 )
             }
-
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "4. home screen widget",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Chalk,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "home screen pe \"Ek Aur\" widget laga lo — chalu hone pe hara, " +
-                    "band pe kaala, ek tap me on/off aur state saaf dikhti hai.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Ash,
-            )
         }
 
         Spacer(Modifier.height(12.dp))

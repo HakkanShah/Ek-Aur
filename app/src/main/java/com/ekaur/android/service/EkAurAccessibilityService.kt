@@ -67,7 +67,6 @@ class EkAurAccessibilityService : AccessibilityService() {
         // switches itself off after the grace rather than staying on for ever.
         lastInstagramForegroundMs = System.currentTimeMillis()
         toast("Ek Aur chalu")
-        com.ekaur.android.widget.EkAurWidgetProvider.refresh(this)
 
         val s = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         scope = s
@@ -211,9 +210,8 @@ class EkAurAccessibilityService : AccessibilityService() {
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         // Fires however the service was switched off -- floating button, tile,
         // settings, or its own auto-off -- so the user always sees it happen,
-        // and the home-screen chip flips to off.
+        // so the user always sees it happen.
         if (::eventLog.isInitialized) toast("Ek Aur band")
-        com.ekaur.android.widget.EkAurWidgetProvider.refresh(applicationContext)
         teardown()
         return super.onUnbind(intent)
     }
