@@ -81,7 +81,11 @@ object StatsCardRenderer {
 
         var y = if (tall) shape.height * 0.13f else shape.height * 0.12f
 
+        // Top row: the wordmark on the left, the person on the right at the same
+        // height, like a header.
+        val headerBaseline = y
         y = drawWordmark(canvas, margin, y, unit)
+        drawIdentity(canvas, stats, shape.width - margin, headerBaseline, unit, avatar)
         y += if (tall) 70f * unit else 40f * unit
 
         y = drawHero(canvas, stats, margin, y, shape, unit)
@@ -93,8 +97,35 @@ object StatsCardRenderer {
             drawFacts(canvas, stats, margin, weekBottom + 84f * unit, shape, unit)
         }
 
-        drawFooter(canvas, stats, margin, shape, unit, avatar)
+        drawFooter(canvas, stats, margin, shape, unit)
         return bitmap
+    }
+
+    /**
+     * The person, top-right, sized to sit level with the wordmark: the username
+     * right-aligned to the margin with their avatar just past it.
+     */
+    private fun drawIdentity(
+        canvas: Canvas,
+        stats: CardStats,
+        right: Float,
+        baseline: Float,
+        unit: Float,
+        avatar: Bitmap?,
+    ) {
+        if (stats.username.isBlank()) return
+
+        val avatarSize = 58f * unit
+        val avatarLeft = right - avatarSize
+        // Centred on the wordmark's cap rather than its baseline, so the two
+        // read as one row.
+        val avatarTop = baseline - 46f * unit
+        drawAvatar(canvas, stats.username, avatar, avatarLeft, avatarTop, avatarSize, unit)
+
+        val name = textPaint(INK, 34f * unit, faceHeavy).apply {
+            textAlign = Paint.Align.RIGHT
+        }
+        canvas.drawText(stats.username, avatarLeft - 20f * unit, baseline, name)
     }
 
     /** A horizontal Instagram-gradient shader spanning [x]..[x]+[width]. */
@@ -241,10 +272,11 @@ object StatsCardRenderer {
     }
 
     /**
-     * The dare, the name and the link.
+     * The dare and the link.
      *
      * Pinned to the bottom rather than flowed after the content, so it lands in
-     * the same place on both shapes and never collides with a long number.
+     * the same place on both shapes and never collides with a long number. The
+     * person now sits top-right, so the footer is just the challenge and the link.
      */
     private fun drawFooter(
         canvas: Canvas,
@@ -252,7 +284,6 @@ object StatsCardRenderer {
         x: Float,
         shape: CardShape,
         unit: Float,
-        avatar: Bitmap?,
     ) {
         val bottom = shape.height - x
         val linkPaint = textPaint(ASH, 30f * unit, faceRegular)
@@ -260,18 +291,6 @@ object StatsCardRenderer {
 
         val dare = textPaint(ACID, 50f * unit, faceHeavy)
         canvas.drawText(CardCopy.challengeFor(stats.reelsToday), x, bottom - 64f * unit, dare)
-
-        // The person, above their dare.
-        val avatarSize = 72f * unit
-        val avatarTop = bottom - 64f * unit - 46f * unit - avatarSize
-        drawAvatar(canvas, stats.username, avatar, x, avatarTop, avatarSize, unit)
-
-        canvas.drawText(
-            stats.username,
-            x + avatarSize + 22f * unit,
-            avatarTop + avatarSize * 0.66f,
-            textPaint(INK, 40f * unit, faceHeavy),
-        )
     }
 
     private fun drawAvatar(
