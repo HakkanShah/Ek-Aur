@@ -91,6 +91,21 @@ class StatsCardRendererTest {
     }
 
     @Test
+    fun `a software avatar bitmap is drawn without breaking the card`() {
+        // The path the suite never exercised: a real avatar, which on a device
+        // is what left the card stuck. A software bitmap must draw; the renderer
+        // must return a whole card, not throw.
+        val avatar = android.graphics.Bitmap
+            .createBitmap(128, 128, android.graphics.Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(Color.rgb(0x51, 0x5B, 0xD4)) }
+
+        val card = StatsCardRenderer.render(stats(), CardShape.Square, avatar)
+
+        assertEquals(1080, card.width)
+        assertEquals(1080, card.height)
+    }
+
+    @Test
     fun `an empty username is survivable`() {
         val card = StatsCardRenderer.render(
             stats().copy(username = "", peakHour = null),

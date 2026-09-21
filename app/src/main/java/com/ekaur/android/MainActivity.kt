@@ -146,28 +146,23 @@ private fun AppScaffold(container: AppContainer) {
     }
 
     val card = sharing
-    if (card != null) {
-        ShareScreen(
-            stats = card,
-            avatar = cardAvatar,
-            onClose = { sharing = null },
-            modifier = Modifier.systemBarsPadding(),
-        )
-        return
-    }
-
     Column(
         Modifier
             .fillMaxSize()
             .systemBarsPadding(),
     ) {
         Box(Modifier.weight(1f)) {
-            when (dev) {
-                // The dev screens replace the tab area but keep the bar below, so
-                // tapping any tab returns. Rarely used, so losing the pager's
-                // kept-alive pages while one is open costs nothing.
-                DevScreen.Events -> EventInspectorScreen(container.eventLog)
-                DevScreen.Status -> DiagnosticsScreen(
+            when {
+                // The share card and the dev screens replace the tab area but keep
+                // the bar below, so tapping any tab returns. The nav no longer
+                // disappears on the share screen the way an early return made it.
+                card != null -> ShareScreen(
+                    stats = card,
+                    avatar = cardAvatar,
+                    onClose = { sharing = null },
+                )
+                dev == DevScreen.Events -> EventInspectorScreen(container.eventLog)
+                dev == DevScreen.Status -> DiagnosticsScreen(
                     status = container.serviceStatus,
                     eventLog = container.eventLog,
                     crashReporter = container.crashReporter,
@@ -175,7 +170,7 @@ private fun AppScaffold(container: AppContainer) {
                 )
                 // The four main tabs live in a pager so switching slides natively
                 // and each screen stays composed -- no repaint hitch, no refetch.
-                null -> HorizontalPager(
+                else -> HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
                     beyondViewportPageCount = 1,
@@ -209,6 +204,7 @@ private fun AppScaffold(container: AppContainer) {
             pagerState = pagerState,
             onSelect = { index ->
                 dev = null
+                sharing = null
                 scope.launch { pagerState.animateScrollToPage(index) }
             },
         )

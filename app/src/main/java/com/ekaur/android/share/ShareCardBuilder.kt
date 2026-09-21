@@ -7,6 +7,7 @@ import coil3.ImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
 import coil3.toBitmap
 import com.ekaur.android.di.AppContainer
 import com.ekaur.android.sync.Avatar
@@ -64,6 +65,11 @@ object ShareCardBuilder {
             val result = ImageLoader(context).execute(
                 ImageRequest.Builder(context)
                     .data(url)
+                    // A software bitmap: the card is drawn on a software Canvas,
+                    // and drawing a hardware bitmap there throws. This is what
+                    // left the card stuck on "getting it ready" for anyone with a
+                    // photo set.
+                    .allowHardware(false)
                     .networkCachePolicy(CachePolicy.DISABLED)
                     .build()
             )

@@ -304,21 +304,27 @@ object StatsCardRenderer {
     ) {
         val rect = RectF(x, y, x + size, y + size)
 
-        if (avatar != null) {
-            // Rounded by drawing the photo through a circular mask, so a square
-            // upload does not appear as a square among circles.
-            val layer = canvas.saveLayer(rect, null)
-            canvas.drawOval(rect, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
-            canvas.drawBitmap(
-                avatar,
-                null,
-                rect,
-                Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-                },
-            )
-            canvas.restoreToCount(layer)
-            return
+        // A hardware bitmap cannot be drawn on a software canvas -- it throws, and
+        // that thrown exception is what left the whole card stuck. So only draw a
+        // photo that is genuinely software-backed, and if the draw fails for any
+        // reason, fall through to the initial rather than failing the card.
+        if (avatar != null && !avatar.isRecycled && avatar.config != Bitmap.Config.HARDWARE) {
+            val drawn = runCatching {
+                // Rounded by drawing the photo through a circular mask, so a square
+                // upload does not appear as a square among circles.
+                val layer = canvas.saveLayer(rect, null)
+                canvas.drawOval(rect, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
+                canvas.drawBitmap(
+                    avatar,
+                    null,
+                    rect,
+                    Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+                    },
+                )
+                canvas.restoreToCount(layer)
+            }.isSuccess
+            if (drawn) return
         }
 
         // A soft gradient disc with the initial, matching the app's ringed avatars.

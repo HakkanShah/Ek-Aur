@@ -57,20 +57,28 @@ fun ShareScreen(
 ) {
     val context = LocalContext.current
     var card by remember { mutableStateOf<Bitmap?>(null) }
+    var failed by remember { mutableStateOf(false) }
 
-    // The Poppins faces the app uses, so the card matches it. Loaded once.
-    val heavy = remember { ResourcesCompat.getFont(context, R.font.poppins_bold) }
-    val regular = remember { ResourcesCompat.getFont(context, R.font.poppins_regular) }
+    // The Poppins faces the app uses, so the card matches it. Loaded once, and
+    // never a hard dependency -- a font that won't load falls back to the system
+    // one rather than breaking the card.
+    val heavy = remember { runCatching { ResourcesCompat.getFont(context, R.font.poppins_bold) }.getOrNull() }
+    val regular = remember { runCatching { ResourcesCompat.getFont(context, R.font.poppins_regular) }.getOrNull() }
 
     // Rendered off the main thread: this draws a 1080x1080 bitmap and has no
     // business blocking a frame. Fast, because the stats come from Room and the
     // avatar is already warm in Coil's cache.
     LaunchedEffect(stats, avatar) {
-        card = withContext(Dispatchers.Default) {
+        failed = false
+        val rendered = withContext(Dispatchers.Default) {
             runCatching {
                 StatsCardRenderer.render(stats, CardShape.Square, avatar, heavy, regular)
             }.getOrNull()
         }
+        card = rendered
+        // Show a real state instead of an endless "getting it ready" if a render
+        // ever fails, so a failure is visible rather than a permanent spinner.
+        failed = rendered == null
     }
 
     Column(
@@ -105,7 +113,10 @@ fun ShareScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
-                Text("Getting it ready…", color = Smoke)
+                Text(
+                    text = if (failed) "Couldn't build the card. Try again." else "Getting it ready…",
+                    color = Smoke,
+                )
             }
         }
 
