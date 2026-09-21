@@ -174,3 +174,27 @@ fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> U
         Column(Modifier.padding(18.dp), content = content)
     }
 }
+
+/** A tap-to-open section, so long detail can hide until it's wanted. */
+@Composable
+fun Expandable(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val open = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    Column(modifier) {
+        Row(
+            Modifier.fillMaxWidth().clickable { open.value = !open.value },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(title, style = MaterialTheme.typography.titleLarge, color = Chalk)
+            Text(if (open.value) "–" else "+", style = MaterialTheme.typography.titleLarge, color = Smoke)
+        }
+        if (open.value) {
+            Spacer(Modifier.height(12.dp))
+            content()
+        }
+    }
+}

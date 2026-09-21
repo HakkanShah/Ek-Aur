@@ -33,13 +33,13 @@ object CardCopy {
     const val LINK = "github.com/HakkanShah/Ek-Aur"
 
     fun challengeFor(reels: Int): String = when {
-        reels >= 500 -> "you can't beat this. don't try."
-        reels >= 200 -> "beat this. you won't."
-        reels >= 100 -> "what's your number?"
-        reels >= 50 -> "bet you can't keep up."
-        else -> "today was just a warm-up."
+        reels >= 500 -> "You can't beat this. Don't try."
+        reels >= 200 -> "Beat this. You won't."
+        reels >= 100 -> "What's your number?"
+        reels >= 50 -> "Bet you can't keep up."
+        else -> "Today was just a warm-up."
     }
 
     /** The one honest label. Never a boast, never a scold. */
-    fun subtitleFor(reels: Int): String = if (reels == 1) "reel today" else "reels today"
+    fun subtitleFor(reels: Int): String = if (reels == 1) "Reel today" else "Reels today"
 }

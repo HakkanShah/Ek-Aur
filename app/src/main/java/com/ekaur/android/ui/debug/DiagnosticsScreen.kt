@@ -66,7 +66,7 @@ fun DiagnosticsScreen(
             .padding(horizontal = 16.dp),
     ) {
         Card {
-            SectionLabel("service")
+            SectionLabel("Service")
             Spacer(Modifier.height(10.dp))
             StatRow(
                 "enabled in settings",
@@ -91,7 +91,7 @@ fun DiagnosticsScreen(
             if (!serviceEnabled) {
                 Spacer(Modifier.height(14.dp))
                 FlatButton(
-                    text = "accessibility settings kholo",
+                    text = "Accessibility settings kholo",
                     emphasised = true,
                     onClick = { ServiceControl.openAccessibilitySettings(context) },
                 )
@@ -101,7 +101,7 @@ fun DiagnosticsScreen(
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("build")
+            SectionLabel("Build")
             Spacer(Modifier.height(10.dp))
             StatRow("version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             StatRow("android", android.os.Build.VERSION.SDK_INT.toString())
@@ -109,7 +109,7 @@ fun DiagnosticsScreen(
 
             Spacer(Modifier.height(14.dp))
             FlatButton(
-                text = "share diagnostics",
+                text = "Share diagnostics",
                 onClick = {
                     TextExport.share(
                         context = context,
@@ -133,7 +133,7 @@ fun DiagnosticsScreen(
 
         if (crash != null) {
             Card {
-                SectionLabel("pichla crash")
+                SectionLabel("Pichla crash")
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = crash.lineSequence().take(6).joinToString("\n"),
@@ -145,7 +145,7 @@ fun DiagnosticsScreen(
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FlatButton(
-                        text = "crash bhejo",
+                        text = "Crash bhejo",
                         emphasised = true,
                         onClick = {
                             TextExport.share(
@@ -156,12 +156,12 @@ fun DiagnosticsScreen(
                             )
                         },
                     )
-                    FlatButton(text = "hata do", onClick = { crashReporter.clear() })
+                    FlatButton(text = "Hata do", onClick = { crashReporter.clear() })
                 }
             }
         } else {
             Text(
-                text = "no crashes. yet.",
+                text = "No crashes. yet.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
@@ -175,7 +175,7 @@ private fun Long.asAgo(): String {
     if (this == 0L) return "never"
     val seconds = (System.currentTimeMillis() - this) / 1000
     return when {
-        seconds < 2 -> "just now"
+        seconds < 2 -> "Just now"
         seconds < 60 -> "${seconds}s pehle"
         seconds < 3600 -> "${seconds / 60}m pehle"
         else -> "${seconds / 3600}h pehle"

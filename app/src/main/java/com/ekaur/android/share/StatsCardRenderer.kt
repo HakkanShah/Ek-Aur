@@ -143,7 +143,7 @@ object StatsCardRenderer {
         // Text grows upward from its baseline, so drawing at the running cursor
         // would ride up into the line above. Its own height is the offset.
         val labelBaseline = top + 28f * unit
-        canvas.drawText("last 7 days", x, labelBaseline, label)
+        canvas.drawText("Last 7 days", x, labelBaseline, label)
 
         val base = labelBaseline + 34f * unit + height
         week.forEachIndexed { index, value ->
@@ -178,8 +178,8 @@ object StatsCardRenderer {
         val boxHeight = 170f * unit
 
         val facts = listOf(
-            "best ever" to stats.bestEver.toString(),
-            "peak" to (stats.peakHour ?: "—"),
+            "Best ever" to stats.bestEver.toString(),
+            "Peak" to (stats.peakHour ?: "—"),
         )
 
         facts.forEachIndexed { index, (caption, value) ->

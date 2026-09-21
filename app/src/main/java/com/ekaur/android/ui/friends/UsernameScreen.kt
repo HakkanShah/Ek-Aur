@@ -121,7 +121,7 @@ fun UsernameScreen(
             Text("EK AUR", style = MaterialTheme.typography.labelLarge, color = Acid)
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "checking if you've been here before...",
+                text = "Checking if you've been here before...",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Smoke,
             )
@@ -169,13 +169,13 @@ fun UsernameScreen(
         Text("EK AUR", style = MaterialTheme.typography.labelLarge, color = Acid)
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "pick a name",
+            text = "Pick a name",
             style = MaterialTheme.typography.displayMedium,
             color = Chalk,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "this is your name on the leaderboard. everyone's on one list.",
+            text = "This is your name on the leaderboard. everyone's on one list.",
             style = MaterialTheme.typography.bodyLarge,
             color = Smoke,
         )
@@ -204,7 +204,7 @@ fun UsernameScreen(
                 decorationBox = { inner ->
                     if (typed.isEmpty()) {
                         Text(
-                            text = "your name",
+                            text = "Your name",
                             style = TextStyle(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 22.sp,
@@ -272,7 +272,7 @@ fun UsernameScreen(
                                 "no internet."
                             is SyncError.Refused ->
                                 "didn't work (${cause.status}). try again."
-                            null -> "didn't work. try again."
+                            null -> "Didn't work. try again."
                         }
                     }
                 }
@@ -291,7 +291,7 @@ fun UsernameScreen(
                 SectionLabel("Recover old account")
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "on a new phone? enter the recovery code from your old " +
+                    text = "On a new phone? enter the recovery code from your old " +
                         "phone's Setup.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Smoke,
@@ -325,7 +325,7 @@ fun UsernameScreen(
                 )
                 Spacer(Modifier.height(14.dp))
                 FlatButton(
-                    text = "recover",
+                    text = "Recover",
                     emphasised = code.length == 8,
                     onClick = {
                         if (code.length != 8) return@FlatButton
@@ -353,7 +353,7 @@ fun UsernameScreen(
             }
         } else {
             FlatButton(
-                text = "have an old account? enter a code",
+                text = "Have an old account? enter a code",
                 onClick = { showCodeEntry = true },
             )
         }
@@ -364,7 +364,7 @@ fun UsernameScreen(
             SectionLabel("What gets shared")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "just your name and daily total. which reels you watched and " +
+                text = "Just your name and daily total. which reels you watched and " +
                     "when never leave the phone.\n\n" +
                     "to get off the list, there's \"hide me\" in Setup.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -379,10 +379,10 @@ private fun StatusLine(state: NameState) {
     val (text, colour) = when (state) {
         NameState.Idle -> "${Username.MIN}-${Username.MAX} chars, a-z 0-9 . _" to Ash
         is NameState.Invalid -> Username.message(state.problem) to Heat
-        NameState.Checking -> "checking..." to Smoke
+        NameState.Checking -> "Checking..." to Smoke
         NameState.Free -> "✓ available" to Good
-        NameState.Taken -> "that name is taken" to Heat
-        NameState.Unreachable -> "couldn't check, check your internet" to Smoke
+        NameState.Taken -> "That name is taken" to Heat
+        NameState.Unreachable -> "Couldn't check, check your internet" to Smoke
     }
     Text(text, style = MaterialTheme.typography.bodyMedium, color = colour)
 }

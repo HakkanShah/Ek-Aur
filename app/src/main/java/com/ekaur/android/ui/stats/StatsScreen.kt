@@ -80,7 +80,7 @@ fun StatsScreen(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatTile(
-                label = "today",
+                label = "Today",
                 value = today.toString(),
                 caption = if (activeMs > 0) formatDuration(activeMs) else null,
                 modifier = Modifier.weight(1f),
@@ -91,7 +91,7 @@ fun StatsScreen(
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                label = "best day",
+                label = "Best day",
                 value = best?.total?.toString() ?: "—",
                 caption = best?.date?.let(::dayLabel),
                 modifier = Modifier.weight(1f),
@@ -101,7 +101,7 @@ fun StatsScreen(
         Spacer(Modifier.height(12.dp))
 
         ChartCard(
-            title = "today by hour",
+            title = "Today by hour",
             // The tapped column's own number, so no value is locked behind a
             // gesture -- the readout replaces the headline rather than floating
             // over the chart, which has nowhere to float on a phone.
@@ -112,7 +112,7 @@ fun StatsScreen(
                 ?.let { i -> hours.getOrNull(i)?.let { "${hourLabel(i)}  ·  $it reels" } }
                 ?: peakIndex(hours)?.let { "peak ${hourLabel(it)}  ·  ${hours[it]}" },
             empty = hours.all { it == 0 },
-            emptyText = "nothing today yet.",
+            emptyText = "Nothing today yet.",
         ) {
             ColumnChart(
                 values = hours,
@@ -126,7 +126,7 @@ fun StatsScreen(
         Spacer(Modifier.height(12.dp))
 
         ChartCard(
-            title = "last $range days",
+            title = "Last $range days",
             readout = pickedDay
                 ?.let { i ->
                     days.getOrNull(i)
@@ -135,7 +135,7 @@ fun StatsScreen(
                 ?: peakIndex(days.map { it.reels })
                     ?.let { "best ${dayLabel(days[it].date)}  ·  ${days[it].reels}" },
             empty = days.all { it.reels == 0 },
-            emptyText = "no counts yet.",
+            emptyText = "No counts yet.",
             action = {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     RANGES.forEach { option ->
@@ -169,7 +169,7 @@ fun StatsScreen(
             SectionLabel("Sessions")
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "a session = scrolling without a break",
+                text = "A session = scrolling without a break",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
@@ -177,7 +177,7 @@ fun StatsScreen(
 
             if (sessions.isEmpty()) {
                 Text(
-                    text = "no sessions yet.",
+                    text = "No sessions yet.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Smoke,
                 )

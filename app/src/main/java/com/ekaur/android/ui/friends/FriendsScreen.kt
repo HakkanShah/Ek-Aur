@@ -118,11 +118,11 @@ fun FriendsScreen(
                     Text(problem!!, style = MaterialTheme.typography.bodyMedium, color = Heat)
 
                 rows.isEmpty() && loading ->
-                    Text("loading...", style = MaterialTheme.typography.bodyMedium, color = Smoke)
+                    Text("Loading...", style = MaterialTheme.typography.bodyMedium, color = Smoke)
 
                 rows.isEmpty() ->
                     Text(
-                        text = "nobody has scrolled yet today. you're first.",
+                        text = "Nobody has scrolled yet today. you're first.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Smoke,
                     )
@@ -147,7 +147,7 @@ fun FriendsScreen(
             Spacer(Modifier.height(12.dp))
             Card {
                 Text(
-                    text = "you're hidden — you don't show on other people's list. " +
+                    text = "You're hidden — you don't show on other people's list. " +
                         "turn it back on in Setup.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Ash,

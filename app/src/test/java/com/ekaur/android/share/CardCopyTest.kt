@@ -23,9 +23,9 @@ class CardCopyTest {
 
     @Test
     fun `one reel is not called reels`() {
-        assertEquals("reel today", CardCopy.subtitleFor(1))
-        assertEquals("reels today", CardCopy.subtitleFor(2))
-        assertEquals("reels today", CardCopy.subtitleFor(0))
+        assertEquals("Reel today", CardCopy.subtitleFor(1))
+        assertEquals("Reels today", CardCopy.subtitleFor(2))
+        assertEquals("Reels today", CardCopy.subtitleFor(0))
     }
 
     @Test

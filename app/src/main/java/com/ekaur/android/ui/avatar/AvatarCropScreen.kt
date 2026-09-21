@@ -103,10 +103,10 @@ fun AvatarCropScreen(
             .padding(horizontal = 16.dp),
     ) {
         Spacer(Modifier.height(16.dp))
-        SectionLabel("set your photo")
+        SectionLabel("Set your photo")
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "drag to move, pinch to zoom. what's inside the circle is what shows.",
+            text = "Drag to move, pinch to zoom. what's inside the circle is what shows.",
             style = MaterialTheme.typography.bodyMedium,
             color = Smoke,
         )
@@ -187,7 +187,7 @@ fun AvatarCropScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FlatButton(
-                text = "cancel",
+                text = "Cancel",
                 emphasised = false,
                 onClick = { if (!busy) onCancel() },
             )
@@ -222,7 +222,7 @@ fun AvatarCropScreen(
         } else if (!touched) {
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "looks fine as is? just tap set.",
+                text = "Looks fine as is? just tap set.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )

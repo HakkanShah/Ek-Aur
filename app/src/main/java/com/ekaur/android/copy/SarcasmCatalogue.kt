@@ -17,68 +17,68 @@ object SarcasmCatalogue {
     const val MILESTONE_EVERY = 10
 
     private val early = listOf(
-        "warming up.",
-        "rookie numbers.",
-        "we're just getting started.",
-        "sure, one more.",
-        "thumb's not even tired yet.",
-        "this is nothing. keep going.",
-        "barely a dent.",
-        "no notes. continue.",
+        "Warming up.",
+        "Rookie numbers.",
+        "We're just getting started.",
+        "Sure, one more.",
+        "Thumb's not even tired yet.",
+        "This is nothing. keep going.",
+        "Barely a dent.",
+        "No notes. continue.",
     )
 
     private val building = listOf(
-        "fifty. respectable. worrying.",
-        "the thumb has stamina, I'll give you that.",
-        "halfway to a problem.",
-        "no one can stop you. no one is trying.",
-        "locked in. tragically.",
-        "more? yeah, more.",
-        "turning pro.",
-        "this is commitment. wrong kind, but still.",
+        "Fifty. respectable. worrying.",
+        "The thumb has stamina, I'll give you that.",
+        "Halfway to a problem.",
+        "No one can stop you. no one is trying.",
+        "Locked in. tragically.",
+        "More? yeah, more.",
+        "Turning pro.",
+        "This is commitment. wrong kind, but still.",
     )
 
     private val century = listOf(
-        "triple digits. impressive. concerning.",
+        "Triple digits. impressive. concerning.",
         "100. you could've learned a language.",
-        "only 100? that was the warm-up.",
-        "the thumb deserves a small trophy.",
-        "consistency king. of this, specifically.",
-        "still time to keep going. do it.",
+        "Only 100? that was the warm-up.",
+        "The thumb deserves a small trophy.",
+        "Consistency king. of this, specifically.",
+        "Still time to keep going. do it.",
         "100 down, infinity to go.",
-        "certified. unclear for what.",
+        "Certified. unclear for what.",
     )
 
     private val deep = listOf(
-        "this isn't a hobby anymore, it's a career.",
-        "scientists are confused.",
-        "your thumb has filed for overtime.",
-        "the algorithm loves you. it's the only one awake.",
-        "don't tell your doctor.",
-        "you're in the top 1%. of concern.",
-        "just a bit more, then sleep. (lie.)",
-        "impressive stamina. tragic use of it.",
+        "This isn't a hobby anymore, it's a career.",
+        "Scientists are confused.",
+        "Your thumb has filed for overtime.",
+        "The algorithm loves you. it's the only one awake.",
+        "Don't tell your doctor.",
+        "You're in the top 1%. of concern.",
+        "Just a bit more, then sleep. (lie.)",
+        "Impressive stamina. tragic use of it.",
     )
 
     private val legendary = listOf(
-        "legend status. 💀",
-        "send the thumb to the olympics.",
-        "scrolling is the whole personality now.",
-        "phone's hot. thumb's hot. touch grass.",
-        "no records left to break.",
-        "you're a machine. a sad, efficient machine.",
-        "stop. no, don't. 😈",
-        "they'll write about this. briefly.",
+        "Legend status. 💀",
+        "Send the thumb to the olympics.",
+        "Scrolling is the whole personality now.",
+        "Phone's hot. thumb's hot. touch grass.",
+        "No records left to break.",
+        "You're a machine. a sad, efficient machine.",
+        "Stop. no, don't. 😈",
+        "They'll write about this. briefly.",
     )
 
     /** Overrides everything else -- the hour is funnier than the number. */
     private val lateNight = listOf(
-        "still up? respect. concern, but respect.",
-        "sleep is a myth apparently.",
-        "the sun's coming for you.",
-        "sleep? never met her.",
-        "your eyes are filing a complaint.",
-        "tomorrow-you is going to lose.",
+        "Still up? respect. concern, but respect.",
+        "Sleep is a myth apparently.",
+        "The sun's coming for you.",
+        "Sleep? never met her.",
+        "Your eyes are filing a complaint.",
+        "Tomorrow-you is going to lose.",
     )
 
     /**
@@ -91,17 +91,17 @@ object SarcasmCatalogue {
     private val byKey: Map<String, List<String>> = mapOf(
         "reels_50" to listOf(
             "50. warm-up done.",
-            "fifty deep. thumb's fine, thanks.",
+            "Fifty deep. thumb's fine, thanks.",
             "50 and counting. of course.",
         ),
         "reels_100" to listOf(
-            "only 100? that was the warm-up.",
-            "triple digits. impressive. concerning.",
+            "Only 100? that was the warm-up.",
+            "Triple digits. impressive. concerning.",
             "100 reels. easy.",
         ),
         "reels_200" to listOf(
             "200. this stopped being a hobby.",
-            "double century. a legend, technically.",
+            "Double century. a legend, technically.",
             "200. scientists are confused.",
         ),
         "reels_500" to listOf(
@@ -111,14 +111,14 @@ object SarcasmCatalogue {
         ),
         "session_30" to listOf(
             "30 minutes straight. locked in.",
-            "half an hour, no breaks. keep going.",
+            "Half an hour, no breaks. keep going.",
         ),
         "session_60" to listOf(
-            "one hour straight. respect.",
+            "One hour straight. respect.",
             "60 minutes, non-stop. machine.",
         ),
         "session_120" to listOf(
-            "two hours. a record's breaking somewhere.",
+            "Two hours. a record's breaking somewhere.",
             "2 hours straight. 💀 dedication.",
         ),
         "night_1am" to listOf(
@@ -127,7 +127,7 @@ object SarcasmCatalogue {
         ),
         "night_3am" to listOf(
             "3am. the algorithm's only friend left.",
-            "welcome to the 3am club.",
+            "Welcome to the 3am club.",
         ),
     )
 

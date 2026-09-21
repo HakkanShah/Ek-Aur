@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -38,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import com.ekaur.android.di.AppContainer
@@ -150,8 +153,13 @@ private fun AppScaffold(container: AppContainer) {
             .fillMaxSize()
             .systemBarsPadding(),
     ) {
-        Column(Modifier.weight(1f)) {
-            when (tab) {
+        Crossfade(
+            targetState = tab,
+            animationSpec = tween(230),
+            modifier = Modifier.weight(1f),
+            label = "Tab",
+        ) { shown ->
+            when (shown) {
                 Tab.Home -> HomeScreen(
                     container = container,
                     permissions = permissions,
@@ -187,13 +195,19 @@ private fun AppScaffold(container: AppContainer) {
 private fun BottomBar(current: Tab, onSelect: (Tab) -> Unit) {
     // A dev screen keeps Setup lit, so the bar always shows one active item.
     val active = if (current in BOTTOM_TABS) current else Tab.Setup
-    Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+    Box(Modifier.padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 10.dp)) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(30.dp),
+            shadowElevation = 16.dp,
         ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
             BOTTOM_TABS.forEach { entry ->
                 val selected = entry == active
                 Column(
@@ -227,6 +241,7 @@ private fun BottomBar(current: Tab, onSelect: (Tab) -> Unit) {
                         color = if (selected) Chalk else Smoke,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                     )
+                    }
                 }
             }
         }
@@ -258,7 +273,13 @@ private fun HomeScreen(
 
         Text(
             text = "EK AUR",
-            style = MaterialTheme.typography.labelLarge.copy(brush = instaGradient()),
+            style = androidx.compose.ui.text.TextStyle(
+                fontFamily = com.ekaur.android.ui.theme.Poppins,
+                fontWeight = FontWeight.Bold,
+                fontSize = 34.sp,
+                letterSpacing = 6.sp,
+                brush = instaGradient(),
+            ),
         )
 
         Spacer(Modifier.height(20.dp))
@@ -281,7 +302,7 @@ private fun HomeScreen(
                 style = MaterialTheme.typography.displayLarge,
             )
         }
-        Text("reels today", style = MaterialTheme.typography.bodyLarge, color = Smoke)
+        Text("Reels today", style = MaterialTheme.typography.bodyLarge, color = Smoke)
 
         if (activeMs > 0) {
             Text(
@@ -319,11 +340,11 @@ private fun HomeScreen(
                 Dot(if (permissions.allGranted && connected) Good else Heat)
                 Text(
                     text = when {
-                        !permissions.service -> "counting is off"
-                        !connected -> "on, but not connected yet"
-                        !permissions.overlay -> "counting, but the pill is hidden"
-                        !permissions.battery -> "on, but the battery may kill it"
-                        else -> "counting  ·  $state"
+                        !permissions.service -> "Counting is off"
+                        !connected -> "On, but not connected yet"
+                        !permissions.overlay -> "Counting, but the pill is hidden"
+                        !permissions.battery -> "On, but the battery may kill it"
+                        else -> "Counting  ·  $state"
                     },
                     style = MaterialTheme.typography.bodyLarge,
                     color = Chalk,
@@ -332,7 +353,7 @@ private fun HomeScreen(
 
             if (!permissions.allGranted) {
                 Spacer(Modifier.height(14.dp))
-                FlatButton(text = "finish setup", emphasised = true, onClick = onOpenSetup)
+                FlatButton(text = "Finish setup", emphasised = true, onClick = onOpenSetup)
             }
         }
     }

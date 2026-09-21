@@ -48,7 +48,7 @@ fun EventInspectorScreen(eventLog: EventLog, modifier: Modifier = Modifier) {
 
     Column(modifier.fillMaxSize()) {
         Card(Modifier.padding(horizontal = 16.dp)) {
-            SectionLabel("event dump")
+            SectionLabel("Event dump")
             Spacer(Modifier.height(10.dp))
             Text(
                 text = "${events.size} events  ·  $counted counted",
@@ -56,14 +56,14 @@ fun EventInspectorScreen(eventLog: EventLog, modifier: Modifier = Modifier) {
                 color = Chalk,
             )
             Text(
-                text = "open reels, scroll a bit, then hit share",
+                text = "Open reels, scroll a bit, then hit share",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FlatButton(
-                    text = "share",
+                    text = "Share",
                     emphasised = true,
                     onClick = {
                         TextExport.share(
@@ -78,7 +78,7 @@ fun EventInspectorScreen(eventLog: EventLog, modifier: Modifier = Modifier) {
                     text = if (capturing) "pause" else "resume",
                     onClick = { eventLog.setCapturing(!capturing) },
                 )
-                FlatButton(text = "clear", onClick = { eventLog.clear() })
+                FlatButton(text = "Clear", onClick = { eventLog.clear() })
             }
         }
 
@@ -86,7 +86,7 @@ fun EventInspectorScreen(eventLog: EventLog, modifier: Modifier = Modifier) {
 
         if (events.isEmpty()) {
             Text(
-                text = "nothing yet.\nservice on? open Instagram.",
+                text = "Nothing yet.\nservice on? open Instagram.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -139,7 +139,7 @@ private fun EventRow(event: CapturedEvent) {
         }
         if (event.fromIndex >= 0 || event.scrollDeltaY != 0) {
             Text(
-                text = "from=${event.fromIndex} to=${event.toIndex} " +
+                text = "From=${event.fromIndex} to=${event.toIndex} " +
                     "items=${event.itemCount} dy=${event.scrollDeltaY}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,

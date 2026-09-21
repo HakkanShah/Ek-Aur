@@ -79,8 +79,8 @@ fun ShareScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionLabel("card")
-            FlatButton(text = "close", onClick = onClose)
+            SectionLabel("Card")
+            FlatButton(text = "Close", onClick = onClose)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -112,14 +112,14 @@ fun ShareScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
-                Text("making...", color = Smoke)
+                Text("Making...", color = Smoke)
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
         FlatButton(
-            text = "share",
+            text = "Share",
             emphasised = card != null,
             onClick = {
                 val ready = card ?: return@FlatButton
@@ -138,7 +138,7 @@ fun ShareScreen(
 
         Card {
             Text(
-                text = "story wali WhatsApp status aur Instagram story ke liye, " +
+                text = "Story wali WhatsApp status aur Instagram story ke liye, " +
                     "post wali Instagram post, X aur chat ke liye.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
