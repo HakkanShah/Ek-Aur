@@ -17,7 +17,8 @@ private const val JSON = """
   "assets": [
     {
       "name": "ekaur-v0.18.0-build36.apk",
-      "browser_download_url": "https://github.com/HakkanShah/Ek-Aur/releases/download/v0.18.0/ekaur-v0.18.0-build36.apk"
+      "browser_download_url": "https://github.com/HakkanShah/Ek-Aur/releases/download/v0.18.0/ekaur-v0.18.0-build36.apk",
+      "size": 14017284
     }
   ]
 }
@@ -33,6 +34,7 @@ class UpdateResolverTest {
         assertEquals(36, release.versionCode)
         assertTrue(release.apkUrl!!.endsWith("ekaur-v0.18.0-build36.apk"))
         assertEquals("- floating pill polish\n- share card fix", release.notes)
+        assertEquals(14017284L, release.apkSize)
     }
 
     @Test

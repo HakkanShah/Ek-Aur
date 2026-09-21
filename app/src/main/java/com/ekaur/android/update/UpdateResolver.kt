@@ -14,6 +14,12 @@ data class Release(
     val notes: String?,
     /** The release's own page, used as a fallback when a direct download can't. */
     val pageUrl: String,
+    /**
+     * The APK asset's exact byte size, from the API. The download is verified
+     * against this, so a stream that ends early (a dropped or throttled
+     * connection with no Content-Length) can never be offered as a valid APK.
+     */
+    val apkSize: Long? = null,
 )
 
 /**
@@ -43,6 +49,7 @@ object UpdateResolver {
     private data class Asset(
         val name: String = "",
         @SerialName("browser_download_url") val url: String = "",
+        val size: Long = 0L,
     )
 
     /** `ekaur-v0.18.1-build37.apk` -> 37. The build number is the real version. */
@@ -69,6 +76,7 @@ object UpdateResolver {
             apkUrl = apk?.url?.takeIf { it.isNotBlank() },
             notes = payload.body?.trim()?.takeIf { it.isNotEmpty() },
             pageUrl = payload.htmlUrl ?: "https://github.com/HakkanShah/Ek-Aur/releases",
+            apkSize = apk?.size?.takeIf { it > 0 },
         )
     }
 

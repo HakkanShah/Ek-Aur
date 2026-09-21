@@ -72,7 +72,14 @@ class UpdateManager(
         // offer it immediately so it "reflects on next launch".
         val readyCode = prefs.downloadedVersionCode
         val readyApk = apkFor(readyCode)
-        if (readyCode > currentCode && readyApk.exists()) {
+        if (readyCode > currentCode && readyApk.exists() && !UpdateClient.looksLikeApk(readyApk)) {
+            // A leftover half-written file from an older, unverified download.
+            // Drop it and forget it so a fresh, verified copy replaces it.
+            readyApk.delete()
+            prefs.downloadedVersionCode = 0
+            prefs.downloadedVersionName = null
+        }
+        if (readyCode > currentCode && readyApk.exists() && UpdateClient.looksLikeApk(readyApk)) {
             _state.value = UpdateState.Ready(
                 Release(
                     versionName = prefs.downloadedVersionName ?: "",
@@ -106,7 +113,8 @@ class UpdateManager(
             }
 
             val code = release.versionCode
-            val downloaded = code != null && code == prefs.downloadedVersionCode && apkFor(code).exists()
+            val downloaded = code != null && code == prefs.downloadedVersionCode &&
+                apkFor(code).exists() && UpdateClient.looksLikeApk(apkFor(code))
             when {
                 downloaded && code != null -> _state.value = UpdateState.Ready(release, apkFor(code))
                 prefs.autoDownload && release.apkUrl != null -> startDownload(release)
@@ -124,7 +132,7 @@ class UpdateManager(
             val dest = apkFor(code)
             clearStaleDownloads(keepCode = code)
             val file = withContext(Dispatchers.IO) {
-                client.download(url, dest) { pct ->
+                client.download(url, dest, release.apkSize) { pct ->
                     _state.value = UpdateState.Downloading(release, pct)
                 }
             }
