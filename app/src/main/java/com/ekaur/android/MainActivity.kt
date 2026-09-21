@@ -5,15 +5,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import com.ekaur.android.ui.theme.Ink
 import com.ekaur.android.ui.theme.SurfaceLav
 import androidx.compose.foundation.layout.Arrangement
@@ -79,11 +82,12 @@ private enum class Tab(val label: String, val icon: Int) {
     Stats("Stats", R.drawable.ic_nav_stats),
     Ranks("Ranks", R.drawable.ic_nav_ranks),
     Setup("Setup", R.drawable.ic_nav_setup),
-    Events("Events", R.drawable.ic_nav_setup),
-    Status("Status", R.drawable.ic_nav_setup),
 }
 
-private val BOTTOM_TABS = listOf(Tab.Home, Tab.Stats, Tab.Ranks, Tab.Setup)
+private val BOTTOM_TABS = Tab.entries.toList()
+
+/** The developer-only screens, shown as a full overlay above the tabs. */
+private enum class DevScreen { Events, Status }
 
 /** The three grants the app needs, re-read whenever the screen comes forward. */
 private data class Permissions(
@@ -126,9 +130,11 @@ private fun AppScaffold(container: AppContainer) {
     }
 
     var permissions by remember { mutableStateOf(Permissions()) }
-    var tab by remember { mutableStateOf(Tab.Home) }
     var sharing by remember { mutableStateOf<CardStats?>(null) }
     var cardAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var dev by remember { mutableStateOf<DevScreen?>(null) }
+    val pagerState = rememberPagerState { BOTTOM_TABS.size }
+    val scope = rememberCoroutineScope()
 
     LifecycleResumeEffect(Unit) {
         permissions = Permissions(
@@ -155,48 +161,65 @@ private fun AppScaffold(container: AppContainer) {
             .fillMaxSize()
             .systemBarsPadding(),
     ) {
-        Crossfade(
-            targetState = tab,
-            animationSpec = tween(230),
-            modifier = Modifier.weight(1f),
-            label = "Tab",
-        ) { shown ->
-            when (shown) {
-                Tab.Home -> HomeScreen(
-                    container = container,
-                    permissions = permissions,
-                    onOpenSetup = { tab = Tab.Setup },
-                    onShare = { stats, avatar ->
-                        cardAvatar = avatar
-                        sharing = stats
-                    },
-                )
-                Tab.Stats -> StatsScreen(container.counterRepository)
-                Tab.Ranks -> FriendsScreen(container)
-                Tab.Setup -> SetupScreen(
-                    container = container,
-                    serviceEnabled = permissions.service,
-                    onOpenEvents = { tab = Tab.Events },
-                    onOpenStatus = { tab = Tab.Status },
-                )
-                Tab.Events -> EventInspectorScreen(container.eventLog)
-                Tab.Status -> DiagnosticsScreen(
+        Box(Modifier.weight(1f)) {
+            when (dev) {
+                // The dev screens replace the tab area but keep the bar below, so
+                // tapping any tab returns. Rarely used, so losing the pager's
+                // kept-alive pages while one is open costs nothing.
+                DevScreen.Events -> EventInspectorScreen(container.eventLog)
+                DevScreen.Status -> DiagnosticsScreen(
                     status = container.serviceStatus,
                     eventLog = container.eventLog,
                     crashReporter = container.crashReporter,
                     serviceEnabled = permissions.service,
                 )
+                // The four main tabs live in a pager so switching slides natively
+                // and each screen stays composed -- no repaint hitch, no refetch.
+                null -> HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 1,
+                ) { page ->
+                    when (BOTTOM_TABS[page]) {
+                        Tab.Home -> HomeScreen(
+                            container = container,
+                            permissions = permissions,
+                            onOpenSetup = {
+                                scope.launch { pagerState.animateScrollToPage(Tab.Setup.ordinal) }
+                            },
+                            onShare = { stats, avatar ->
+                                cardAvatar = avatar
+                                sharing = stats
+                            },
+                        )
+                        Tab.Stats -> StatsScreen(container.counterRepository)
+                        Tab.Ranks -> FriendsScreen(container)
+                        Tab.Setup -> SetupScreen(
+                            container = container,
+                            serviceEnabled = permissions.service,
+                            onOpenEvents = { dev = DevScreen.Events },
+                            onOpenStatus = { dev = DevScreen.Status },
+                        )
+                    }
+                }
             }
         }
 
-        BottomBar(current = tab, onSelect = { tab = it })
+        BottomBar(
+            pagerState = pagerState,
+            onSelect = { index ->
+                dev = null
+                scope.launch { pagerState.animateScrollToPage(index) }
+            },
+        )
     }
 }
 
 @Composable
-private fun BottomBar(current: Tab, onSelect: (Tab) -> Unit) {
-    // A dev screen keeps Setup lit, so the bar always shows one active item.
-    val active = if (current in BOTTOM_TABS) current else Tab.Setup
+private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
+    // The live scroll position, so the gradient highlight glides between items as
+    // you swipe or tap instead of snapping -- the "not laggy" feel.
+    val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
     Box(Modifier.padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 10.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -210,39 +233,41 @@ private fun BottomBar(current: Tab, onSelect: (Tab) -> Unit) {
                     .padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-            BOTTOM_TABS.forEach { entry ->
-                val selected = entry == active
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clickable { onSelect(entry) }
-                        .padding(vertical = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Box(
+                BOTTOM_TABS.forEachIndexed { index, entry ->
+                    // 1 on the active item, fading to 0 as the swipe moves away.
+                    val t = (1f - kotlin.math.abs(position - index)).coerceIn(0f, 1f)
+                    Column(
                         Modifier
-                            .size(width = 46.dp, height = 30.dp)
-                            .clip(RoundedCornerShape(50))
-                            .then(
-                                if (selected) Modifier.background(brush = instaGradient())
-                                else Modifier
-                            ),
-                        contentAlignment = Alignment.Center,
+                            .weight(1f)
+                            .clickable { onSelect(index) }
+                            .padding(vertical = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Icon(
-                            painter = painterResource(entry.icon),
-                            contentDescription = entry.label,
-                            tint = if (selected) Ink else Ash,
-                            modifier = Modifier.size(22.dp),
+                        Box(
+                            Modifier.size(width = 46.dp, height = 30.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                Modifier
+                                    .matchParentSize()
+                                    .graphicsLayer { alpha = t }
+                                    .clip(RoundedCornerShape(50))
+                                    .background(brush = instaGradient()),
+                            )
+                            Icon(
+                                painter = painterResource(entry.icon),
+                                contentDescription = entry.label,
+                                tint = lerp(Ash, Ink, t),
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = entry.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = lerp(Smoke, Chalk, t),
+                            fontWeight = if (t > 0.5f) FontWeight.SemiBold else FontWeight.Normal,
                         )
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = entry.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (selected) Chalk else Smoke,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    )
                     }
                 }
             }
@@ -283,6 +308,12 @@ private fun HomeScreen(
                 letterSpacing = 6.sp,
                 brush = instaGradient(),
             ),
+        )
+        Text(
+            text = "one more",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Smoke,
+            letterSpacing = 3.sp,
         )
 
         Spacer(Modifier.height(12.dp))

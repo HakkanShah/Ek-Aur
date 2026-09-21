@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Ek Aur</string>
-    <string name="accessibility_service_description">Sirf Instagram Reels ki ginti ke liye. Ye service sirf Instagram dekh sakti hai — koi aur app, koi payment ya UPI screen, koi password isko dikhta hi nahi. Sab kuch phone me hi rehta hai.</string>
+    <string name="app_name">Ek Aur (One More)</string>
+    <string name="accessibility_service_description">Only for counting Instagram Reels. This service can see nothing but Instagram — no other app, no payment or UPI screen, no password. Everything stays on your phone.</string>
 </resources>

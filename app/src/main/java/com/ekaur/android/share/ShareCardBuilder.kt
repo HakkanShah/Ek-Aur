@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.core.graphics.drawable.toBitmap
 import coil3.ImageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
@@ -45,9 +46,12 @@ object ShareCardBuilder {
     }
 
     /**
-     * The user's own picture, fetched through the same loader the leaderboard
-     * uses so a cached copy costs nothing. A failure is not worth reporting --
-     * the card falls back to an initial and still looks like a card.
+     * The user's own picture, from cache only, so the card is ready instantly.
+     *
+     * The avatar is already warm in Coil's cache from the leaderboard and setup
+     * screens, so a cache read costs nothing; disabling the network keeps a card
+     * from ever waiting on a download. A miss just falls back to the initial,
+     * which still looks like a card.
      */
     private suspend fun avatarFor(container: AppContainer, context: Context): Bitmap? {
         val url = Avatar.urlFor(
@@ -57,8 +61,12 @@ object ShareCardBuilder {
         ) ?: return null
 
         return runCatching {
-            val result = ImageLoader(context)
-                .execute(ImageRequest.Builder(context).data(url).build())
+            val result = ImageLoader(context).execute(
+                ImageRequest.Builder(context)
+                    .data(url)
+                    .networkCachePolicy(CachePolicy.DISABLED)
+                    .build()
+            )
             (result as? SuccessResult)?.image?.toBitmap()
         }.getOrNull()
     }

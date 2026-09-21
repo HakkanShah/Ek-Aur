@@ -3,17 +3,19 @@ package com.ekaur.android.share
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import com.ekaur.android.sync.Avatar
 import com.ekaur.android.ui.stats.formatDuration
 
 /**
- * Draws the card that gets posted.
+ * Draws the card that gets shared.
  *
  * Deliberately plain Android Canvas at a fixed pixel size rather than a capture
  * of the live UI. A screenshot of a composable comes out at whatever size and
@@ -21,63 +23,96 @@ import com.ekaur.android.ui.stats.formatDuration
  * output lands in front of people who have never seen it -- so it renders the
  * same 1080px card on every device, and can be reasoned about without a screen.
  *
- * The design follows the app: black, one acid accent, heavy numerals, no
- * gradients. The number is the loudest thing on it, because the number is the
- * joke.
+ * The design follows the app's new look: a soft light card, dark ink text, and
+ * the Instagram gradient on the wordmark and the hero number, which is the
+ * loudest thing on it because the number is the joke.
  */
 object StatsCardRenderer {
 
-    private const val INK = 0xFF0A0A0A.toInt()
-    private const val RAISED = 0xFF141414.toInt()
-    private const val LINE = 0xFF242424.toInt()
+    private const val CANVAS = 0xFFFBF7FB.toInt()
+    private const val SURFACE = 0xFFFFFFFF.toInt()
+    private const val CHIP = 0xFFF3EEFB.toInt()
+    private const val LINE = 0xFFECE7F2.toInt()
     private const val ACID = 0xFFDD2A7B.toInt()
-    private const val ACID_DIM = 0xFF9B2C6A.toInt()
-    private const val CHALK = 0xFFF2F2F2.toInt()
-    private const val SMOKE = 0xFF8A8A8A.toInt()
-    private const val ASH = 0xFF5A5A5A.toInt()
-    private const val HEAT = 0xFFFF3B1F.toInt()
+    private const val ACID_DIM = 0xFFE7A6CC.toInt()
+    private const val INK = 0xFF1C1C1E.toInt()
+    private const val SMOKE = 0xFF8A8A99.toInt()
+    private const val ASH = 0xFFB4B4C0.toInt()
 
-    private val black = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-    private val regular = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+    // The Instagram gradient, used as a shader on the wordmark and hero number.
+    private val GRADIENT = intArrayOf(
+        0xFF515BD4.toInt(), 0xFF8134AF.toInt(), 0xFFDD2A7B.toInt(),
+        0xFFF58529.toInt(), 0xFFFEDA77.toInt(),
+    )
 
-    fun render(stats: CardStats, shape: CardShape, avatar: Bitmap? = null): Bitmap {
+    private val systemHeavy = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+    private val systemRegular = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+
+    // Set per render from the optional Poppins faces, so the card matches the app
+    // when a context can supply them and still renders in a test that cannot.
+    private var faceHeavy: Typeface = systemHeavy
+    private var faceRegular: Typeface = systemRegular
+
+    fun render(
+        stats: CardStats,
+        shape: CardShape,
+        avatar: Bitmap? = null,
+        heavy: Typeface? = null,
+        regular: Typeface? = null,
+    ): Bitmap {
+        faceHeavy = heavy ?: systemHeavy
+        faceRegular = regular ?: systemRegular
+
         val bitmap = Bitmap.createBitmap(shape.width, shape.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        canvas.drawColor(INK)
+        canvas.drawColor(CANVAS)
 
-        val margin = shape.width * 0.09f
+        val inset = shape.width * 0.037f
+        val unit = shape.width / 1080f
+        // A soft white card the content sits on, matching the app's surfaces.
+        canvas.drawRoundRect(
+            RectF(inset, inset, shape.width - inset, shape.height - inset),
+            48f * unit, 48f * unit,
+            Paint(Paint.ANTI_ALIAS_FLAG).apply { color = SURFACE },
+        )
+
+        val margin = shape.width * 0.1f
         val tall = shape == CardShape.Story
 
-        // The whole layout hangs off this, so the two shapes stay one design
-        // rather than two that drift apart.
-        val unit = shape.width / 1080f
-
-        var y = if (tall) shape.height * 0.13f else shape.height * 0.10f
+        var y = if (tall) shape.height * 0.13f else shape.height * 0.12f
 
         y = drawWordmark(canvas, margin, y, unit)
-        y += if (tall) 70f * unit else 34f * unit
+        y += if (tall) 70f * unit else 40f * unit
 
         y = drawHero(canvas, stats, margin, y, shape, unit)
-        y += if (tall) 64f * unit else 40f * unit
+        y += if (tall) 64f * unit else 46f * unit
 
-        y = drawWeek(canvas, stats, margin, y, shape, unit, tall)
-        y += if (tall) 84f * unit else 40f * unit
+        val weekBottom = drawWeek(canvas, stats, margin, y, shape, unit, tall)
 
         if (tall) {
-            y = drawFacts(canvas, stats, margin, y, shape, unit)
+            drawFacts(canvas, stats, margin, weekBottom + 84f * unit, shape, unit)
         }
 
         drawFooter(canvas, stats, margin, shape, unit, avatar)
         return bitmap
     }
 
+    /** A horizontal Instagram-gradient shader spanning [x]..[x]+[width]. */
+    private fun gradientShader(x: Float, width: Float): Shader =
+        LinearGradient(x, 0f, x + width, 0f, GRADIENT, null, Shader.TileMode.CLAMP)
+
     private fun drawWordmark(canvas: Canvas, x: Float, y: Float, unit: Float): Float {
-        val paint = textPaint(ACID, 34f * unit, black).apply { letterSpacing = 0.34f }
+        val paint = textPaint(ACID, 40f * unit, faceHeavy).apply { letterSpacing = 0.3f }
+        val width = paint.measureText("EK AUR")
+        paint.shader = gradientShader(x, width)
         canvas.drawText("EK AUR", x, y, paint)
-        return y
+
+        val tag = textPaint(SMOKE, 24f * unit, faceRegular).apply { letterSpacing = 0.25f }
+        canvas.drawText("one more", x, y + 40f * unit, tag)
+        return y + 40f * unit
     }
 
-    /** The number, as big as the card can bear, and what it is. */
+    /** The number, as big as the card can bear, gradient-filled. */
     private fun drawHero(
         canvas: Canvas,
         stats: CardStats,
@@ -87,22 +122,21 @@ object StatsCardRenderer {
         unit: Float,
     ): Float {
         val size = if (shape == CardShape.Story) 330f * unit else 250f * unit
-        val paint = textPaint(heatFor(stats.reelsToday), size, black).apply {
-            letterSpacing = -0.05f
-        }
+        val paint = textPaint(INK, size, faceHeavy).apply { letterSpacing = -0.05f }
 
         val bounds = Rect()
         val text = stats.reelsToday.toString()
         paint.getTextBounds(text, 0, text.length, bounds)
+        paint.shader = gradientShader(x, bounds.width().toFloat().coerceAtLeast(size))
 
         val baseline = top + bounds.height()
         canvas.drawText(text, x, baseline, paint)
 
-        val label = textPaint(SMOKE, 42f * unit, regular)
+        val label = textPaint(SMOKE, 42f * unit, faceRegular)
         canvas.drawText(CardCopy.subtitleFor(stats.reelsToday), x, baseline + 58f * unit, label)
 
         if (stats.activeMsToday > 0) {
-            val time = textPaint(ASH, 34f * unit, regular)
+            val time = textPaint(ASH, 34f * unit, faceRegular)
             canvas.drawText(
                 formatDuration(stats.activeMsToday) + " watched",
                 x,
@@ -119,7 +153,7 @@ object StatsCardRenderer {
      *
      * The same rule as the dashboard: height carries the count and the colour
      * does not, so the tallest is simply the brightest rather than being shaded
-     * by value twice over.
+     * by value twice over. Returns the baseline y so the caller can flow on.
      */
     private fun drawWeek(
         canvas: Canvas,
@@ -134,14 +168,12 @@ object StatsCardRenderer {
         if (week.isEmpty() || week.all { it == 0 }) return top
 
         val width = shape.width - x * 2
-        val height = if (tall) 400f * unit else 200f * unit
+        val height = if (tall) 400f * unit else 190f * unit
         val slot = width / week.size
         val barWidth = slot * 0.52f
         val peak = week.max().coerceAtLeast(1)
 
-        val label = textPaint(ASH, 28f * unit, regular)
-        // Text grows upward from its baseline, so drawing at the running cursor
-        // would ride up into the line above. Its own height is the offset.
+        val label = textPaint(SMOKE, 28f * unit, faceRegular)
         val labelBaseline = top + 28f * unit
         canvas.drawText("Last 7 days", x, labelBaseline, label)
 
@@ -153,6 +185,7 @@ object StatsCardRenderer {
             val left = x + slot * index + (slot - barWidth) / 2
             val rect = RectF(left, base - barHeight, left + barWidth, base)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                // The peak wears the solid accent; the rest a soft magenta.
                 color = if (value == peak) ACID else ACID_DIM
             }
             canvas.drawRoundRect(rect, 6f * unit, 6f * unit, paint)
@@ -163,7 +196,7 @@ object StatsCardRenderer {
         return base + 2f * unit
     }
 
-    /** Two facts, in boxes, so the card has something to read after the number. */
+    /** Two facts, in soft chips, so the tall card has something after the number. */
     private fun drawFacts(
         canvas: Canvas,
         stats: CardStats,
@@ -187,21 +220,21 @@ object StatsCardRenderer {
             val rect = RectF(left, top, left + boxWidth, top + boxHeight)
             canvas.drawRoundRect(
                 rect,
-                22f * unit,
-                22f * unit,
-                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = RAISED },
+                24f * unit,
+                24f * unit,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = CHIP },
             )
             canvas.drawText(
                 value,
-                left + 28f * unit,
-                top + 76f * unit,
-                textPaint(CHALK, 54f * unit, black),
+                left + 30f * unit,
+                top + 80f * unit,
+                textPaint(INK, 54f * unit, faceHeavy),
             )
             canvas.drawText(
                 caption,
-                left + 28f * unit,
-                top + 116f * unit,
-                textPaint(SMOKE, 30f * unit, regular),
+                left + 30f * unit,
+                top + 122f * unit,
+                textPaint(SMOKE, 30f * unit, faceRegular),
             )
         }
         return top + boxHeight
@@ -222,10 +255,10 @@ object StatsCardRenderer {
         avatar: Bitmap?,
     ) {
         val bottom = shape.height - x
-        val linkPaint = textPaint(ASH, 30f * unit, regular)
+        val linkPaint = textPaint(ASH, 30f * unit, faceRegular)
         canvas.drawText(CardCopy.LINK, x, bottom, linkPaint)
 
-        val dare = textPaint(ACID, 52f * unit, black)
+        val dare = textPaint(ACID, 50f * unit, faceHeavy)
         canvas.drawText(CardCopy.challengeFor(stats.reelsToday), x, bottom - 64f * unit, dare)
 
         // The person, above their dare.
@@ -237,7 +270,7 @@ object StatsCardRenderer {
             stats.username,
             x + avatarSize + 22f * unit,
             avatarTop + avatarSize * 0.66f,
-            textPaint(CHALK, 40f * unit, black),
+            textPaint(INK, 40f * unit, faceHeavy),
         )
     }
 
@@ -269,8 +302,14 @@ object StatsCardRenderer {
             return
         }
 
-        canvas.drawOval(rect, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = LINE })
-        val initial = textPaint(CHALK, size * 0.42f, black).apply {
+        // A soft gradient disc with the initial, matching the app's ringed avatars.
+        val disc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(
+                x, y, x + size, y + size, GRADIENT, null, Shader.TileMode.CLAMP,
+            )
+        }
+        canvas.drawOval(rect, disc)
+        val initial = textPaint(Color.WHITE, size * 0.42f, faceHeavy).apply {
             textAlign = Paint.Align.CENTER
         }
         canvas.drawText(
@@ -278,21 +317,6 @@ object StatsCardRenderer {
             rect.centerX(),
             rect.centerY() + size * 0.15f,
             initial,
-        )
-    }
-
-    /** White at rest, drifting to red once the number is frankly embarrassing. */
-    private fun heatFor(count: Int): Int {
-        val t = when {
-            count <= 50 -> 0f
-            count >= 400 -> 1f
-            else -> (count - 50) / 350f
-        }
-        fun mix(from: Int, to: Int) = (from + (to - from) * t).toInt()
-        return Color.rgb(
-            mix(Color.red(CHALK), Color.red(HEAT)),
-            mix(Color.green(CHALK), Color.green(HEAT)),
-            mix(Color.blue(CHALK), Color.blue(HEAT)),
         )
     }
 

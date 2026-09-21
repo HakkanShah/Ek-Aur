@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,14 +28,14 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.res.ResourcesCompat
+import com.ekaur.android.R
 import com.ekaur.android.share.CardShape
 import com.ekaur.android.share.CardSharing
 import com.ekaur.android.share.CardStats
 import com.ekaur.android.share.StatsCardRenderer
-import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.SectionLabel
-import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Smoke
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,10 +43,10 @@ import kotlinx.coroutines.withContext
 /**
  * The card, before it goes out.
  *
- * Both shapes are offered because no single one travels everywhere: a 9:16
- * card is what WhatsApp status and Instagram stories want, and it is cropped
- * badly in a feed or a timeline, where 1:1 belongs. Rendering both and letting
- * the user pick is cheaper than guessing wrong.
+ * One square card that travels everywhere -- WhatsApp chat and status, an
+ * Instagram post or DM, X, a feed. It renders the moment the screen opens (from
+ * Room, with a cache-first avatar), so "Share" is ready almost immediately rather
+ * than after two loading steps and a shape choice.
  */
 @Composable
 fun ShareScreen(
@@ -57,14 +56,20 @@ fun ShareScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    var shape by remember { mutableStateOf(CardShape.Story) }
     var card by remember { mutableStateOf<Bitmap?>(null) }
 
-    // Re-rendered when the shape changes, off the main thread: this draws a
-    // 1080x1920 bitmap and has no business blocking a frame.
-    LaunchedEffect(shape, stats, avatar) {
+    // The Poppins faces the app uses, so the card matches it. Loaded once.
+    val heavy = remember { ResourcesCompat.getFont(context, R.font.poppins_bold) }
+    val regular = remember { ResourcesCompat.getFont(context, R.font.poppins_regular) }
+
+    // Rendered off the main thread: this draws a 1080x1080 bitmap and has no
+    // business blocking a frame. Fast, because the stats come from Room and the
+    // avatar is already warm in Coil's cache.
+    LaunchedEffect(stats, avatar) {
         card = withContext(Dispatchers.Default) {
-            runCatching { StatsCardRenderer.render(stats, shape, avatar) }.getOrNull()
+            runCatching {
+                StatsCardRenderer.render(stats, CardShape.Square, avatar, heavy, regular)
+            }.getOrNull()
         }
     }
 
@@ -79,20 +84,8 @@ fun ShareScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionLabel("Card")
+            SectionLabel("Share card")
             FlatButton(text = "Close", onClick = onClose)
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CardShape.entries.forEach { option ->
-                FlatButton(
-                    text = option.label,
-                    emphasised = option == shape,
-                    onClick = { shape = option },
-                )
-            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -100,19 +93,19 @@ fun ShareScreen(
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp)),
+                .clip(RoundedCornerShape(20.dp)),
             contentAlignment = Alignment.Center,
         ) {
             val preview = card
             if (preview != null) {
                 Image(
                     bitmap = preview.asImageBitmap(),
-                    contentDescription = "share card preview",
+                    contentDescription = "Share card preview",
                     contentScale = ContentScale.FillWidth,
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
-                Text("Making...", color = Smoke)
+                Text("Getting it ready…", color = Smoke)
             }
         }
 
@@ -127,23 +120,12 @@ fun ShareScreen(
                     context.startActivity(
                         android.content.Intent.createChooser(
                             CardSharing.intentFor(context, ready, CardSharing.captionFor(stats)),
-                            "share card",
+                            "Share card",
                         )
                     )
                 }
             },
         )
-
-        Spacer(Modifier.height(16.dp))
-
-        Card {
-            Text(
-                text = "Story wali WhatsApp status aur Instagram story ke liye, " +
-                    "post wali Instagram post, X aur chat ke liye.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Ash,
-            )
-        }
 
         Spacer(Modifier.height(24.dp))
     }
