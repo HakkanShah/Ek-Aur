@@ -5,7 +5,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.ekaur.android.ui.theme.Ink
+import com.ekaur.android.ui.theme.SurfaceLav
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -195,13 +203,24 @@ private fun BottomBar(current: Tab, onSelect: (Tab) -> Unit) {
                         .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Icon(
-                        painter = painterResource(entry.icon),
-                        contentDescription = entry.label,
-                        tint = if (selected) Acid else Ash,
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Spacer(Modifier.height(3.dp))
+                    Box(
+                        Modifier
+                            .size(width = 46.dp, height = 30.dp)
+                            .clip(RoundedCornerShape(50))
+                            .then(
+                                if (selected) Modifier.background(brush = instaGradient())
+                                else Modifier
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(entry.icon),
+                            contentDescription = entry.label,
+                            tint = if (selected) Ink else Ash,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         text = entry.label,
                         style = MaterialTheme.typography.bodyMedium,
@@ -244,10 +263,24 @@ private fun HomeScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        GradientNumber(
-            text = count.toString(),
-            style = MaterialTheme.typography.displayLarge,
-        )
+        Box(contentAlignment = Alignment.Center) {
+            // A soft gradient halo behind the number, so the hero figure glows
+            // off the pale canvas instead of just sitting on it.
+            Box(
+                Modifier
+                    .size(300.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(SurfaceLav, Color.Transparent),
+                        ),
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                    )
+            )
+            GradientNumber(
+                text = count.toString(),
+                style = MaterialTheme.typography.displayLarge,
+            )
+        }
         Text("reels today", style = MaterialTheme.typography.bodyLarge, color = Smoke)
 
         if (activeMs > 0) {

@@ -1,8 +1,6 @@
 package com.ekaur.android.ui.common
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -26,28 +25,43 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Ink
-import com.ekaur.android.ui.theme.InkLine
+import com.ekaur.android.ui.theme.SurfaceLav
 import com.ekaur.android.ui.theme.Smoke
 import com.ekaur.android.ui.theme.instaGradient
 
+/**
+ * A section heading: a short gradient bar, then the title. The gradient bar is
+ * the app's signature mark, repeated so every card is unmistakably part of the
+ * same thing.
+ */
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = Smoke,
-        modifier = modifier,
-    )
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(width = 4.dp, height = 16.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(brush = instaGradient()),
+        )
+        Spacer(Modifier.width(9.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleLarge,
+            color = Chalk,
+            fontWeight = FontWeight.Bold,
+        )
+    }
 }
 
 /**
- * The primary action: a gradient pill with white text. The one loud thing on a
- * card. [emphasised] false gives the quiet outlined version for anything that is
- * not the main thing to do.
+ * A pill button. [emphasised] fills it with the gradient (the one main action);
+ * otherwise a soft lavender fill for everything secondary -- no outlines
+ * anywhere, the whole app is soft-filled shapes now.
  */
 @Composable
 fun FlatButton(
@@ -56,29 +70,24 @@ fun FlatButton(
     modifier: Modifier = Modifier,
     emphasised: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(14.dp)
-    if (emphasised) {
-        Box(
-            modifier
-                .clip(shape)
-                .background(brush = instaGradient(), shape = shape)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 18.dp, vertical = 11.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(text, style = MaterialTheme.typography.titleLarge, color = Ink)
-        }
-    } else {
-        Box(
-            modifier
-                .clip(shape)
-                .border(BorderStroke(1.dp, InkLine), shape)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 11.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(text, style = MaterialTheme.typography.titleLarge, color = Chalk)
-        }
+    val shape = RoundedCornerShape(percent = 50)
+    Box(
+        modifier
+            .clip(shape)
+            .then(
+                if (emphasised) Modifier.background(brush = instaGradient())
+                else Modifier.background(color = SurfaceLav)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 22.dp, vertical = 13.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = if (emphasised) Ink else Chalk,
+        )
     }
 }
 
@@ -117,7 +126,7 @@ fun Dot(color: Color, modifier: Modifier = Modifier) {
     Box(modifier.size(9.dp).background(color, CircleShape))
 }
 
-/** One headline number with its name under it. Three sit side by side. */
+/** One headline number with its name under it, a gradient tick before the name. */
 @Composable
 fun StatTile(
     label: String,
@@ -130,27 +139,38 @@ fun StatTile(
             text = value,
             style = MaterialTheme.typography.headlineMedium,
             color = Chalk,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
         )
-        Spacer(Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = Smoke, maxLines = 1)
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(brush = instaGradient()),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = Smoke, maxLines = 1)
+        }
         if (caption != null) {
+            Spacer(Modifier.height(2.dp))
             Text(caption, style = MaterialTheme.typography.bodyMedium, color = Ash, maxLines = 1)
         }
     }
 }
 
-/** A white card with a soft shadow, floating on the tinted canvas. */
+/** A soft rounded card, floating on the tinted canvas. */
 @Composable
 fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(24.dp)
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(elevation = 8.dp, shape = shape, clip = false, spotColor = Chalk),
+            .shadow(elevation = 10.dp, shape = shape, clip = false, spotColor = Chalk),
         shape = shape,
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Column(Modifier.padding(16.dp), content = content)
+        Column(Modifier.padding(18.dp), content = content)
     }
 }

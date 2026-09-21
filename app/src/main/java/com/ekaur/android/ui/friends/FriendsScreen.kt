@@ -2,6 +2,8 @@ package com.ekaur.android.ui.friends
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.ekaur.android.ui.theme.instaGradient
+import com.ekaur.android.ui.theme.Surface
+import com.ekaur.android.ui.theme.Ink
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -164,15 +171,49 @@ private fun LeaderRow(rank: Int, row: LeaderboardRow, isMe: Boolean, avatarUrl: 
             .padding(vertical = 10.dp, horizontal = if (isMe) 8.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = rank.toString(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (rank == 1) Acid else Ash,
-            fontWeight = if (rank == 1) FontWeight.Black else FontWeight.Normal,
-            modifier = Modifier.width(28.dp),
-        )
-        UserAvatar(username = row.username, url = avatarUrl, size = 36.dp)
+        // A gradient chip for the podium, a plain number for the rest.
+        Box(
+            Modifier.width(30.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (rank <= 3) {
+                Box(
+                    Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(brush = instaGradient()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = rank.toString(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink,
+                    )
+                }
+            } else {
+                Text(
+                    text = rank.toString(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Ash,
+                )
+            }
+        }
         Spacer(Modifier.width(10.dp))
+        // Stories-style gradient ring around every avatar.
+        Box(
+            Modifier
+                .clip(CircleShape)
+                .background(brush = instaGradient())
+                .padding(2.5.dp)
+                .clip(CircleShape)
+                .background(Surface)
+                .padding(2.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            UserAvatar(username = row.username, url = avatarUrl, size = 36.dp)
+        }
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = row.username + if (isMe) "  (you)" else "",
@@ -187,10 +228,18 @@ private fun LeaderRow(rank: Int, row: LeaderboardRow, isMe: Boolean, avatarUrl: 
                 )
             }
         }
-        Text(
-            text = row.reelCount.toString(),
-            style = MaterialTheme.typography.titleLarge,
-            color = Chalk,
-        )
+        if (rank == 1) {
+            com.ekaur.android.ui.common.GradientNumber(
+                text = row.reelCount.toString(),
+                style = MaterialTheme.typography.titleLarge,
+            )
+        } else {
+            Text(
+                text = row.reelCount.toString(),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Chalk,
+            )
+        }
     }
 }
