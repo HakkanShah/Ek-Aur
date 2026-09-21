@@ -49,5 +49,5 @@ object CardSharing {
 
     /** The words that ride along where the app receiving it allows any. */
     fun captionFor(stats: CardStats): String =
-        "${stats.reelsToday} reels. ${CardCopy.challengeFor(stats.reelsToday)}\n${CardCopy.LINK}"
+        "${stats.reelsToday} reels. ${CardCopy.challengeFor(stats.reelsToday)}\n${CardCopy.URL}"
 }
