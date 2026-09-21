@@ -4,19 +4,31 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.ekaur.android.ui.theme.Ink
 import com.ekaur.android.ui.theme.SurfaceLav
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +42,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -59,7 +72,6 @@ import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.sync.Avatar
 import com.ekaur.android.ui.account.AccountScreen
 import com.ekaur.android.ui.common.Card
-import com.ekaur.android.ui.common.Dot
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.GradientNumber
 import com.ekaur.android.ui.common.StatTile
@@ -219,7 +231,15 @@ private fun AppScaffold(container: AppContainer) {
                 dev = null
                 sharing = null
                 account = false
-                scope.launch { pagerState.animateScrollToPage(index) }
+                scope.launch {
+                    // A brisk, fixed-duration glide rather than the default spring,
+                    // so a far jump (Home -> Setup) still lands fast and deliberate
+                    // instead of drifting through the middle tabs.
+                    pagerState.animateScrollToPage(
+                        page = index,
+                        animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing),
+                    )
+                }
             },
         )
     }
@@ -230,6 +250,7 @@ private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
     // The live scroll position, so the gradient highlight glides between items as
     // you swipe or tap instead of snapping -- the "not laggy" feel.
     val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+    val haptic = LocalHapticFeedback.current
     Box(Modifier.padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 10.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -246,10 +267,28 @@ private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
                 BOTTOM_TABS.forEachIndexed { index, entry ->
                     // 1 on the active item, fading to 0 as the swipe moves away.
                     val t = (1f - kotlin.math.abs(position - index)).coerceIn(0f, 1f)
+
+                    // A quick squish on touch so every tap feels answered.
+                    val interaction = remember { MutableInteractionSource() }
+                    val pressed by interaction.collectIsPressedAsState()
+                    val pressScale by animateFloatAsState(
+                        targetValue = if (pressed) 0.86f else 1f,
+                        animationSpec = tween(120, easing = FastOutSlowInEasing),
+                        label = "press",
+                    )
+
                     Column(
                         Modifier
                             .weight(1f)
-                            .clickable { onSelect(index) }
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable(
+                                interactionSource = interaction,
+                                indication = null,
+                            ) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSelect(index)
+                            }
+                            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
                             .padding(vertical = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -257,10 +296,16 @@ private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
                             Modifier.size(width = 46.dp, height = 30.dp),
                             contentAlignment = Alignment.Center,
                         ) {
+                            // The gradient pill grows in as the tab becomes active.
                             Box(
                                 Modifier
                                     .matchParentSize()
-                                    .graphicsLayer { alpha = t }
+                                    .graphicsLayer {
+                                        alpha = t
+                                        val s = 0.7f + 0.3f * t
+                                        scaleX = s
+                                        scaleY = s
+                                    }
                                     .clip(RoundedCornerShape(50))
                                     .background(brush = instaGradient()),
                             )
@@ -268,7 +313,15 @@ private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
                                 painter = painterResource(entry.icon),
                                 contentDescription = entry.label,
                                 tint = lerp(Ash, Ink, t),
-                                modifier = Modifier.size(22.dp),
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .graphicsLayer {
+                                        // A gentle lift on the active icon.
+                                        val s = 1f + 0.10f * t
+                                        scaleX = s
+                                        scaleY = s
+                                        translationY = -2f * t
+                                    },
                             )
                         }
                         Spacer(Modifier.height(4.dp))
@@ -450,36 +503,122 @@ private fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        Card {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Dot(if (permissions.allGranted && connected) Good else Heat)
-                Text(
-                    text = when {
-                        !permissions.service -> "Counting is off"
-                        !connected -> "On, but not connected yet"
-                        !permissions.overlay -> "Counting, but the pill is hidden"
-                        !permissions.battery -> "On, but the battery may kill it"
-                        else -> "Counting  ·  $state"
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Chalk,
-                )
-            }
+        StatusCard(
+            permissions = permissions,
+            connected = connected,
+            state = state,
+            onOpenSetup = onOpenSetup,
+        )
 
-            if (!permissions.allGranted) {
-                Spacer(Modifier.height(14.dp))
-                FlatButton(
-                    text = "Finish setup",
-                    emphasised = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onOpenSetup,
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+/** The look of the counting-status card: a colour, a headline, and a plain line. */
+private data class StatusLook(
+    val color: Color,
+    val title: String,
+    val detail: String,
+    val live: Boolean,
+)
+
+private fun statusLook(permissions: Permissions, connected: Boolean, state: String): StatusLook =
+    when {
+        !permissions.service ->
+            StatusLook(Heat, "Counting is off", "Turn on accessibility to start counting.", false)
+        !connected ->
+            StatusLook(Heat, "Not connected yet", "It's on — open Instagram to wake it up.", false)
+        !permissions.overlay ->
+            StatusLook(Heat, "The pill is hidden", "Counting works. Allow overlay to see it float.", true)
+        !permissions.battery ->
+            StatusLook(Heat, "Battery may stop it", "Counting now, but battery saver can kill it.", true)
+        else -> when (state) {
+            "InReels" -> StatusLook(Good, "Counting", "You're watching reels right now.", true)
+            "InApp" -> StatusLook(Good, "Ready", "Instagram's open — swipe into reels.", true)
+            else -> StatusLook(Good, "Standing by", "Waiting for you to open Instagram.", false)
+        }
+    }
+
+@Composable
+private fun StatusCard(
+    permissions: Permissions,
+    connected: Boolean,
+    state: String,
+    onOpenSetup: () -> Unit,
+) {
+    val look = statusLook(permissions, connected, state)
+    Card {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LiveBadge(color = look.color, live = look.live)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = look.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Chalk,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = look.detail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Smoke,
                 )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        if (!permissions.allGranted) {
+            Spacer(Modifier.height(16.dp))
+            FlatButton(
+                text = "Finish setup",
+                emphasised = true,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenSetup,
+            )
+        }
+    }
+}
+
+/** A tinted badge holding a dot that softly pulses while counting is live. */
+@Composable
+private fun LiveBadge(color: Color, live: Boolean) {
+    val pulse = rememberInfiniteTransition(label = "pulse")
+    val ring by pulse.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "ring",
+    )
+    Box(
+        Modifier
+            .size(42.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(color.copy(alpha = 0.12f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (live) {
+            // An expanding, fading ring — a heartbeat behind the dot.
+            Box(
+                Modifier
+                    .size(16.dp)
+                    .graphicsLayer {
+                        val s = 1f + ring * 1.4f
+                        scaleX = s
+                        scaleY = s
+                        alpha = (1f - ring) * 0.5f
+                    }
+                    .clip(CircleShape)
+                    .background(color),
+            )
+        }
+        Box(
+            Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(color),
+        )
     }
 }

@@ -81,12 +81,13 @@ fun FriendsScreen(
         // showing you, not whatever was last uploaded half an hour ago.
         withContext(Dispatchers.IO) { runCatching { container.syncer.syncNow() } }
         val today = container.clock.today()
-        withContext(Dispatchers.IO) {
+        val real = withContext(Dispatchers.IO) {
             runCatching { container.supabase.leaderboard(today) }
-        }.fold(
-            onSuccess = { rows = it; problem = null },
-            onFailure = { problem = "couldn't load. check your internet." },
-        )
+        }.getOrNull()
+        // Blend in the seed users so the board is always lively; a real person
+        // wins any name clash. Offline just means the board is all seeds + you.
+        rows = DemoLeaderboard.blend(real ?: emptyList(), today)
+        problem = null
         loading = false
     }
 

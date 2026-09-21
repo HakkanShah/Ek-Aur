@@ -78,7 +78,7 @@ export function ShareCard({
         style={{ opacity: showDare ? 1 : 0 }}
       >
         <div className="text-xl font-extrabold text-acid">{dare}</div>
-        <div className="mt-1 text-xs text-ash">github.com/HakkanShah/Ek-Aur/releases/latest</div>
+        <div className="mt-1 text-xs text-ash">ek-aur.vercel.app</div>
       </div>
     </div>
   );

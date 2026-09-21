@@ -30,12 +30,12 @@ enum class CardShape(val width: Int, val height: Int, val label: String) {
 object CardCopy {
 
     /**
-     * Where the card sends people: the app's latest release, so whoever sees the
-     * card lands straight on the newest APK to download. [LINK] is the short form
-     * drawn on the card; [URL] is the full, clickable one for the share caption.
+     * Where the card sends people: the app's website, which explains it and
+     * always serves the newest APK. [LINK] is the short form drawn on the card;
+     * [URL] is the full, clickable one for the share caption.
      */
-    const val LINK = "github.com/HakkanShah/Ek-Aur/releases/latest"
-    const val URL = "https://github.com/HakkanShah/Ek-Aur/releases/latest"
+    const val LINK = "ek-aur.vercel.app"
+    const val URL = "https://ek-aur.vercel.app/"
 
     fun challengeFor(reels: Int): String = when {
         reels >= 500 -> "You can't beat this. Don't try."
