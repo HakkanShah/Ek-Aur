@@ -78,8 +78,8 @@ export function CountSim() {
         ))}
       </motion.div>
 
-      {/* the floating counter, over it all */}
-      <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center px-4">
+      {/* the floating counter, over it all — sits clear below the dynamic island */}
+      <div className="pointer-events-none absolute inset-x-0 top-[42px] z-30 flex justify-center px-4">
         <Pill count={count} message={message} />
       </div>
     </Phone>

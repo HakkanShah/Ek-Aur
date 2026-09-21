@@ -32,18 +32,20 @@ export function ShareSim() {
 
   return (
     <Phone>
-      <StatusBar />
-      <div className="flex h-full flex-col px-4 pb-4 pt-3">
-        <div className="flex items-center gap-2">
-          <span className="ig-gradient h-4 w-[3px] rounded-full" />
-          <span className="text-sm font-bold text-ink">Share card</span>
-        </div>
-        <div className="mt-4">
-          <ShareCard count={count} grow={grow} showDare={showDare} square={false} />
-        </div>
-        <div className="mt-auto pt-4">
-          <div className="ig-gradient grid place-items-center rounded-full py-2.5 text-[13px] font-semibold text-white shadow-soft">
-            Share
+      <div className="flex h-full flex-col pb-5">
+        <StatusBar />
+        <div className="flex flex-1 flex-col px-4 pt-1">
+          <div className="flex items-center gap-2">
+            <span className="ig-gradient h-4 w-[3px] rounded-full" />
+            <span className="text-sm font-bold text-ink">Share card</span>
+          </div>
+          <div className="mt-4">
+            <ShareCard count={count} grow={grow} showDare={showDare} square={false} />
+          </div>
+          <div className="mt-auto pt-4">
+            <div className="ig-gradient grid place-items-center rounded-full py-2.5 text-[13px] font-semibold text-white shadow-soft">
+              Share
+            </div>
           </div>
         </div>
       </div>

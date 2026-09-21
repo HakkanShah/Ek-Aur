@@ -40,8 +40,9 @@ export function SetupSim() {
 
   return (
     <Phone>
-      <StatusBar />
-      <div className="flex h-full flex-col px-4 pb-4 pt-3">
+      <div className="flex h-full flex-col pb-5">
+        <StatusBar />
+        <div className="flex flex-1 flex-col px-4 pt-1">
         <div className="flex items-center gap-2">
           <span className="ig-gradient h-4 w-[3px] rounded-full" />
           <span className="text-sm font-bold text-ink">Setup</span>
@@ -100,6 +101,7 @@ export function SetupSim() {
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
         </div>
       </div>
     </Phone>
