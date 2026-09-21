@@ -360,3 +360,10 @@ Android always shows its own Install confirmation; the committed keystore means 
 update installs over the current app with no uninstall. The repo must stay
 **public** for the in-app download; otherwise the popup falls back to opening the
 releases page in a browser.
+
+## Website
+
+The landing/download page lives in [`web/`](web/) — a Next.js site (Tailwind +
+Framer Motion) that matches the app and whose Download button always serves the
+latest GitHub release. Deploy on Vercel with Root Directory = `web`; see
+[`web/README.md`](web/README.md).

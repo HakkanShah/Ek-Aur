@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-poppins: "Poppins", system-ui, sans-serif;
+  --ig: linear-gradient(120deg, #515bd4 0%, #8134af 28%, #dd2a7b 55%, #f58529 82%, #feda77 100%);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #fbf7fb;
+  color: #1c1c1e;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer utilities {
+  .ig-gradient {
+    background-image: var(--ig);
+  }
+  .grad-text {
+    background-image: var(--ig);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .grad-border {
+    background:
+      linear-gradient(#fff, #fff) padding-box,
+      var(--ig) border-box;
+    border: 1.5px solid transparent;
+  }
+  /* Subtle top-and-bottom fade used on scroll sims */
+  .fade-y {
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 14%,
+      #000 86%,
+      transparent
+    );
+    mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+  }
+}
+
+/* Respect users who don't want motion: sims settle on a representative frame. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+::selection {
+  background: rgba(221, 42, 123, 0.18);
+}

@@ -1,0 +1,154 @@
+import { Pill } from "./Pill";
+import { Reveal } from "./Reveal";
+
+function Card({
+  title,
+  desc,
+  children,
+  className = "",
+}: {
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={
+        "flex flex-col rounded-card border border-hairline bg-white p-6 shadow-card " + className
+      }
+    >
+      <div className="mb-5 flex min-h-[92px] items-center justify-center">{children}</div>
+      <h3 className="text-lg font-bold text-ink">{title}</h3>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-smoke">{desc}</p>
+    </div>
+  );
+}
+
+function Tile({ n, label }: { n: string; label: string }) {
+  return (
+    <div className="rounded-2xl bg-lav/60 px-3 py-2.5 text-center">
+      <div className="text-xl font-extrabold text-ink tabular-nums">{n}</div>
+      <div className="mt-0.5 flex items-center justify-center gap-1 text-[10px] text-smoke">
+        <span className="ig-gradient h-1.5 w-1.5 rounded-full" />
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function Rank({ r, name, n }: { r: number; name: string; n: number }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className={
+          "grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold " +
+          (r <= 3 ? "ig-gradient text-white" : "bg-lav text-smoke")
+        }
+      >
+        {r}
+      </span>
+      <span className="ig-gradient grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold text-white">
+        {name.charAt(0).toUpperCase()}
+      </span>
+      <span className="flex-1 truncate text-[13px] font-medium text-ink">{name}</span>
+      <span className="text-[13px] font-bold text-ink tabular-nums">{n}</span>
+    </div>
+  );
+}
+
+export function Features() {
+  return (
+    <section id="features" className="mx-auto max-w-6xl px-5 py-20 md:py-28">
+      <Reveal>
+        <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+          It counts. It roasts. It never lectures.
+        </h2>
+        <p className="mt-3 max-w-xl text-[15px] text-smoke">
+          Everything happens on your phone. The only thing that ever leaves is your name and a
+          daily total, and only if you want on the leaderboard.
+        </p>
+      </Reveal>
+
+      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal>
+          <Card
+            title="A counter that floats"
+            desc="A little pill rides over Instagram and ticks up with every reel. The face gets more cooked as the number climbs."
+          >
+            <Pill count={137} />
+          </Card>
+        </Reveal>
+
+        <Reveal delay={0.05}>
+          <Card
+            title="An honest dashboard"
+            desc="Today, the last seven days, your worst day ever. No goals, no guilt — the bars say plenty."
+          >
+            <div className="grid w-full grid-cols-3 gap-2">
+              <Tile n="137" label="Today" />
+              <Tile n="892" label="7 days" />
+              <Tile n="1.1k" label="Best" />
+            </div>
+          </Card>
+        </Reveal>
+
+        <Reveal delay={0.1}>
+          <Card
+            title="One global leaderboard"
+            desc="Everyone who installs it is on one list, ranked on today's reels. No adding friends, no join step."
+          >
+            <div className="w-full space-y-2.5">
+              <Rank r={1} name="rohan" n={402} />
+              <Rank r={2} name="hakkan" n={137} />
+              <Rank r={3} name="priya" n={96} />
+            </div>
+          </Card>
+        </Reveal>
+
+        <Reveal delay={0.05}>
+          <Card
+            title="Milestone roasts"
+            desc="Round numbers and the small hours earn a dry line — once a day, never a nag. It's cheering for the wrong team."
+          >
+            <Pill count={100} message="triple digits 💀" />
+          </Card>
+        </Reveal>
+
+        <Reveal delay={0.1}>
+          <Card
+            title="Payments stay clean"
+            desc="A bank app hates any accessibility service. So Ek Aur switches itself off the moment you leave Instagram — payments just work."
+          >
+            <div className="flex items-center gap-3 rounded-2xl bg-lav/60 px-4 py-3">
+              <span className="text-sm font-semibold text-ink">Auto-off</span>
+              <span className="relative inline-flex h-[22px] w-[38px] items-center rounded-full bg-good">
+                <span className="absolute right-[3px] h-4 w-4 rounded-full bg-white shadow" />
+              </span>
+            </div>
+          </Card>
+        </Reveal>
+
+        <Reveal delay={0.15}>
+          <Card
+            title="Yours, on your phone"
+            desc="Raw scrolls and which reels you watched never leave the device. It can't read the screen — just the swipe."
+          >
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-lav/60">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#lg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <defs>
+                  <linearGradient id="lg" x1="0" y1="24" x2="24" y2="0">
+                    <stop stopColor="#8134AF" />
+                    <stop offset="1" stopColor="#F58529" />
+                  </linearGradient>
+                </defs>
+                <rect x="4" y="10" width="16" height="10" rx="2.5" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+              </svg>
+            </div>
+          </Card>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
