@@ -21,11 +21,6 @@ export function Phone({
           {children}
         </div>
 
-        {/* dynamic island — floats above the screen, never in the way of content */}
-        <div className="pointer-events-none absolute left-1/2 top-[9px] z-40 flex h-[24px] w-[82px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-2.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-[#171720] ring-1 ring-white/10" />
-        </div>
-
         {/* subtle inner screen edge for realism */}
         <div className="pointer-events-none absolute inset-0 z-40 rounded-[2.35rem] ring-1 ring-inset ring-white/5" />
       </div>
