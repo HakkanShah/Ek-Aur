@@ -67,7 +67,7 @@ class Syncer(
                 // honest way out.
                 settings.clearSession()
                 settings.forgetUsername()
-                return SyncResult.Failed("account gone, naam dobara chuno")
+                return SyncResult.Failed("account gone, pick a name again")
             }
             // Everything else stays dirty and is retried; nothing is lost by
             // failing.

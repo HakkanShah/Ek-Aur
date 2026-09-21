@@ -82,7 +82,14 @@ fun ColumnChart(
                                 // next to a day that ran to three figures.
                                 .height((height * (value.toFloat() / tallest)).coerceAtLeast(MIN_BAR))
                                 .background(
-                                    color = if (lit) Acid else AcidDim,
+                                    // The peak/selected bar wears the gradient;
+                                    // the rest a soft magenta. Height still
+                                    // carries the value, colour only the accent.
+                                    brush = if (lit) {
+                                        com.ekaur.android.ui.theme.instaGradient()
+                                    } else {
+                                        androidx.compose.ui.graphics.SolidColor(AcidDim)
+                                    },
                                     shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp),
                                 )
                         )

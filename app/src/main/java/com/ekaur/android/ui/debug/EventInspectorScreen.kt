@@ -56,7 +56,7 @@ fun EventInspectorScreen(eventLog: EventLog, modifier: Modifier = Modifier) {
                 color = Chalk,
             )
             Text(
-                text = "reels kholo, thoda scroll karo, phir share dabao",
+                text = "open reels, scroll a bit, then hit share",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
@@ -86,7 +86,7 @@ fun EventInspectorScreen(eventLog: EventLog, modifier: Modifier = Modifier) {
 
         if (events.isEmpty()) {
             Text(
-                text = "abhi kuch nahi aaya.\nservice on hai? instagram kholo.",
+                text = "nothing yet.\nservice on? open Instagram.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
                 modifier = Modifier.padding(horizontal = 16.dp),

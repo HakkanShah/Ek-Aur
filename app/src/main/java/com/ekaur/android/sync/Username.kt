@@ -56,13 +56,13 @@ object Username {
 
     /** What to put under the field. Never scolds; just says what to change. */
     fun message(problem: Problem): String = when (problem) {
-        Problem.Empty -> "naam to rakho"
+        Problem.Empty -> "type a name"
         Problem.TooShort -> "kam se kam $MIN akshar"
-        Problem.TooLong -> "$MAX se zyada nahi"
-        Problem.BadStart -> "letter ya number se shuru karo"
+        Problem.TooLong -> "max $MAX characters"
+        Problem.BadStart -> "start with a letter or number"
         Problem.BadCharacter -> "sirf a-z, 0-9, . aur _"
-        Problem.DoubledSeparator -> ". ya _ do baar nahi"
-        Problem.TrailingSeparator -> ". ya _ pe khatam nahi"
+        Problem.DoubledSeparator -> "no double . or _"
+        Problem.TrailingSeparator -> "can't end with . or _"
     }
 
     private fun Char.isAllowed(): Boolean =

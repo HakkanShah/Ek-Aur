@@ -80,18 +80,18 @@ fun StatsScreen(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatTile(
-                label = "aaj",
+                label = "today",
                 value = today.toString(),
                 caption = if (activeMs > 0) formatDuration(activeMs) else null,
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                label = "7 din",
+                label = "7 days",
                 value = weekTotal.toString(),
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                label = "sabse zyada",
+                label = "best day",
                 value = best?.total?.toString() ?: "—",
                 caption = best?.date?.let(::dayLabel),
                 modifier = Modifier.weight(1f),
@@ -101,7 +101,7 @@ fun StatsScreen(
         Spacer(Modifier.height(12.dp))
 
         ChartCard(
-            title = "din bhar",
+            title = "today by hour",
             // The tapped column's own number, so no value is locked behind a
             // gesture -- the readout replaces the headline rather than floating
             // over the chart, which has nowhere to float on a phone.
@@ -112,7 +112,7 @@ fun StatsScreen(
                 ?.let { i -> hours.getOrNull(i)?.let { "${hourLabel(i)}  ·  $it reels" } }
                 ?: peakIndex(hours)?.let { "peak ${hourLabel(it)}  ·  ${hours[it]}" },
             empty = hours.all { it == 0 },
-            emptyText = "aaj abhi tak kuch nahi.",
+            emptyText = "nothing today yet.",
         ) {
             ColumnChart(
                 values = hours,
@@ -126,16 +126,16 @@ fun StatsScreen(
         Spacer(Modifier.height(12.dp))
 
         ChartCard(
-            title = "pichle $range din",
+            title = "last $range days",
             readout = pickedDay
                 ?.let { i ->
                     days.getOrNull(i)
                         ?.let { "${dayLongLabel(it.date)}  ·  ${it.reels} reels" }
                 }
                 ?: peakIndex(days.map { it.reels })
-                    ?.let { "sabse zyada ${dayLabel(days[it].date)}  ·  ${days[it].reels}" },
+                    ?.let { "best ${dayLabel(days[it].date)}  ·  ${days[it].reels}" },
             empty = days.all { it.reels == 0 },
-            emptyText = "abhi tak koi ginti nahi.",
+            emptyText = "no counts yet.",
             action = {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     RANGES.forEach { option ->
@@ -166,10 +166,10 @@ fun StatsScreen(
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("baithak")
+            SectionLabel("Sessions")
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "ek baithak = bina ruke scroll",
+                text = "a session = scrolling without a break",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
@@ -177,7 +177,7 @@ fun StatsScreen(
 
             if (sessions.isEmpty()) {
                 Text(
-                    text = "abhi tak koi baithak nahi.",
+                    text = "no sessions yet.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Smoke,
                 )

@@ -3,12 +3,13 @@ package com.ekaur.android.copy
 /**
  * What the counter says when it decides to say something.
  *
- * The app plays a hype-man that cheers the user on, while the number it is
- * cheering quietly indicts them. Nothing here scolds, warns or suggests
- * stopping -- the joke only works if it is played completely straight.
+ * The app plays a deadpan hype-man: it cheers you on while the number it is
+ * cheering quietly indicts you. Dry, short, a little unhinged -- the humour of a
+ * good reply-guy, not a wellness app. Nothing scolds or says stop; the joke only
+ * works played straight.
  *
- * Lines are grouped by how far gone the user is, picked at random so a long
- * session does not repeat itself, and never hardcoded in a composable.
+ * Lines are grouped by how far gone you are, picked at random so a long session
+ * does not repeat, and never hardcoded in a composable.
  */
 object SarcasmCatalogue {
 
@@ -16,68 +17,68 @@ object SarcasmCatalogue {
     const val MILESTONE_EVERY = 10
 
     private val early = listOf(
-        "warm-up ho gaya 🔥",
-        "abhi to shuru kiya hai 😏",
-        "itna hi? aur chalao 🚀",
-        "thumb garam ho raha hai 💪",
-        "bas ek aur, pakka 🤞",
-        "shabash, aur scroll 👏",
-        "ye to kuch bhi nahi 😌",
-        "chalte raho boss 🛴",
+        "warming up.",
+        "rookie numbers.",
+        "we're just getting started.",
+        "sure, one more.",
+        "thumb's not even tired yet.",
+        "this is nothing. keep going.",
+        "barely a dent.",
+        "no notes. continue.",
     )
 
     private val building = listOf(
-        "half century! 🏏",
-        "thumb ka stamina dekho 💪",
-        "50 paar, peeche mat dekho 🏃",
-        "koi rok nahi sakta 🚦",
-        "focus level: unmatched 🎯",
-        "aur? haan aur 🔁",
-        "professional ban raha hai 📈",
-        "ye dedication hai 🫡",
+        "fifty. respectable. worrying.",
+        "the thumb has stamina, I'll give you that.",
+        "halfway to a problem.",
+        "no one can stop you. no one is trying.",
+        "locked in. tragically.",
+        "more? yeah, more.",
+        "turning pro.",
+        "this is commitment. wrong kind, but still.",
     )
 
     private val century = listOf(
-        "CENTURY 🏏 helmet utaro",
-        "100 reels, record toot gaya 📊",
-        "sirf 100? warm-up tha 😎",
-        "thumb ko medal do 🥉",
-        "consistency king 👑",
-        "abhi time hai... aur karo ⏰",
-        "100 down, infinity to go ♾️",
-        "selection pakka hai 🏆",
+        "triple digits. impressive. concerning.",
+        "100. you could've learned a language.",
+        "only 100? that was the warm-up.",
+        "the thumb deserves a small trophy.",
+        "consistency king. of this, specifically.",
+        "still time to keep going. do it.",
+        "100 down, infinity to go.",
+        "certified. unclear for what.",
     )
 
     private val deep = listOf(
-        "ye ab hobby nahi, career hai 💼",
-        "scientists confused hain 🔬",
-        "thumb ne gym join kar li 🏋️",
-        "algorithm tujhse pyaar karta hai 💘",
-        "doctor ko mat batana 🤫",
-        "olympics me entry pakki 🥈",
-        "bas thoda aur, phir sona 🌙",
-        "stamina waste ho raha hai 😤",
+        "this isn't a hobby anymore, it's a career.",
+        "scientists are confused.",
+        "your thumb has filed for overtime.",
+        "the algorithm loves you. it's the only one awake.",
+        "don't tell your doctor.",
+        "you're in the top 1%. of concern.",
+        "just a bit more, then sleep. (lie.)",
+        "impressive stamina. tragic use of it.",
     )
 
     private val legendary = listOf(
-        "legend status 💀",
-        "thumb ko olympics bhej de 🥇",
-        "ab scroll hi zindagi hai 🫠",
-        "phone garam, thumb garam 🔥",
-        "koi record nahi bacha 🏆",
-        "tu machine hai 🤖",
-        "ruk ja... nahi, mat ruk 😈",
-        "history me naam likha jayega 📜",
+        "legend status. 💀",
+        "send the thumb to the olympics.",
+        "scrolling is the whole personality now.",
+        "phone's hot. thumb's hot. touch grass.",
+        "no records left to break.",
+        "you're a machine. a sad, efficient machine.",
+        "stop. no, don't. 😈",
+        "they'll write about this. briefly.",
     )
 
     /** Overrides everything else -- the hour is funnier than the number. */
     private val lateNight = listOf(
-        "raat ke is waqt bhi? respect 🫡",
-        "sona overrated hai 🌙",
-        "subah hone wali hai ☀️",
-        "neend? kaunsi neend 👁️",
-        "aankhein jal rahi hongi 🔥",
-        "kal ka plan cancel 😵",
+        "still up? respect. concern, but respect.",
+        "sleep is a myth apparently.",
+        "the sun's coming for you.",
+        "sleep? never met her.",
+        "your eyes are filing a complaint.",
+        "tomorrow-you is going to lose.",
     )
 
     /**
@@ -89,44 +90,44 @@ object SarcasmCatalogue {
      */
     private val byKey: Map<String, List<String>> = mapOf(
         "reels_50" to listOf(
-            "50 paar 🏏 warm-up done",
-            "half century, aur chalao 🔥",
-            "50 down, thumb ekdum fit 💪",
+            "50. warm-up done.",
+            "fifty deep. thumb's fine, thanks.",
+            "50 and counting. of course.",
         ),
         "reels_100" to listOf(
-            "sirf 100? abhi warm-up hai 😎",
-            "CENTURY 🏏 helmet utaro",
-            "100 reels, aaram se 📈",
+            "only 100? that was the warm-up.",
+            "triple digits. impressive. concerning.",
+            "100 reels. easy.",
         ),
         "reels_200" to listOf(
-            "200 🫠 ab ye hobby nahi rahi",
-            "double century 🏏 legend",
-            "200 paar, scientists confused 🔬",
+            "200. this stopped being a hobby.",
+            "double century. a legend, technically.",
+            "200. scientists are confused.",
         ),
         "reels_500" to listOf(
-            "500 🥇 thumb ko olympics bhej de",
-            "500 reels 💀 history ban gayi",
-            "500 paar, koi record nahi bacha 🏆",
+            "500. send the thumb to the olympics.",
+            "500 reels. history, of a sort.",
+            "500. no records left to break.",
         ),
         "session_30" to listOf(
-            "30 min non-stop 🎯 focus dekho",
-            "aadha ghanta ho gaya, chalte raho ⏱️",
+            "30 minutes straight. locked in.",
+            "half an hour, no breaks. keep going.",
         ),
         "session_60" to listOf(
-            "1 ghanta straight 🫡 respect",
-            "60 min non-stop, machine ho 🤖",
+            "one hour straight. respect.",
+            "60 minutes, non-stop. machine.",
         ),
         "session_120" to listOf(
-            "2 ghante ⏰ koi record toot raha hai",
-            "2 hours straight 💀 dedication",
+            "two hours. a record's breaking somewhere.",
+            "2 hours straight. 💀 dedication.",
         ),
         "night_1am" to listOf(
-            "1 baj gaya, abhi to raat hai 🌙",
-            "raat ke 1 baje bhi? respect 🫡",
+            "1am and still here. the night is young.",
+            "1am? respect.",
         ),
         "night_3am" to listOf(
-            "raat ke 3 baje 😈 tu committed hai",
-            "3 AM club me welcome 🌚",
+            "3am. the algorithm's only friend left.",
+            "welcome to the 3am club.",
         ),
     )
 

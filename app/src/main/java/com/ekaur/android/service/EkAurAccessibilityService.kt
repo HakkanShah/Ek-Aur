@@ -66,7 +66,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         // Seed here so a service enabled but never taken into Instagram still
         // switches itself off after the grace rather than staying on for ever.
         lastInstagramForegroundMs = System.currentTimeMillis()
-        toast("Ek Aur chalu")
+        toast("Ek Aur is on")
 
         val s = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         scope = s
@@ -211,7 +211,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         // Fires however the service was switched off -- floating button, tile,
         // settings, or its own auto-off -- so the user always sees it happen,
         // so the user always sees it happen.
-        if (::eventLog.isInitialized) toast("Ek Aur band")
+        if (::eventLog.isInitialized) toast("Ek Aur is off")
         teardown()
         return super.onUnbind(intent)
     }

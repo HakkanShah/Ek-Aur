@@ -7,27 +7,27 @@
     android:viewportHeight="108">
 
     <path
-        android:strokeColor="#0A0A0A"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="5"
         android:strokeLineCap="round"
         android:pathData="M38,38 L38,70" />
     <path
-        android:strokeColor="#0A0A0A"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="5"
         android:strokeLineCap="round"
         android:pathData="M48,38 L48,70" />
     <path
-        android:strokeColor="#0A0A0A"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="5"
         android:strokeLineCap="round"
         android:pathData="M58,38 L58,70" />
     <path
-        android:strokeColor="#0A0A0A"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="5"
         android:strokeLineCap="round"
         android:pathData="M68,38 L68,70" />
     <path
-        android:strokeColor="#0A0A0A"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="5"
         android:strokeLineCap="round"
         android:pathData="M32,72 L74,36" />

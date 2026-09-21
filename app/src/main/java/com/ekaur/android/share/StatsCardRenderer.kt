@@ -30,8 +30,8 @@ object StatsCardRenderer {
     private const val INK = 0xFF0A0A0A.toInt()
     private const val RAISED = 0xFF141414.toInt()
     private const val LINE = 0xFF242424.toInt()
-    private const val ACID = 0xFFC8FF00.toInt()
-    private const val ACID_DIM = 0xFF8CB300.toInt()
+    private const val ACID = 0xFFDD2A7B.toInt()
+    private const val ACID_DIM = 0xFF9B2C6A.toInt()
     private const val CHALK = 0xFFF2F2F2.toInt()
     private const val SMOKE = 0xFF8A8A8A.toInt()
     private const val ASH = 0xFF5A5A5A.toInt()
@@ -104,7 +104,7 @@ object StatsCardRenderer {
         if (stats.activeMsToday > 0) {
             val time = textPaint(ASH, 34f * unit, regular)
             canvas.drawText(
-                formatDuration(stats.activeMsToday) + " scroll kiya",
+                formatDuration(stats.activeMsToday) + " watched",
                 x,
                 baseline + 106f * unit,
                 time,
@@ -143,7 +143,7 @@ object StatsCardRenderer {
         // Text grows upward from its baseline, so drawing at the running cursor
         // would ride up into the line above. Its own height is the offset.
         val labelBaseline = top + 28f * unit
-        canvas.drawText("pichle 7 din", x, labelBaseline, label)
+        canvas.drawText("last 7 days", x, labelBaseline, label)
 
         val base = labelBaseline + 34f * unit + height
         week.forEachIndexed { index, value ->
@@ -178,7 +178,7 @@ object StatsCardRenderer {
         val boxHeight = 170f * unit
 
         val facts = listOf(
-            "sabse zyada" to stats.bestEver.toString(),
+            "best ever" to stats.bestEver.toString(),
             "peak" to (stats.peakHour ?: "—"),
         )
 

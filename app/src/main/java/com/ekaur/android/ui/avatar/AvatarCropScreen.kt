@@ -103,10 +103,10 @@ fun AvatarCropScreen(
             .padding(horizontal = 16.dp),
     ) {
         Spacer(Modifier.height(16.dp))
-        SectionLabel("photo set karo")
+        SectionLabel("set your photo")
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "ungli se ghumao, do ungli se zoom. circle ke andar jo hai wahi dikhega.",
+            text = "drag to move, pinch to zoom. what's inside the circle is what shows.",
             style = MaterialTheme.typography.bodyMedium,
             color = Smoke,
         )
@@ -169,7 +169,7 @@ fun AvatarCropScreen(
                 )
             }
             clipPath(circle, ClipOp.Difference) {
-                drawRect(Ink.copy(alpha = 0.74f))
+                drawRect(androidx.compose.ui.graphics.Color(0xFF0A0A0A).copy(alpha = 0.74f))
             }
             drawCircle(
                 color = Acid,
@@ -187,12 +187,12 @@ fun AvatarCropScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FlatButton(
-                text = "rehne do",
+                text = "cancel",
                 emphasised = false,
                 onClick = { if (!busy) onCancel() },
             )
             FlatButton(
-                text = if (busy) "bhej raha hoon..." else "lagao",
+                text = if (busy) "uploading..." else "set",
                 emphasised = !busy,
                 onClick = {
                     if (busy || scale <= 0f) return@FlatButton
@@ -222,7 +222,7 @@ fun AvatarCropScreen(
         } else if (!touched) {
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "waise hi theek lage to seedha lagao daba do.",
+                text = "looks fine as is? just tap set.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )

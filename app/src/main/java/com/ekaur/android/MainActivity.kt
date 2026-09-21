@@ -4,16 +4,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -39,7 +43,7 @@ import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Dot
 import com.ekaur.android.ui.common.FlatButton
-import com.ekaur.android.ui.common.SectionLabel
+import com.ekaur.android.ui.common.GradientNumber
 import com.ekaur.android.ui.debug.DiagnosticsScreen
 import com.ekaur.android.ui.friends.FriendsScreen
 import com.ekaur.android.ui.friends.UsernameScreen
@@ -49,18 +53,24 @@ import com.ekaur.android.ui.stats.StatsScreen
 import com.ekaur.android.ui.stats.formatDuration
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
+import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.EkAurTheme
+import com.ekaur.android.ui.theme.Good
 import com.ekaur.android.ui.theme.Heat
+import com.ekaur.android.ui.theme.InkLine
 import com.ekaur.android.ui.theme.Smoke
+import com.ekaur.android.ui.theme.instaGradient
 
-private enum class Tab(val label: String) {
-    Home("ginti"),
-    Stats("hisaab"),
-    Friends("dost"),
-    Setup("setup"),
-    Events("events"),
-    Status("status"),
+private enum class Tab(val label: String, val icon: Int) {
+    Home("Home", R.drawable.ic_nav_home),
+    Stats("Stats", R.drawable.ic_nav_stats),
+    Ranks("Ranks", R.drawable.ic_nav_ranks),
+    Setup("Setup", R.drawable.ic_nav_setup),
+    Events("Events", R.drawable.ic_nav_setup),
+    Status("Status", R.drawable.ic_nav_setup),
 }
+
+private val BOTTOM_TABS = listOf(Tab.Home, Tab.Stats, Tab.Ranks, Tab.Setup)
 
 /** The three grants the app needs, re-read whenever the screen comes forward. */
 private data class Permissions(
@@ -95,8 +105,8 @@ private fun AppScaffold(container: AppContainer) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val username by container.settings.username.collectAsState()
 
-    // The one gate in the app. Everyone is on one leaderboard, so a name is the
-    // whole sign-up -- and nothing else is reachable until there is one.
+    // The one gate: everyone is on one leaderboard, so a name is the whole
+    // sign-up, and nothing else is reachable until there is one.
     if (username == null) {
         UsernameScreen(container, Modifier.systemBarsPadding())
         return
@@ -107,8 +117,6 @@ private fun AppScaffold(container: AppContainer) {
     var sharing by remember { mutableStateOf<CardStats?>(null) }
     var cardAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
 
-    // None of these fire a callback when they change -- the user grants them in
-    // system settings and comes back -- so they are re-read on every resume.
     LifecycleResumeEffect(Unit) {
         permissions = Permissions(
             service = ServiceControl.isAccessibilityServiceEnabled(context),
@@ -134,43 +142,74 @@ private fun AppScaffold(container: AppContainer) {
             .fillMaxSize()
             .systemBarsPadding(),
     ) {
-        Row(
-            // Scrollable because five labels no longer fit across a narrow
-            // phone, and a wrapped or squashed tab row looks broken.
-            Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Tab.entries.forEach { entry ->
-                FlatButton(
-                    text = entry.label,
-                    emphasised = entry == tab,
-                    onClick = { tab = entry },
+        Column(Modifier.weight(1f)) {
+            when (tab) {
+                Tab.Home -> HomeScreen(
+                    container = container,
+                    permissions = permissions,
+                    onOpenSetup = { tab = Tab.Setup },
+                    onShare = { stats, avatar ->
+                        cardAvatar = avatar
+                        sharing = stats
+                    },
+                )
+                Tab.Stats -> StatsScreen(container.counterRepository)
+                Tab.Ranks -> FriendsScreen(container)
+                Tab.Setup -> SetupScreen(
+                    container = container,
+                    serviceEnabled = permissions.service,
+                    onOpenEvents = { tab = Tab.Events },
+                    onOpenStatus = { tab = Tab.Status },
+                )
+                Tab.Events -> EventInspectorScreen(container.eventLog)
+                Tab.Status -> DiagnosticsScreen(
+                    status = container.serviceStatus,
+                    eventLog = container.eventLog,
+                    crashReporter = container.crashReporter,
+                    serviceEnabled = permissions.service,
                 )
             }
         }
 
-        when (tab) {
-            Tab.Home -> HomeScreen(
-                container = container,
-                permissions = permissions,
-                onOpenSetup = { tab = Tab.Setup },
-                onShare = { stats, avatar ->
-                    cardAvatar = avatar
-                    sharing = stats
-                },
-            )
-            Tab.Stats -> StatsScreen(container.counterRepository)
-            Tab.Friends -> FriendsScreen(container)
-            Tab.Setup -> SetupScreen(container = container, serviceEnabled = permissions.service)
-            Tab.Events -> EventInspectorScreen(container.eventLog)
-            Tab.Status -> DiagnosticsScreen(
-                status = container.serviceStatus,
-                eventLog = container.eventLog,
-                crashReporter = container.crashReporter,
-                serviceEnabled = permissions.service,
-            )
+        BottomBar(current = tab, onSelect = { tab = it })
+    }
+}
+
+@Composable
+private fun BottomBar(current: Tab, onSelect: (Tab) -> Unit) {
+    // A dev screen keeps Setup lit, so the bar always shows one active item.
+    val active = if (current in BOTTOM_TABS) current else Tab.Setup
+    Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            BOTTOM_TABS.forEach { entry ->
+                val selected = entry == active
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clickable { onSelect(entry) }
+                        .padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(
+                        painter = painterResource(entry.icon),
+                        contentDescription = entry.label,
+                        tint = if (selected) Acid else Ash,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = entry.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (selected) Chalk else Smoke,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                }
+            }
         }
     }
 }
@@ -196,31 +235,33 @@ private fun HomeScreen(
             .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(48.dp))
-
-        Text("EK AUR", style = MaterialTheme.typography.labelLarge, color = Acid)
-
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(44.dp))
 
         Text(
+            text = "EK AUR",
+            style = MaterialTheme.typography.labelLarge.copy(brush = instaGradient()),
+        )
+
+        Spacer(Modifier.height(20.dp))
+
+        GradientNumber(
             text = count.toString(),
             style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onBackground,
         )
-        Text("reels aaj", style = MaterialTheme.typography.bodyLarge, color = Smoke)
+        Text("reels today", style = MaterialTheme.typography.bodyLarge, color = Smoke)
 
         if (activeMs > 0) {
             Text(
-                text = formatDuration(activeMs) + " scroll kiya",
+                text = formatDuration(activeMs) + " watched",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(22.dp))
 
         FlatButton(
-            text = if (building) "bana raha hoon..." else "card banao",
+            text = if (building) "making..." else "share card",
             emphasised = count > 0 && !building,
             onClick = {
                 if (count <= 0 || building) return@FlatButton
@@ -235,32 +276,30 @@ private fun HomeScreen(
             },
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(22.dp))
 
         Card {
-            SectionLabel("abhi")
-            Spacer(Modifier.height(12.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Dot(if (permissions.allGranted && connected) Acid else Heat)
+                Dot(if (permissions.allGranted && connected) Good else Heat)
                 Text(
                     text = when {
-                        !permissions.service -> "service band hai"
-                        !connected -> "service on hai, connect nahi hua"
-                        !permissions.overlay -> "ginti chalu, counter dikhega nahi"
-                        !permissions.battery -> "chalu hai, par battery maar sakti hai"
-                        else -> "chalu hai  ·  $state"
+                        !permissions.service -> "counting is off"
+                        !connected -> "on, but not connected yet"
+                        !permissions.overlay -> "counting, but the pill is hidden"
+                        !permissions.battery -> "on, but the battery may kill it"
+                        else -> "counting  ·  $state"
                     },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = Chalk,
                 )
             }
 
             if (!permissions.allGranted) {
                 Spacer(Modifier.height(14.dp))
-                FlatButton(text = "setup poora karo", emphasised = true, onClick = onOpenSetup)
+                FlatButton(text = "finish setup", emphasised = true, onClick = onOpenSetup)
             }
         }
     }

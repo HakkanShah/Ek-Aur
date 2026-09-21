@@ -51,6 +51,7 @@ import com.ekaur.android.ui.common.UserAvatar
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
+import com.ekaur.android.ui.theme.Good
 import com.ekaur.android.ui.theme.Heat
 import com.ekaur.android.ui.theme.Smoke
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +70,8 @@ import kotlinx.coroutines.withContext
 fun SetupScreen(
     container: AppContainer,
     serviceEnabled: Boolean,
+    onOpenEvents: () -> Unit = {},
+    onOpenStatus: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -117,12 +120,12 @@ fun SetupScreen(
                 // on this phone; the screen is the only instrument.
                 avatarNote = when ((thrown as? AvatarPhoto.PhotoException)?.failure) {
                     AvatarPhoto.Failure.CannotOpen ->
-                        "ye file khuli nahi. gallery se dusri chuno."
+                        "couldn't open that file. pick another from the gallery."
                     AvatarPhoto.Failure.NotAnImage ->
-                        "is photo ka format phone padh nahi paaya."
+                        "your phone couldn't read this image format."
                     AvatarPhoto.Failure.TooBig ->
-                        "photo bahut badi hai, memory kam pad gayi."
-                    null -> "photo kholne me dikkat aayi. dusri try karo."
+                        "photo too big, ran out of memory."
+                    null -> "couldn't open that photo. try another."
                 }
             }
         }
@@ -144,15 +147,15 @@ fun SetupScreen(
                 avatarVersion = version
                 container.settings.saveAvatarVersion(version)
                 avatarOk = true
-                avatarNote = "ho gaya (${bytes / 1024} KB)"
+                avatarNote = "done (${bytes / 1024} KB)"
             }.onFailure { thrown ->
                 // The crop screen stays open on a failure, so pressing lagao
                 // again retries without re-picking and re-framing the photo.
                 avatarOk = false
                 avatarNote = when (val cause = (thrown as? SyncException)?.error) {
-                    SyncError.Offline -> "internet nahi mila."
-                    is SyncError.Refused -> "server ne mana kiya (${cause.status})."
-                    else -> "photo nahi bhej paaya."
+                    SyncError.Offline -> "no internet."
+                    is SyncError.Refused -> "server refused it (${cause.status})."
+                    else -> "couldn't upload the photo."
                 }
             }
         }
@@ -215,9 +218,9 @@ fun SetupScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Dot(Acid)
+                    Dot(Good)
                     Text(
-                        text = "sab set hai. ab bas scroll karo.",
+                        text = "all set. go scroll.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = Chalk,
                     )
@@ -229,22 +232,22 @@ fun SetupScreen(
         SetupStep(
             index = "01",
             title = "accessibility",
-            why = "reels ginne ke liye. iske bina kuch nahi hoga.",
+            why = "counts your reels. nothing works without it.",
             done = serviceEnabled,
-            actionLabel = "accessibility kholo",
+            actionLabel = "open accessibility",
             onAction = { ServiceControl.openAccessibilitySettings(context) },
             extra = {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "\"Restricted setting\" wala popup aaye to Android sideloaded app ko " +
-                        "rok raha hai. app info → ⋮ (upar dayein) → Allow restricted settings, " +
-                        "phir wapas yahan aake on karo.",
+                    text = "if a \"Restricted setting\" popup blocks it, that's Android being " +
+                        "careful with sideloaded apps. Open app info → ⋮ (top right) → " +
+                        "Allow restricted settings, then come back and turn it on.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Ash,
                 )
                 Spacer(Modifier.height(10.dp))
                 FlatButton(
-                    text = "app info kholo",
+                    text = "open app info",
                     onClick = { ServiceControl.openAppInfo(context) },
                 )
             },
@@ -255,9 +258,9 @@ fun SetupScreen(
         SetupStep(
             index = "02",
             title = "overlay",
-            why = "instagram ke upar counter dikhane ke liye.",
+            why = "shows the counter over Instagram.",
             done = canOverlay,
-            actionLabel = "overlay permission do",
+            actionLabel = "allow overlay",
             onAction = { ServiceControl.openOverlaySettings(context) },
         )
 
@@ -266,10 +269,10 @@ fun SetupScreen(
         SetupStep(
             index = "03",
             title = "battery",
-            why = "realme/oppo/xiaomi background me app ko maar dete hain. " +
-                "tab ginti chupchap band ho jaati hai.",
+            why = "realme/oppo/xiaomi kill background apps, and then counting " +
+                "stops with no warning.",
             done = batteryExempt,
-            actionLabel = "battery se chhoot do",
+            actionLabel = "allow battery use",
             onAction = { ServiceControl.openBatterySettings(context) },
         )
 
@@ -278,57 +281,56 @@ fun SetupScreen(
         SetupStep(
             index = "04",
             title = "usage access",
-            why = "isse app ko pata chalta hai ki tum Instagram chhod chuke ho, " +
-                "taaki counter hat jaye aur payment ke waqt Ek Aur apne aap band " +
-                "ho jaye. koi screen nahi padhta, bank apps ko farak nahi padta.",
+            why = "lets the app tell when you've left Instagram, so the counter " +
+                "hides and Ek Aur turns itself off before a payment. It reads no " +
+                "screen, and banks don't mind it.",
             done = usageOk,
-            actionLabel = "usage access do",
+            actionLabel = "allow usage access",
             onAction = { ServiceControl.openUsageAccessSettings(context) },
         )
 
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("payment / UPI app")
+            SectionLabel("Payment / UPI apps")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "koi bank ya UPI app is app ko \"suspicious\" bata sakti hai aur " +
-                    "payment rok sakti hai. ghabrao mat — ye har us app pe hota hai jo " +
-                    "Play Store se nahi aayi. ChatGPT bhi screen padhta hai par usko " +
-                    "chhoot isliye milti hai kyunki wo Play Store se hai. app me kuch " +
-                    "kharab nahi.",
+                text = "a bank or UPI app may call this \"suspicious\" and block a payment. " +
+                    "Don't worry — it happens to any app that isn't from the Play Store. " +
+                    "Even ChatGPT reads your screen and gets a pass just for being a " +
+                    "Store app. Nothing is wrong with this app.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "iska hal: jab tum Instagram nahi chala rahe, Ek Aur band rehni " +
-                    "chahiye. neeche wala switch ye apne aap kar deta hai.",
+                text = "the fix: when you're not on Instagram, Ek Aur should be off. The " +
+                    "switch below does that on its own.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
 
             Spacer(Modifier.height(14.dp))
             Text(
-                text = "Instagram chhodte hi apne aap band",
+                text = "Turn off when I leave Instagram",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Chalk,
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = if (autoOff) {
-                    "on hai. Instagram band karte hi Ek Aur khud band ho jayegi, to " +
-                        "payment saaf rahega. dobara scroll karne ke liye niche wale " +
-                        "floating button se ise on karna (Android khud on nahi kar sakta)."
+                    "on. Ek Aur turns off when you leave Instagram, so payments stay " +
+                        "clean. Tap the floating button to turn it back on for scrolling " +
+                        "(Android won't do that part for you)."
                 } else {
-                    "off hai. tumhe har payment se pehle khud band karna padega."
+                    "off. you'll have to turn it off yourself before each payment."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
             Spacer(Modifier.height(10.dp))
             FlatButton(
-                text = if (autoOff) "apne aap band: ON" else "apne aap band: OFF",
+                text = if (autoOff) "Auto-off: ON" else "Auto-off: OFF",
                 emphasised = autoOff,
                 onClick = {
                     autoOff = !autoOff
@@ -338,8 +340,8 @@ fun SetupScreen(
             if (autoOff && !usageOk) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "iske liye upar \"usage access\" dena zaruri hai, warna app ko " +
-                        "pata nahi chalega ki tumne Instagram chhoda.",
+                    text = "this needs \"usage access\" above, or the app can't tell " +
+                        "you've left Instagram.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Heat,
                 )
@@ -347,22 +349,21 @@ fun SetupScreen(
 
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "1. floating button (band/on karne ka sabse tez tarika)",
+                text = "1. Floating button (fastest)",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Chalk,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "niche wale button se Ek Aur ka page kholo → \"shortcut\" ya " +
-                    "\"accessibility button\" on karo. phir screen pe ek chhota button " +
-                    "aayega jise dabate hi Ek Aur band/on ho jayega — payment app ke " +
-                    "upar bhi.",
+                text = "tap below to open Ek Aur's page → turn on \"shortcut\" or " +
+                    "\"accessibility button\". A small button then floats on screen — " +
+                    "tap it to turn Ek Aur on/off, even over a payment app.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
             Spacer(Modifier.height(10.dp))
             FlatButton(
-                text = "shortcut set karo",
+                text = "set up shortcut",
                 emphasised = true,
                 onClick = { ServiceControl.openAccessibilityServiceDetails(context) },
             )
@@ -375,15 +376,15 @@ fun SetupScreen(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "notification wale parde me \"Ek Aur\" ka tile laga lo, phir ek " +
-                    "tap me band, ek tap me on.",
+                text = "add the \"Ek Aur\" tile to your notification shade, then one tap " +
+                    "off, one tap on.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Ash,
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 Spacer(Modifier.height(10.dp))
                 FlatButton(
-                    text = "tile add karo",
+                    text = "add tile",
                     emphasised = false,
                     onClick = { ServiceControl.requestAddPauseTile(context) },
                 )
@@ -391,28 +392,28 @@ fun SetupScreen(
 
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "3. yahin se band karo",
+                text = "3. Turn off here",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Chalk,
             )
             if (paymentPaused) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "band kar diya. payment ke baad wapas on karne ke liye " +
-                        "accessibility settings kholo (ya floating button dabao).",
+                    text = "turned off. to turn it back on after paying, open accessibility " +
+                        "settings (or tap the floating button).",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Acid,
                 )
                 Spacer(Modifier.height(10.dp))
                 FlatButton(
-                    text = "wapas on karo",
+                    text = "turn back on",
                     emphasised = false,
                     onClick = { ServiceControl.openAccessibilitySettings(context) },
                 )
             } else {
                 Spacer(Modifier.height(10.dp))
                 FlatButton(
-                    text = "payment ke liye abhi band karo",
+                    text = "turn off for a payment",
                     emphasised = false,
                     onClick = {
                         // If the service is not actually running, treat it as
@@ -429,17 +430,17 @@ fun SetupScreen(
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("counter kahin kho gaya?")
+            SectionLabel("Counter missing?")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "counter ko screen ke bilkul kinare drag kiya ho aur wo " +
-                    "dikh na raha ho, to yahan se wapas beech me le aao.",
+                text = "if you dragged the counter right to the edge and it vanished, " +
+                    "bring it back to the middle here.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
             Spacer(Modifier.height(14.dp))
             FlatButton(
-                text = if (reset) "ho gaya \u2713" else "counter wapas laao",
+                text = if (reset) "done \u2713" else "reset counter",
                 onClick = {
                     OverlayPrefs(context).clearPosition()
                     reset = true
@@ -450,7 +451,7 @@ fun SetupScreen(
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("photo")
+            SectionLabel("Photo")
             Spacer(Modifier.height(12.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -468,10 +469,10 @@ fun SetupScreen(
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = if (uploading) {
-                            "bhej raha hoon..."
+                            "uploading..."
                         } else {
-                            "leaderboard pe naam ke saath dikhegi. chhoti kar ke " +
-                                "bheji jaati hai, poori photo nahi."
+                            "shows next to your name on the leaderboard. Sent small, not " +
+                                "the full photo."
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = Smoke,
@@ -488,7 +489,7 @@ fun SetupScreen(
             }
             Spacer(Modifier.height(14.dp))
             FlatButton(
-                text = if (avatarVersion == null) "photo chuno" else "photo badlo",
+                text = if (avatarVersion == null) "choose photo" else "change photo",
                 emphasised = !uploading,
                 onClick = {
                     if (!uploading) {
@@ -500,7 +501,7 @@ fun SetupScreen(
             )
             Spacer(Modifier.height(8.dp))
             FlatButton(
-                text = "file se chuno",
+                text = "pick from files",
                 emphasised = false,
                 onClick = { if (!uploading) files.launch("image/*") },
             )
@@ -509,17 +510,17 @@ fun SetupScreen(
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("naam badlo")
+            SectionLabel("Change name")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "abhi: " + username.orEmpty(),
+                text = "now: " + username.orEmpty(),
                 style = MaterialTheme.typography.bodyLarge,
                 color = Chalk,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "naam 14 din me ek baar badal sakte ho. purana naam turant " +
-                    "kisi aur ko mil sakta hai.",
+                text = "you can change your name once every 14 days. The old one is " +
+                    "freed right away.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
@@ -533,7 +534,7 @@ fun SetupScreen(
                 modifier = Modifier.fillMaxWidth(),
                 decorationBox = { inner ->
                     if (newName.isEmpty()) {
-                        Text("naya naam", style = MaterialTheme.typography.bodyLarge, color = Ash)
+                        Text("new name", style = MaterialTheme.typography.bodyLarge, color = Ash)
                     }
                     inner()
                 },
@@ -548,7 +549,7 @@ fun SetupScreen(
             }
             Spacer(Modifier.height(14.dp))
             FlatButton(
-                text = if (renaming) "ruko..." else "naam badlo",
+                text = if (renaming) "saving..." else "change name",
                 emphasised = Username.isValid(newName) && !renaming,
                 onClick = {
                     if (!Username.isValid(newName) || renaming) return@FlatButton
@@ -563,17 +564,17 @@ fun SetupScreen(
                             container.settings.saveUsername(applied)
                             newName = ""
                             renameOk = true
-                            renameNote = "ho gaya"
+                            renameNote = "done"
                         }.onFailure { thrown ->
                             renameOk = false
                             renameNote = when (val cause = (thrown as? SyncException)?.error) {
                                 // Enforced by the server, so a reinstall does
                                 // not reset it.
                                 is SyncError.Cooldown ->
-                                    "abhi nahi \u2014 ${cause.daysLeft} din aur ruko."
-                                SyncError.NameTaken -> "ye naam le liya gaya hai."
-                                SyncError.Offline -> "internet nahi mila."
-                                else -> "nahi hua. baad me try karo."
+                                    "not yet \u2014 ${cause.daysLeft} days to go."
+                                SyncError.NameTaken -> "that name is taken."
+                                SyncError.Offline -> "no internet."
+                                else -> "didn't work. try again."
                             }
                         }
                     }
@@ -584,12 +585,11 @@ fun SetupScreen(
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("recovery code")
+            SectionLabel("Recovery code")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "app delete karke wapas install karoge to isi phone pe " +
-                    "account apne aap mil jayega. naye phone pe ye code chahiye " +
-                    "hoga \u2014 kahin likh ke rakh lo.",
+                text = "reinstall on this phone and your account comes back on its own. " +
+                    "On a new phone you'll need this code \u2014 write it down.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
@@ -601,12 +601,12 @@ fun SetupScreen(
             )
             Spacer(Modifier.height(12.dp))
             FlatButton(
-                text = "code share karo",
+                text = "share code",
                 onClick = {
                     val code = recoveryCode ?: return@FlatButton
                     ServiceControl.shareText(
                         context,
-                        "Ek Aur recovery code: " + code + "\n(naye phone pe account wapas lene ke liye)",
+                        "Ek Aur recovery code: " + code + "\n(to get your account back on a new phone)",
                     )
                 },
             )
@@ -615,15 +615,15 @@ fun SetupScreen(
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("leaderboard")
+            SectionLabel("Leaderboard")
             Spacer(Modifier.height(10.dp))
             Text(
                 text = if (hidden) {
-                    "abhi tum chhupe ho. doosron ki list me tumhara naam aur " +
-                        "ginti nahi dikhti."
+                    "you're hidden right now. Your name and counts don't show on " +
+                        "anyone's list."
                 } else {
-                    "tum \"" + username.orEmpty() + "\" naam se list me ho. " +
-                        "sirf naam aur har din ka total dikhta hai."
+                    "you're on the list as \"" + username.orEmpty() + "\". Only your " +
+                        "name and daily total show."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
@@ -631,9 +631,9 @@ fun SetupScreen(
             Spacer(Modifier.height(14.dp))
             FlatButton(
                 text = when {
-                    hideBusy -> "ruko..."
-                    hidden -> "wapas list me aao"
-                    else -> "chhup jao"
+                    hideBusy -> "saving..."
+                    hidden -> "show me again"
+                    else -> "hide me"
                 },
                 onClick = {
                     if (hideBusy) return@FlatButton
@@ -655,16 +655,15 @@ fun SetupScreen(
         Spacer(Modifier.height(12.dp))
 
         Card {
-            SectionLabel("install karte waqt")
+            SectionLabel("Installing")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "\u2022 Play Protect \"app blocked\" bole to: Play Store \u2192 profile " +
-                    "\u2192 Play Protect \u2192 \u2699 \u2192 scanning band karo, install karo, " +
-                    "phir wapas chalu kar do. Sideloaded app jo accessibility maangta hai, " +
-                    "usko wo hamesha flag karega \u2014 app me kuch galat nahi hai.\n\n" +
-                    "\u2022 \"App not installed\" aaye to purani APK install karne ki koshish " +
-                    "ho rahi hai. Android purane version ko naye ke upar nahi chadhne deta \u2014 " +
-                    "sabse nayi wali file install karo.",
+                text = "\u2022 If Play Protect says \"app blocked\": Play Store \u2192 profile " +
+                    "\u2192 Play Protect \u2192 \u2699 \u2192 turn off scanning, install, then " +
+                    "turn it back on. It always flags a sideloaded app that uses " +
+                    "accessibility \u2014 nothing is wrong with the app.\n\n" +
+                    "\u2022 \"App not installed\" means installing an older APK over a " +
+                    "newer one. Android won't downgrade \u2014 install the newest file.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
@@ -673,10 +672,27 @@ fun SetupScreen(
         Spacer(Modifier.height(20.dp))
 
         Text(
-            text = "sab kuch phone me hi rehta hai. koi account nahi, koi server nahi.",
+            text = "only your name and daily total ever leave the phone.",
             style = MaterialTheme.typography.bodyMedium,
             color = Ash,
         )
+
+        Spacer(Modifier.height(12.dp))
+
+        Card {
+            SectionLabel("Developer")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "raw event log and live status, for when counting misbehaves.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlatButton(text = "events", onClick = onOpenEvents)
+                FlatButton(text = "status", onClick = onOpenStatus)
+            }
+        }
 
         Spacer(Modifier.height(24.dp))
     }
@@ -697,7 +713,7 @@ private fun SetupStep(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Dot(if (done) Acid else Heat)
+            Dot(if (done) Good else Ash)
             SectionLabel("$index  $title")
         }
         Spacer(Modifier.height(10.dp))

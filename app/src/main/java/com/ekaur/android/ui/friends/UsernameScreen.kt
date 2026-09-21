@@ -40,6 +40,7 @@ import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
+import com.ekaur.android.ui.theme.Good
 import com.ekaur.android.ui.theme.Heat
 import com.ekaur.android.ui.theme.Smoke
 import kotlinx.coroutines.Dispatchers
@@ -120,7 +121,7 @@ fun UsernameScreen(
             Text("EK AUR", style = MaterialTheme.typography.labelLarge, color = Acid)
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "dekh raha hoon tum pehle aa chuke ho ya nahi...",
+                text = "checking if you've been here before...",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Smoke,
             )
@@ -168,13 +169,13 @@ fun UsernameScreen(
         Text("EK AUR", style = MaterialTheme.typography.labelLarge, color = Acid)
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "naam chuno",
+            text = "pick a name",
             style = MaterialTheme.typography.displayMedium,
             color = Chalk,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "leaderboard pe isi naam se dikhoge. sab ek hi list me hain.",
+            text = "this is your name on the leaderboard. everyone's on one list.",
             style = MaterialTheme.typography.bodyLarge,
             color = Smoke,
         )
@@ -203,7 +204,7 @@ fun UsernameScreen(
                 decorationBox = { inner ->
                     if (typed.isEmpty()) {
                         Text(
-                            text = "tumhara naam",
+                            text = "your name",
                             style = TextStyle(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 22.sp,
@@ -222,7 +223,7 @@ fun UsernameScreen(
         Spacer(Modifier.height(16.dp))
 
         FlatButton(
-            text = if (claiming) "ruko..." else "chalo shuru karein",
+            text = if (claiming) "wait..." else "let's go",
             emphasised = state is NameState.Free && !claiming,
             onClick = {
                 if (state !is NameState.Free || claiming) return@FlatButton
@@ -254,7 +255,7 @@ fun UsernameScreen(
                             SyncError.NameTaken -> {
                                 known[name] = false
                                 state = NameState.Taken
-                                "abhi abhi kisi ne le liya. dusra chuno."
+                                "someone just took it. pick another."
                             }
                             // Handled inside the client by starting a fresh
                             // account; if it still reaches here, both attempts
@@ -262,16 +263,16 @@ fun UsernameScreen(
                             // Cannot happen here -- nothing has been changed
                             // yet -- but the compiler is right to insist.
                             is SyncError.Cooldown ->
-                                "abhi ${cause.daysLeft} din ruko."
+                                "wait ${cause.daysLeft} days."
                             SyncError.StaleSession ->
-                                "purana account nahi mila. dobara try karo."
+                                "couldn't find your old account. try again."
                             SyncError.SignupDisabled ->
-                                "server pe anonymous sign-in band hai."
+                                "anonymous sign-in is off on the server."
                             SyncError.Offline ->
-                                "internet nahi mila."
+                                "no internet."
                             is SyncError.Refused ->
-                                "nahi hua (${cause.status}). dobara try karo."
-                            null -> "nahi hua. dobara try karo."
+                                "didn't work (${cause.status}). try again."
+                            null -> "didn't work. try again."
                         }
                     }
                 }
@@ -287,11 +288,11 @@ fun UsernameScreen(
 
         if (showCodeEntry) {
             Card {
-                SectionLabel("purana account wapas lao")
+                SectionLabel("Recover old account")
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "naye phone pe ho? purane phone ke setup me jo recovery " +
-                        "code tha, wo yahan daalo.",
+                    text = "on a new phone? enter the recovery code from your old " +
+                        "phone's Setup.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Smoke,
                 )
@@ -324,7 +325,7 @@ fun UsernameScreen(
                 )
                 Spacer(Modifier.height(14.dp))
                 FlatButton(
-                    text = "wapas lao",
+                    text = "recover",
                     emphasised = code.length == 8,
                     onClick = {
                         if (code.length != 8) return@FlatButton
@@ -336,7 +337,7 @@ fun UsernameScreen(
                                 }.getOrNull()
                             }
                             if (recovered == null) {
-                                claimError = "ye code kaam nahi kiya."
+                                claimError = "that code didn't work."
                             } else {
                                 container.settings.saveUsername(recovered)
                                 withContext(Dispatchers.IO) {
@@ -352,7 +353,7 @@ fun UsernameScreen(
             }
         } else {
             FlatButton(
-                text = "purana account hai? code daalo",
+                text = "have an old account? enter a code",
                 onClick = { showCodeEntry = true },
             )
         }
@@ -360,12 +361,12 @@ fun UsernameScreen(
         Spacer(Modifier.height(24.dp))
 
         Card {
-            SectionLabel("kya share hota hai")
+            SectionLabel("What gets shared")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "sirf tumhara naam aur har din ka total. kaunsi reel dekhi, " +
-                    "kab scroll kiya — wo phone se bahar jaata hi nahi.\n\n" +
-                    "list se hatna ho to setup me \"chhup jao\" hai.",
+                text = "just your name and daily total. which reels you watched and " +
+                    "when never leave the phone.\n\n" +
+                    "to get off the list, there's \"hide me\" in Setup.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
@@ -376,12 +377,12 @@ fun UsernameScreen(
 @Composable
 private fun StatusLine(state: NameState) {
     val (text, colour) = when (state) {
-        NameState.Idle -> "${Username.MIN}-${Username.MAX} akshar, a-z 0-9 . _" to Ash
+        NameState.Idle -> "${Username.MIN}-${Username.MAX} chars, a-z 0-9 . _" to Ash
         is NameState.Invalid -> Username.message(state.problem) to Heat
-        NameState.Checking -> "dekh raha hoon..." to Smoke
-        NameState.Free -> "✓ mil gaya, ye free hai" to Acid
-        NameState.Taken -> "ye naam le liya gaya hai" to Heat
-        NameState.Unreachable -> "check nahi kar paaya, internet dekho" to Smoke
+        NameState.Checking -> "checking..." to Smoke
+        NameState.Free -> "✓ available" to Good
+        NameState.Taken -> "that name is taken" to Heat
+        NameState.Unreachable -> "couldn't check, check your internet" to Smoke
     }
     Text(text, style = MaterialTheme.typography.bodyMedium, color = colour)
 }

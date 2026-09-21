@@ -78,7 +78,7 @@ fun FriendsScreen(
             runCatching { container.supabase.leaderboard(today) }
         }.fold(
             onSuccess = { rows = it; problem = null },
-            onFailure = { problem = "list nahi aayi. internet dekho." },
+            onFailure = { problem = "couldn't load. check your internet." },
         )
         loading = false
     }
@@ -97,7 +97,7 @@ fun FriendsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SectionLabel("aaj ki race")
+                SectionLabel("Today's race")
                 FlatButton(
                     text = if (loading) "..." else "refresh",
                     onClick = { if (!loading) scope.launch { refresh() } },
@@ -111,11 +111,11 @@ fun FriendsScreen(
                     Text(problem!!, style = MaterialTheme.typography.bodyMedium, color = Heat)
 
                 rows.isEmpty() && loading ->
-                    Text("la raha hoon...", style = MaterialTheme.typography.bodyMedium, color = Smoke)
+                    Text("loading...", style = MaterialTheme.typography.bodyMedium, color = Smoke)
 
                 rows.isEmpty() ->
                     Text(
-                        text = "aaj abhi tak kisi ne kuch nahi kiya. pehle tum ho.",
+                        text = "nobody has scrolled yet today. you're first.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Smoke,
                     )
@@ -140,8 +140,8 @@ fun FriendsScreen(
             Spacer(Modifier.height(12.dp))
             Card {
                 Text(
-                    text = "tum abhi chhupe ho — doosron ki list me nahi dikhte. " +
-                        "setup me wapas on kar sakte ho.",
+                    text = "you're hidden — you don't show on other people's list. " +
+                        "turn it back on in Setup.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Ash,
                 )
@@ -175,7 +175,7 @@ private fun LeaderRow(rank: Int, row: LeaderboardRow, isMe: Boolean, avatarUrl: 
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = row.username + if (isMe) "  (tum)" else "",
+                text = row.username + if (isMe) "  (you)" else "",
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (isMe) Acid else Chalk,
             )

@@ -56,7 +56,7 @@ class StatsCardRendererTest {
     @Test
     fun `the accent appears, so the wordmark and bars rendered`() {
         val card = StatsCardRenderer.render(stats(), CardShape.Story)
-        val acid = Color.rgb(0xC8, 0xFF, 0x00)
+        val acid = Color.rgb(0xDD, 0x2A, 0x7B)
 
         var found = false
         loop@ for (x in 0 until card.width step 3) {

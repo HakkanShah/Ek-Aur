@@ -49,7 +49,7 @@ class PauseTileService : TileService() {
         val on = ServiceControl.isAccessibilityServiceEnabled(this)
         tile.state = if (on) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            tile.subtitle = if (on) "chalu" else "band"
+            tile.subtitle = if (on) "on" else "off"
         }
         tile.updateTile()
     }

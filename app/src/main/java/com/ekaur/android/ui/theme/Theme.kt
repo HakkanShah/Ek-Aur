@@ -1,42 +1,43 @@
 package com.ekaur.android.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Dark only. A light mode would mean a second set of design decisions for a
-// screen nobody opens in daylight anyway.
-private val EkAurColors = darkColorScheme(
-    primary = Acid,
-    onPrimary = Ink,
-    secondary = AcidDim,
+// Light only. One soft, warm theme -- a second dark palette would be a whole
+// separate set of decisions for a screen most people open in daylight, and the
+// gradient carries the mood either way.
+private val EkAurColors = lightColorScheme(
+    primary = Grad2,            // a mid-gradient purple, for Material's own bits
+    onPrimary = Ink,           // white, on the accent
+    secondary = Grad3,
     onSecondary = Ink,
     error = Heat,
     onError = Ink,
-    background = Ink,
+    background = Canvas,
     onBackground = Chalk,
-    surface = InkRaised,
+    surface = Surface,
     onSurface = Chalk,
-    surfaceVariant = InkLine,
+    surfaceVariant = SurfaceLav,
     onSurfaceVariant = Smoke,
     outline = InkLine,
 )
 
 @Composable
 fun EkAurTheme(
-    @Suppress("UNUSED_PARAMETER") darkTheme: Boolean = isSystemInDarkTheme(),
+    @Suppress("UNUSED_PARAMETER") darkTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            // Dark status-bar icons, because the bar now sits on a light canvas.
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
 

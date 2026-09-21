@@ -69,13 +69,13 @@ fun DiagnosticsScreen(
             SectionLabel("service")
             Spacer(Modifier.height(10.dp))
             StatRow(
-                "settings me on hai",
-                if (serviceEnabled) "haan" else "nahi",
+                "enabled in settings",
+                if (serviceEnabled) "yes" else "no",
                 if (serviceEnabled) Acid else Heat,
             )
             StatRow(
                 "service connected",
-                if (connected) "haan" else "nahi",
+                if (connected) "yes" else "no",
                 if (connected) Acid else Heat,
             )
             StatRow("detector state", detectorState)
@@ -109,7 +109,7 @@ fun DiagnosticsScreen(
 
             Spacer(Modifier.height(14.dp))
             FlatButton(
-                text = "diagnostics share karo",
+                text = "share diagnostics",
                 onClick = {
                     TextExport.share(
                         context = context,
@@ -161,7 +161,7 @@ fun DiagnosticsScreen(
             }
         } else {
             Text(
-                text = "koi crash nahi hua. abhi tak.",
+                text = "no crashes. yet.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
@@ -172,10 +172,10 @@ fun DiagnosticsScreen(
 }
 
 private fun Long.asAgo(): String {
-    if (this == 0L) return "kabhi nahi"
+    if (this == 0L) return "never"
     val seconds = (System.currentTimeMillis() - this) / 1000
     return when {
-        seconds < 2 -> "abhi"
+        seconds < 2 -> "just now"
         seconds < 60 -> "${seconds}s pehle"
         seconds < 3600 -> "${seconds / 60}m pehle"
         else -> "${seconds / 3600}h pehle"

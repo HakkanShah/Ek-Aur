@@ -199,5 +199,5 @@ private val FALLBACK_MAX_WIDTH = 330.dp
 private val PillInk = Color(0xF00A0A0A)
 private val PillChalk = Color(0xFFF2F2F2)
 private val PillAsh = Color(0xFF5A5A5A)
-private val PillEdge = Color(0xFFC8FF00)
+private val PillEdge = Color(0xFFDD2A7B)
 private val PillHeat = Color(0xFFFF3B1F)

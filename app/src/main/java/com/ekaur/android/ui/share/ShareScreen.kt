@@ -80,7 +80,7 @@ fun ShareScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             SectionLabel("card")
-            FlatButton(text = "band karo", onClick = onClose)
+            FlatButton(text = "close", onClick = onClose)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -112,14 +112,14 @@ fun ShareScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
-                Text("bana raha hoon...", color = Smoke)
+                Text("making...", color = Smoke)
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
         FlatButton(
-            text = "share karo",
+            text = "share",
             emphasised = card != null,
             onClick = {
                 val ready = card ?: return@FlatButton
@@ -127,7 +127,7 @@ fun ShareScreen(
                     context.startActivity(
                         android.content.Intent.createChooser(
                             CardSharing.intentFor(context, ready, CardSharing.captionFor(stats)),
-                            "card share karo",
+                            "share card",
                         )
                     )
                 }
