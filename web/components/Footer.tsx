@@ -30,9 +30,22 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 border-t border-hairline pt-6 text-xs text-ash">
-          Only your name and daily total ever leave the phone. Everything else stays on it. Not
-          affiliated with Instagram or Meta.
+        <div className="mt-10 flex flex-col gap-4 border-t border-hairline pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-lg text-xs text-ash">
+            Only your name and daily total ever leave the phone. Everything else stays on it. Not
+            affiliated with Instagram or Meta.
+          </p>
+          <p className="shrink-0 text-xs font-medium text-smoke">
+            Developed by a Doomscroller —{" "}
+            <a
+              href="https://hakkan.is-a.dev"
+              target="_blank"
+              rel="noreferrer"
+              className="grad-text font-bold underline-offset-4 hover:underline"
+            >
+              Hakkan
+            </a>
+          </p>
         </div>
       </div>
     </footer>
