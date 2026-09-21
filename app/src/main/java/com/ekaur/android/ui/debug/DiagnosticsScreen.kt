@@ -91,7 +91,7 @@ fun DiagnosticsScreen(
             if (!serviceEnabled) {
                 Spacer(Modifier.height(14.dp))
                 FlatButton(
-                    text = "Accessibility settings kholo",
+                    text = "Open accessibility settings",
                     emphasised = true,
                     onClick = { ServiceControl.openAccessibilitySettings(context) },
                 )
@@ -133,7 +133,7 @@ fun DiagnosticsScreen(
 
         if (crash != null) {
             Card {
-                SectionLabel("Pichla crash")
+                SectionLabel("Last crash")
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = crash.lineSequence().take(6).joinToString("\n"),
@@ -145,7 +145,7 @@ fun DiagnosticsScreen(
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FlatButton(
-                        text = "Crash bhejo",
+                        text = "Share crash",
                         emphasised = true,
                         onClick = {
                             TextExport.share(
@@ -156,7 +156,7 @@ fun DiagnosticsScreen(
                             )
                         },
                     )
-                    FlatButton(text = "Hata do", onClick = { crashReporter.clear() })
+                    FlatButton(text = "Clear", onClick = { crashReporter.clear() })
                 }
             }
         } else {
@@ -176,9 +176,9 @@ private fun Long.asAgo(): String {
     val seconds = (System.currentTimeMillis() - this) / 1000
     return when {
         seconds < 2 -> "Just now"
-        seconds < 60 -> "${seconds}s pehle"
-        seconds < 3600 -> "${seconds / 60}m pehle"
-        else -> "${seconds / 3600}h pehle"
+        seconds < 60 -> "${seconds}s ago"
+        seconds < 3600 -> "${seconds / 60}m ago"
+        else -> "${seconds / 3600}h ago"
     }
 }
 

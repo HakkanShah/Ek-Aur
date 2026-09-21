@@ -56,10 +56,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.ekaur.android.service.ServiceControl
+import com.ekaur.android.sync.Avatar
+import com.ekaur.android.ui.account.AccountScreen
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Dot
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.GradientNumber
+import com.ekaur.android.ui.common.StatTile
+import com.ekaur.android.ui.common.UserAvatar
 import com.ekaur.android.ui.debug.DiagnosticsScreen
 import com.ekaur.android.ui.friends.FriendsScreen
 import com.ekaur.android.ui.friends.UsernameScreen
@@ -133,6 +137,7 @@ private fun AppScaffold(container: AppContainer) {
     var sharing by remember { mutableStateOf<CardStats?>(null) }
     var cardAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var dev by remember { mutableStateOf<DevScreen?>(null) }
+    var account by remember { mutableStateOf(false) }
     val pagerState = rememberPagerState { BOTTOM_TABS.size }
     val scope = rememberCoroutineScope()
 
@@ -161,6 +166,7 @@ private fun AppScaffold(container: AppContainer) {
                     avatar = cardAvatar,
                     onClose = { sharing = null },
                 )
+                account -> AccountScreen(container, onClose = { account = false })
                 dev == DevScreen.Events -> EventInspectorScreen(container.eventLog)
                 dev == DevScreen.Status -> DiagnosticsScreen(
                     status = container.serviceStatus,
@@ -182,6 +188,7 @@ private fun AppScaffold(container: AppContainer) {
                             onOpenSetup = {
                                 scope.launch { pagerState.animateScrollToPage(Tab.Setup.ordinal) }
                             },
+                            onOpenAccount = { account = true },
                             onShare = { stats, avatar ->
                                 cardAvatar = avatar
                                 sharing = stats
@@ -205,6 +212,7 @@ private fun AppScaffold(container: AppContainer) {
             onSelect = { index ->
                 dev = null
                 sharing = null
+                account = false
                 scope.launch { pagerState.animateScrollToPage(index) }
             },
         )
@@ -276,6 +284,7 @@ private fun HomeScreen(
     container: AppContainer,
     permissions: Permissions,
     onOpenSetup: () -> Unit,
+    onOpenAccount: () -> Unit,
     onShare: (CardStats, android.graphics.Bitmap?) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -285,39 +294,72 @@ private fun HomeScreen(
     val activeMs by container.counterRepository.observeTodayActiveMs().collectAsState(initial = 0L)
     val connected by container.serviceStatus.connected.collectAsState()
     val state by container.serviceStatus.detectorState.collectAsState()
+    val username by container.settings.username.collectAsState()
+
+    // A small week + best summary under the hero, so the home screen reads as a
+    // dashboard rather than one lonely number on a lot of empty space.
+    val dates = remember { container.counterRepository.lastDays(7) }
+    val dayRows by remember(dates) { container.counterRepository.observeDaysSince(dates.first()) }
+        .collectAsState(initial = emptyList())
+    val weekTotal = com.ekaur.android.ui.stats.dailySeries(dayRows, dates).sumOf { it.reels }
+    val best by remember { container.counterRepository.observeBestDay() }.collectAsState(initial = null)
 
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(horizontal = 18.dp),
     ) {
-        Spacer(Modifier.height(44.dp))
+        Spacer(Modifier.height(14.dp))
 
-        Text(
-            text = "EK AUR",
-            style = androidx.compose.ui.text.TextStyle(
-                fontFamily = com.ekaur.android.ui.theme.Poppins,
-                fontWeight = FontWeight.Bold,
-                fontSize = 34.sp,
-                letterSpacing = 6.sp,
-                brush = instaGradient(),
-            ),
-        )
-        Text(
-            text = "one more",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Smoke,
-            letterSpacing = 3.sp,
-        )
+        // Header: app name on the left, the account avatar on the right.
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = "EK AUR",
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontFamily = com.ekaur.android.ui.theme.Poppins,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        letterSpacing = 4.sp,
+                        brush = instaGradient(),
+                    ),
+                )
+                Text(
+                    text = "one more",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Smoke,
+                    letterSpacing = 2.sp,
+                )
+            }
+            Box(
+                Modifier
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .clickable(onClick = onOpenAccount),
+            ) {
+                UserAvatar(
+                    username = username.orEmpty(),
+                    url = Avatar.urlFor(
+                        baseUrl = container.supabase.baseUrl,
+                        userId = container.settings.userId.orEmpty(),
+                        version = container.settings.avatarVersion,
+                    ),
+                    size = 44.dp,
+                )
+            }
+        }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(28.dp))
 
-        // The number and its label sit together inside the glow, so the halo
-        // wraps the whole hero group instead of leaving a dead gap below the
-        // number the way a 300dp circle behind the number alone did.
-        Box(contentAlignment = Alignment.Center) {
+        // The hero number and its label together inside a soft glow.
+        Box(
+            Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
             Box(
                 Modifier
                     .size(260.dp)
@@ -344,11 +386,28 @@ private fun HomeScreen(
             }
         }
 
+        Spacer(Modifier.height(24.dp))
+
+        // A compact summary row.
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            StatTile(label = "Today", value = count.toString(), modifier = Modifier.weight(1f))
+            StatTile(label = "7 days", value = weekTotal.toString(), modifier = Modifier.weight(1f))
+            StatTile(
+                label = "Best day",
+                value = best?.total?.toString() ?: "—",
+                modifier = Modifier.weight(1f),
+            )
+        }
+
         Spacer(Modifier.height(20.dp))
 
         FlatButton(
-            text = if (building) "making..." else "share card",
+            text = if (building) "Making…" else "Share card",
             emphasised = count > 0 && !building,
+            modifier = Modifier.fillMaxWidth(),
             onClick = {
                 if (count <= 0 || building) return@FlatButton
                 building = true
@@ -362,7 +421,7 @@ private fun HomeScreen(
             },
         )
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(14.dp))
 
         Card {
             Row(
@@ -385,7 +444,12 @@ private fun HomeScreen(
 
             if (!permissions.allGranted) {
                 Spacer(Modifier.height(14.dp))
-                FlatButton(text = "Finish setup", emphasised = true, onClick = onOpenSetup)
+                FlatButton(
+                    text = "Finish setup",
+                    emphasised = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onOpenSetup,
+                )
             }
         }
 
