@@ -33,7 +33,7 @@ class MilestoneEngineTest {
 
     @Test
     fun `a milestone already used today stays quiet`() {
-        val fired = engine.evaluate(at(100), at(99), setOf("reels_50", "reels_100"))
+        val fired = engine.evaluate(at(100), at(99), setOf("reels_25", "reels_50", "reels_100"))
 
         assertNull(fired)
     }
@@ -46,10 +46,10 @@ class MilestoneEngineTest {
         // nonsense, so the passed ones are retired without being shown.
         val outcome = engine.evaluate(at(300), at(299), emptySet())
 
-        assertEquals("reels_200", outcome?.announce?.id)
+        assertEquals("reels_300", outcome?.announce?.id)
         assertEquals(
             "smaller thresholds should be retired, not queued up",
-            setOf("reels_50", "reels_100", "reels_200"),
+            setOf("reels_25", "reels_50", "reels_100", "reels_200", "reels_300"),
             outcome?.spent?.toSet(),
         )
     }
@@ -76,9 +76,10 @@ class MilestoneEngineTest {
     @Test
     fun `a new sitting does not refire a duration passed in the last one`() {
         // The session clock resets to zero, so nothing is satisfied again.
+        // A sub-25 count keeps this about the session, not a count milestone.
         val fired = engine.evaluate(
-            now = at(40, sessionMinutes = 1),
-            before = at(39, sessionMinutes = 0),
+            now = at(20, sessionMinutes = 1),
+            before = at(19, sessionMinutes = 0),
             firedToday = emptySet(),
         )
 
@@ -87,14 +88,15 @@ class MilestoneEngineTest {
 
     @Test
     fun `the small hours fire on the first reel after the time`() {
+        // Sub-25 counts, so a count milestone can't stand in for the night line.
         val before3am = engine.evaluate(
-            now = at(40, minuteOfDay = 2 * 60 + 59),
-            before = at(39, minuteOfDay = 2 * 60 + 59),
+            now = at(20, minuteOfDay = 2 * 60 + 59),
+            before = at(19, minuteOfDay = 2 * 60 + 59),
             firedToday = setOf("night_1am"),
         )
         val after3am = engine.evaluate(
-            now = at(40, minuteOfDay = 3 * 60),
-            before = at(39, minuteOfDay = 3 * 60),
+            now = at(20, minuteOfDay = 3 * 60),
+            before = at(19, minuteOfDay = 3 * 60),
             firedToday = setOf("night_1am"),
         )
 
@@ -107,8 +109,8 @@ class MilestoneEngineTest {
         // "Past 1am" without an end to the window is also true at 11pm, which
         // is neither late nor funny.
         val fired = engine.evaluate(
-            now = at(40, minuteOfDay = 23 * 60),
-            before = at(39, minuteOfDay = 23 * 60),
+            now = at(20, minuteOfDay = 23 * 60),
+            before = at(19, minuteOfDay = 23 * 60),
             firedToday = emptySet(),
         )
 
@@ -118,8 +120,8 @@ class MilestoneEngineTest {
     @Test
     fun `the small hours end in the morning`() {
         val fired = engine.evaluate(
-            now = at(40, minuteOfDay = 5 * 60),
-            before = at(39, minuteOfDay = 5 * 60),
+            now = at(20, minuteOfDay = 5 * 60),
+            before = at(19, minuteOfDay = 5 * 60),
             firedToday = emptySet(),
         )
 

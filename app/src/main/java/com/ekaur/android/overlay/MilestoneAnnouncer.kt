@@ -18,10 +18,9 @@ import java.time.ZoneId
 /**
  * Decides when the pill has something to say, and for how long.
  *
- * Two things can produce a line. A [MilestoneEngine] milestone -- a round
- * number, a long sitting, the small hours -- fires at most once a day and wins
- * when it happens. Otherwise the recurring every-N-reels line keeps the pill
- * talking, and repeats freely.
+ * A line comes only from a [MilestoneEngine] milestone -- a round number, a long
+ * sitting, the small hours -- each firing at most once a day. A reel that hits no
+ * milestone stays silent, so the pill never repeats a cheap recurring line.
  *
  * Lives outside the composable on purpose. Held in `remember`, the message and
  * the milestone bookkeeping died with the overlay window every time it hid --
@@ -130,11 +129,10 @@ class MilestoneAnnouncer(
             return SarcasmCatalogue.lineForKey(milestone.copyKey, now.reels, hourAt(atMs))
         }
 
-        // Fires on crossing a multiple rather than landing on one -- two reels
-        // can arrive in a single update.
-        val every = SarcasmCatalogue.MILESTONE_EVERY
-        if (now.reels / every <= before.reels / every) return null
-        return SarcasmCatalogue.lineFor(now.reels, hourAt(atMs))
+        // Only milestones and the small hours speak now. A reel that hits no
+        // milestone stays silent rather than firing a recurring every-N line,
+        // which repeated and cheapened the pill.
+        return null
     }
 
     private fun progressAt(count: Int, atMs: Long): Progress {

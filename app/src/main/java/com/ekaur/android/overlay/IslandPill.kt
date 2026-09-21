@@ -2,25 +2,21 @@ package com.ekaur.android.overlay
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,17 +33,18 @@ import com.ekaur.android.copy.SarcasmCatalogue
 /**
  * The floating counter.
  *
- * Rests as a compact pill -- a face and a number. Every
- * [SarcasmCatalogue.MILESTONE_EVERY] reels it briefly widens to cheer the user
- * on, then collapses again. The cheering is the joke: nothing here ever
- * suggests stopping, and the number does the damage on its own.
+ * Rests as a compact pill -- a face and a number. At each milestone it briefly
+ * widens to cheer the user on, then collapses again. The cheering is the joke:
+ * nothing here ever suggests stopping, and the number does the damage on its own.
  *
- * The face degrades and the number warms toward red as the count climbs, so the
- * pill grows heavier in peripheral vision without addressing anyone.
+ * The face degrades as the count climbs, so the pill grows heavier in peripheral
+ * vision without addressing anyone -- and without a loud reactive colour, which
+ * kept the pill calm and sleek rather than turning red.
  *
- * Nothing here animates a width. [maxWidthPx] is the room the pill has beside it
- * on the edge it is parked against, so a message is bounded before it is laid
- * out rather than growing until the window has to be moved to fit it.
+ * Nothing here animates a width. When a message is present the whole pill fills
+ * the width it has been given ([maxWidthPx], the room between the margins), so the
+ * line spans edge to edge and is laid out once at that width. At rest the pill
+ * wraps its content and stays small.
  */
 @Composable
 fun IslandPill(
@@ -62,35 +59,24 @@ fun IslandPill(
         if (maxWidthPx > 0) maxWidthPx.toDp() else FALLBACK_MAX_WIDTH
     }
     val paddingPx = with(density) { (H_PADDING * 2).roundToPx() }
-    val heat = heatFor(count)
-    val numberColor by animateColorAsState(
-        targetValue = lerpColor(PillChalk, PillHeat, heat),
-        animationSpec = spring(),
-        label = "pill-number",
-    )
-    val edge by animateColorAsState(
-        targetValue = lerpColor(PillEdge, PillHeat, heat).copy(alpha = 0.55f),
-        animationSpec = spring(),
-        label = "pill-edge",
-    )
 
     Row(
         modifier = modifier
             .background(PillInk, RoundedCornerShape(50))
-            .border(1.dp, edge, RoundedCornerShape(50))
+            // A single static hairline -- no count-reactive red. The climbing
+            // "damage" now lives entirely in the emoji ladder, which reads cool
+            // rather than loud.
+            .border(1.dp, PillEdge, RoundedCornerShape(50))
             // Clips the message's slide, so it cannot be drawn past the pill's
             // rounded edge on the frames before it has settled.
             .clip(RoundedCornerShape(50))
-            // Deliberately no animateContentSize. Animating the width made
-            // Compose re-measure the message at a different width on every
-            // frame, and because the message is ellipsised it was re-truncated
-            // at a different character each time -- which read as the text
-            // being typed out, with the ellipsis jumping. Snapping to the full
-            // width lays the line out once, whole.
-            .widthIn(max = maxWidth)
-            .padding(horizontal = H_PADDING, vertical = 8.dp),
+            // While a line shows, fill the given width so it spans both margins
+            // and distributes evenly; at rest, wrap the content and stay compact.
+            // Bounded either way, and never animated -- the message is measured
+            // once at its final width, so no character is ever re-truncated.
+            .then(if (message != null) Modifier.fillMaxWidth() else Modifier.widthIn(max = maxWidth))
+            .padding(horizontal = H_PADDING, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
     ) {
         // The face and the number, measured on their own.
         //
@@ -122,7 +108,7 @@ fun IslandPill(
             ) { value ->
                 Text(
                     text = value.toString(),
-                    color = numberColor,
+                    color = PillChalk,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.SansSerif,
@@ -132,6 +118,11 @@ fun IslandPill(
         }
 
         AnimatedVisibility(
+            // weight(1f) only while visible, so the line fills from the number to
+            // the far margin -- evenly spread, both edges. Collapsed, the pill has
+            // no fillMaxWidth, so weight here would wrongly stretch it; hence the
+            // conditional.
+            modifier = if (message != null) Modifier.weight(1f) else Modifier,
             visible = message != null,
             // Fade plus a short slide. Both are draw-layer properties applied to
             // content already measured at its full width, so no character is
@@ -139,10 +130,12 @@ fun IslandPill(
             // container opens in one step and the line glides into it.
             enter = fadeIn(tween(ENTER_MS)) +
                 slideInHorizontally(tween(ENTER_MS)) { it / SLIDE_FRACTION },
-            exit = fadeOut(tween(EXIT_MS)) +
-                slideOutHorizontally(tween(EXIT_MS)) { it / SLIDE_FRACTION },
+            exit = fadeOut(tween(EXIT_MS)),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Spacer(Modifier.width(9.dp))
                 Text(
                     text = "·",
@@ -160,27 +153,11 @@ fun IslandPill(
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
     }
-}
-
-/** 0f at rest, 1f once the count is frankly embarrassing. */
-private fun heatFor(count: Int): Float = when {
-    count <= 50 -> 0f
-    count >= 400 -> 1f
-    else -> (count - 50) / 350f
-}
-
-private fun lerpColor(from: Color, to: Color, t: Float): Color {
-    val clamped = t.coerceIn(0f, 1f)
-    return Color(
-        red = from.red + (to.red - from.red) * clamped,
-        green = from.green + (to.green - from.green) * clamped,
-        blue = from.blue + (to.blue - from.blue) * clamped,
-        alpha = 1f,
-    )
 }
 
 /** Counted into the collapsed width, since the core is measured inside it. */
@@ -199,5 +176,6 @@ private val FALLBACK_MAX_WIDTH = 330.dp
 private val PillInk = Color(0xF00A0A0A)
 private val PillChalk = Color(0xFFF2F2F2)
 private val PillAsh = Color(0xFF5A5A5A)
-private val PillEdge = Color(0xFFDD2A7B)
-private val PillHeat = Color(0xFFFF3B1F)
+
+/** A single static hairline -- a faint magenta, not a loud reactive border. */
+private val PillEdge = Color(0x33DD2A7B)

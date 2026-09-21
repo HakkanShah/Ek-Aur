@@ -13,9 +13,6 @@ package com.ekaur.android.copy
  */
 object SarcasmCatalogue {
 
-    /** Fires every this many reels. */
-    const val MILESTONE_EVERY = 10
-
     private val early = listOf(
         "Warming up.",
         "Rookie numbers.",
@@ -89,25 +86,45 @@ object SarcasmCatalogue {
      * small size, and an ellipsis mid-joke kills it.
      */
     private val byKey: Map<String, List<String>> = mapOf(
+        "reels_25" to listOf(
+            "25 in. warmed up. 😎",
+            "Twenty-five. thumb's stretching.",
+            "25 and locked in already.",
+        ),
         "reels_50" to listOf(
-            "50. warm-up done.",
+            "50. warm-up done. 🌚",
             "Fifty deep. thumb's fine, thanks.",
             "50 and counting. of course.",
         ),
         "reels_100" to listOf(
             "Only 100? that was the warm-up.",
             "Triple digits. impressive. concerning.",
-            "100 reels. easy.",
+            "100 reels. easy. 😈",
         ),
         "reels_200" to listOf(
             "200. this stopped being a hobby.",
             "Double century. a legend, technically.",
             "200. scientists are confused.",
         ),
+        "reels_300" to listOf(
+            "300. the feed fears you now.",
+            "Three hundred. no notes. 💀",
+            "300 deep. touch grass? never.",
+        ),
         "reels_500" to listOf(
             "500. send the thumb to the olympics.",
             "500 reels. history, of a sort.",
-            "500. no records left to break.",
+            "500. no records left to break. ☠️",
+        ),
+        "reels_750" to listOf(
+            "750. this is a lifestyle now.",
+            "Seven-fifty. the algorithm bows.",
+            "750 reels. genuinely unwell. 💀",
+        ),
+        "reels_1000" to listOf(
+            "1000. a thousand. legendary. ☠️",
+            "Four digits. touch grass immediately.",
+            "1K reels. they'll study you.",
         ),
         "session_30" to listOf(
             "30 minutes straight. locked in.",
@@ -115,18 +132,23 @@ object SarcasmCatalogue {
         ),
         "session_60" to listOf(
             "One hour straight. respect.",
-            "60 minutes, non-stop. machine.",
+            "60 minutes, non-stop. machine. 😈",
         ),
         "session_120" to listOf(
             "Two hours. a record's breaking somewhere.",
             "2 hours straight. 💀 dedication.",
         ),
+        "night_12am" to listOf(
+            "Midnight. the feed's just getting good. 🌚",
+            "12am. sleep is for the weak, clearly.",
+            "Past midnight and thriving. sort of.",
+        ),
         "night_1am" to listOf(
             "1am and still here. the night is young.",
-            "1am? respect.",
+            "1am? respect. concern, but respect.",
         ),
         "night_3am" to listOf(
-            "3am. the algorithm's only friend left.",
+            "3am. the algorithm's only friend left. 💀",
             "Welcome to the 3am club.",
         ),
     )
@@ -134,17 +156,19 @@ object SarcasmCatalogue {
     /** Which milestone keys have copy written for them. */
     val copyKeys: Set<String> get() = byKey.keys
 
-    private var lastLine: String? = null
+    /** The last few lines shown, so nothing repeats until the pool is exhausted. */
+    private val recent = ArrayDeque<String>()
+    private const val RECENT_MEMORY = 4
 
     /**
      * A line for this milestone, avoiding whatever was said last time.
      *
-     * [hour] is the local hour, 0-23; between 1am and 5am the time of night
+     * [hour] is the local hour, 0-23; from midnight to 5am the time of night
      * replaces the count as the subject.
      */
     fun lineFor(count: Int, hour: Int): String {
         val pool = when {
-            hour in 1..4 -> lateNight
+            hour in 0..4 -> lateNight
             count >= 400 -> legendary
             count >= 200 -> deep
             count >= 100 -> century
@@ -163,10 +187,16 @@ object SarcasmCatalogue {
     fun lineForKey(key: String, count: Int, hour: Int): String =
         byKey[key]?.let(::pick) ?: lineFor(count, hour)
 
-    /** Picks from [pool], avoiding whatever was said last time. */
+    /**
+     * Picks from [pool], avoiding the last few lines shown across every pool, so
+     * back-to-back milestones never echo each other or themselves.
+     */
     private fun pick(pool: List<String>): String {
-        val choices = pool.filterNot { it == lastLine }.ifEmpty { pool }
-        return choices.random().also { lastLine = it }
+        val choices = pool.filterNot { it in recent }.ifEmpty { pool }
+        return choices.random().also { chosen ->
+            recent.addLast(chosen)
+            while (recent.size > RECENT_MEMORY) recent.removeFirst()
+        }
     }
 
     /**
@@ -176,11 +206,11 @@ object SarcasmCatalogue {
      * there is no line on screen.
      */
     fun faceFor(count: Int): String = when {
-        count >= 350 -> "💀"
-        count >= 200 -> "🫠"
-        count >= 100 -> "😵‍💫"
-        count >= 50 -> "😮‍💨"
-        count >= 25 -> "🙂"
-        else -> "👀"
+        count >= 500 -> "☠️"
+        count >= 300 -> "💀"
+        count >= 150 -> "😈"
+        count >= 75 -> "😵‍💫"
+        count >= 25 -> "🌚"
+        else -> "😎"
     }
 }
