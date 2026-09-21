@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.ekaur.android.di.AppContainer
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
+import com.ekaur.android.update.UpdateState
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Dot
 import com.ekaur.android.ui.common.Expandable
@@ -65,6 +67,8 @@ fun SetupScreen(
     var paymentPaused by remember { mutableStateOf(false) }
     var usageOk by remember { mutableStateOf(ServiceControl.hasUsageAccess(context)) }
     var autoOff by remember { mutableStateOf(container.settings.autoOffOnLeave) }
+    var autoUpdate by remember { mutableStateOf(container.updateManager.autoDownload) }
+    val updateState by container.updateManager.state.collectAsState()
 
     LifecycleResumeEffect(Unit) {
         usageOk = ServiceControl.hasUsageAccess(context)
@@ -203,7 +207,53 @@ fun SetupScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // 3 — Counter reset + install help + developer, all tucked away
+        // 3 — Updates
+        Card {
+            SectionLabel("Updates")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "You're on " + container.updateManager.currentVersionLabel + ".",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+            )
+            val updateNote = when (updateState) {
+                is UpdateState.Checking -> "Checking…"
+                is UpdateState.UpToDate -> "You're on the latest version."
+                is UpdateState.Available -> "An update is available."
+                is UpdateState.Downloading -> "Downloading the update…"
+                is UpdateState.Ready -> "An update is downloaded and ready to install."
+                is UpdateState.Failed -> "Couldn't check right now."
+                is UpdateState.Idle -> null
+            }
+            if (updateNote != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = updateNote,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (updateState is UpdateState.Failed) Heat else Acid,
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            ToggleRow(
+                title = "Auto-download updates",
+                subtitle = "Grab new versions in the background, then tap to install.",
+                checked = autoUpdate,
+                onCheckedChange = {
+                    autoUpdate = it
+                    container.updateManager.setAutoDownload(it)
+                },
+            )
+            Spacer(Modifier.height(14.dp))
+            FlatButton(
+                text = "Check for updates",
+                emphasised = true,
+                onClick = { container.updateManager.checkOnLaunch(force = true) },
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // 4 — Counter reset + install help + developer, all tucked away
         Card {
             SectionLabel("More")
             Spacer(Modifier.height(12.dp))

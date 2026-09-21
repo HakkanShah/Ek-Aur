@@ -20,6 +20,10 @@
          OEM background killer stops counting silently. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- The in-app updater installs a newer APK it downloaded from the app's own
+         GitHub releases. The system still shows its Install confirmation. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <application
         android:name=".EkAurApp"
         android:allowBackup="true"

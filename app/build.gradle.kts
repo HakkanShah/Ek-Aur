@@ -15,8 +15,11 @@ android {
         applicationId = "com.ekaur.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 35
-        versionName = "0.17.7"
+        versionCode = 36
+        versionName = "0.18.0"
+
+        // The GitHub repo the in-app updater reads releases from.
+        buildConfigField("String", "UPDATE_REPO", "\"HakkanShah/Ek-Aur\"")
 
         // The project's public address and its publishable key. Both are meant
         // to ship inside the app -- they identify the project, they are not

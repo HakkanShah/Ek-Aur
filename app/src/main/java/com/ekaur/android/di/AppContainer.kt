@@ -11,6 +11,7 @@ import com.ekaur.android.diagnostics.EventLog
 import com.ekaur.android.diagnostics.ServiceStatus
 import com.ekaur.android.sync.DeviceKey
 import com.ekaur.android.sync.Syncer
+import com.ekaur.android.update.UpdateManager
 
 /**
  * Manual dependency container, built once in [com.ekaur.android.EkAurApp].
@@ -54,4 +55,7 @@ class AppContainer(appContext: Context) {
     val supabase: SupabaseClient by lazy { SupabaseClient(settings) }
 
     val syncer: Syncer by lazy { Syncer(database, settings, supabase) }
+
+    /** Checks the app's GitHub releases and drives the in-app updater. */
+    val updateManager: UpdateManager by lazy { UpdateManager(appContext) }
 }

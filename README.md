@@ -342,3 +342,21 @@ View ids are no longer among them: reading them needs the window-content
 capability, which was dropped so payment apps stop warning (see **Payment and
 UPI apps**). The structural rule the detector actually relies on — one visible
 item is the player, several is the feed — never needed them.
+
+## Updating the app
+
+The app updates itself from this repo's **Releases**. To publish a new version:
+
+1. Build the APK (`./gradlew assembleDebug`) and bump `versionCode` / `versionName`.
+2. Create a GitHub **Release** marked *latest*, tag `v<versionName>` (e.g. `v0.18.1`).
+3. Attach the APK named exactly as built — `ekaur-v<versionName>-build<versionCode>.apk`
+   (e.g. `ekaur-v0.18.1-build37.apk`).
+
+On launch (and via **Setup → Updates → Check for updates**) the app reads
+`releases/latest`, compares the `build<N>` number in the asset name against its own
+`versionCode`, and — with auto-download on — fetches the APK in the background and
+offers a one-tap install. A sideloaded app can't install itself silently, so
+Android always shows its own Install confirmation; the committed keystore means the
+update installs over the current app with no uninstall. The repo must stay
+**public** for the in-app download; otherwise the popup falls back to opening the
+releases page in a browser.

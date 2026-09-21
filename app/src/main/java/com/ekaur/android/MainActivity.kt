@@ -71,6 +71,7 @@ import com.ekaur.android.ui.debug.EventInspectorScreen
 import com.ekaur.android.ui.onboarding.SetupScreen
 import com.ekaur.android.ui.stats.StatsScreen
 import com.ekaur.android.ui.stats.formatDuration
+import com.ekaur.android.ui.update.UpdatePopup
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
@@ -149,6 +150,11 @@ private fun AppScaffold(container: AppContainer) {
         )
         onPauseOrDispose { }
     }
+
+    // Look for a newer build on GitHub once the app is open (throttled inside).
+    androidx.compose.runtime.LaunchedEffect(Unit) { container.updateManager.checkOnLaunch() }
+
+    UpdatePopup(container.updateManager)
 
     val card = sharing
     Column(
@@ -319,16 +325,37 @@ private fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
-                Text(
-                    text = "EK AUR",
-                    style = androidx.compose.ui.text.TextStyle(
-                        fontFamily = com.ekaur.android.ui.theme.Poppins,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
-                        letterSpacing = 4.sp,
-                        brush = instaGradient(),
-                    ),
-                )
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        text = "EK AUR",
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontFamily = com.ekaur.android.ui.theme.Poppins,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 26.sp,
+                            letterSpacing = 4.sp,
+                            brush = instaGradient(),
+                        ),
+                    )
+                    Spacer(Modifier.size(6.dp))
+                    // A small superscript "beta" tag at the top-right of the mark.
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(percent = 50))
+                            .background(color = SurfaceLav)
+                            .padding(horizontal = 7.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = "BETA",
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontFamily = com.ekaur.android.ui.theme.Poppins,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp,
+                                letterSpacing = 1.5.sp,
+                                brush = instaGradient(),
+                            ),
+                        )
+                    }
+                }
                 Text(
                     text = "one more",
                     style = MaterialTheme.typography.bodyMedium,
