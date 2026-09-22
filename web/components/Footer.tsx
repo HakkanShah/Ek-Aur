@@ -13,9 +13,11 @@ export function Footer() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6 text-sm font-medium text-ink/70">
-            <a href="#how" className="hover:text-ink">How it works</a>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-ink/70">
+            <a href="#see" className="hover:text-ink">See it</a>
             <a href="#install" className="hover:text-ink">Install</a>
+            <a href="#faq" className="hover:text-ink">FAQ</a>
+            <a href="#contact" className="hover:text-ink">Feedback</a>
             <a
               href="https://github.com/HakkanShah/Ek-Aur"
               target="_blank"

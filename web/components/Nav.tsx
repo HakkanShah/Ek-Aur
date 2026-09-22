@@ -19,6 +19,9 @@ export function Nav() {
           <a href="#install" className="rounded-full px-3.5 py-2 transition-colors hover:bg-lav/70 hover:text-ink">
             Install
           </a>
+          <a href="#faq" className="rounded-full px-3.5 py-2 transition-colors hover:bg-lav/70 hover:text-ink">
+            FAQ
+          </a>
         </div>
 
         <a

@@ -4,7 +4,9 @@ import { Pitch } from "@/components/Pitch";
 import { Features } from "@/components/Features";
 import { MotionSection } from "@/components/MotionSection";
 import { Install } from "@/components/Install";
+import { Faq } from "@/components/Faq";
 import { DownloadCTA } from "@/components/DownloadCTA";
+import { Contact } from "@/components/Contact";
 import { Footer } from "@/components/Footer";
 
 export default function Home() {
@@ -17,7 +19,9 @@ export default function Home() {
         <Features />
         <MotionSection />
         <Install />
+        <Faq />
         <DownloadCTA />
+        <Contact />
       </main>
       <Footer />
     </div>
