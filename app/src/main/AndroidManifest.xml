@@ -85,6 +85,12 @@
             </intent-filter>
         </service>
 
+        <!-- Receives the in-app updater's install-session status, and launches the
+             system confirm dialog when the session asks for user action. -->
+        <receiver
+            android:name=".update.UpdateInstallReceiver"
+            android:exported="false" />
+
         <!-- Shares diagnostic dumps out through the share sheet; with no USB on
              the test device this is the only way to get text off the phone. -->
         <provider
