@@ -52,6 +52,7 @@ fun IslandPill(
     message: String?,
     maxWidthPx: Int,
     onCollapsedWidth: (Int) -> Unit,
+    onPillWidth: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -62,6 +63,13 @@ fun IslandPill(
 
     Row(
         modifier = modifier
+            // Outermost, so it reports the pill's full width -- padding, border
+            // and message included. The host resizes the overlay window to it: a
+            // WRAP_CONTENT overlay does not reliably relayout itself when the
+            // content grows, so without this the message is measured but the
+            // window never widens and the line is clipped to nothing -- which
+            // read as "no text on a milestone".
+            .onSizeChanged { onPillWidth(it.width) }
             .background(PillInk, RoundedCornerShape(50))
             // A single static hairline -- no count-reactive red. The climbing
             // "damage" now lives entirely in the emoji ladder, which reads cool

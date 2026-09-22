@@ -49,6 +49,9 @@ class OverlayHost(
     /** The last collapsed width seen, so identical measurements cost nothing. */
     private var lastCollapsedWidth = -1
 
+    /** The last full pill width the window was resized to, to skip no-op work. */
+    private var lastFullWidth = -1
+
     /**
      * How wide the pill may grow, in pixels.
      *
@@ -87,20 +90,17 @@ class OverlayHost(
                 val count by counts.collectAsState()
                 val message by announcer.message.collectAsState()
                 val maxWidth by availableWidth.collectAsState()
-                // The window is WRAP_CONTENT and anchored to the parked edge, so a
-                // message simply grows the pill inward to fit the line -- no window
-                // widening, no full-width stretch. The pill's own widthIn(max) keeps
-                // it inside the room it has.
+                // The window is centred and WRAP_CONTENT. A message grows the
+                // pill; the host resizes the window to the pill's measured width
+                // (onPillWidth) so it actually widens, and keeps it centred so it
+                // spreads both ways. onCollapsedWidth reports only the core, which
+                // is what the resting centre is measured against.
                 IslandPill(
                     count = count,
                     message = message,
                     maxWidthPx = maxWidth,
-                    // Reports the width of the pill without its message, which
-                    // is the only width this window is ever placed against. An
-                    // expanded pill must never influence where the pill rests,
-                    // and it does not need to: the anchored edge is fixed, so
-                    // the window grows inward by itself when a message arrives.
                     onCollapsedWidth = ::onCollapsedMeasured,
+                    onPillWidth = ::onPillMeasured,
                 )
             }
             setOnTouchListener(DragListener(layout))
@@ -132,6 +132,7 @@ class OverlayHost(
         // The next show builds fresh params, so the remembered width belongs to
         // a window that no longer exists and must not suppress its placement.
         lastCollapsedWidth = -1
+        lastFullWidth = -1
     }
 
     private fun buildParams(): WindowManager.LayoutParams {
@@ -171,6 +172,7 @@ class OverlayHost(
         }
 
         lastCollapsedWidth = -1
+        lastFullWidth = -1
         availableWidth.value =
             OverlayPlacement.symmetricWidth(placement.restingCenter, screenWidth, marginPx)
         return layout
@@ -193,6 +195,23 @@ class OverlayHost(
 
         lastCollapsedWidth = width
         applyPlacement(view, layout, placement.onCollapsedMeasure(width, screenWidth, marginPx))
+    }
+
+    /**
+     * Resizes the overlay window to the pill's full measured width.
+     *
+     * A `WRAP_CONTENT` overlay does not reliably grow itself when its content
+     * grows, so a message would be laid out but the window would stay collapsed
+     * and clip it. Re-applying the layout forces a relayout to the new size;
+     * the params are unchanged (still `WRAP_CONTENT`, still centre-anchored), so
+     * the window stays centred on the resting spot and spreads both ways.
+     */
+    private fun onPillMeasured(width: Int) {
+        if (width <= 0 || width == lastFullWidth) return
+        val view = composeView ?: return
+        val layout = params ?: return
+        lastFullWidth = width
+        view.post { runCatching { windowManager.updateViewLayout(view, layout) } }
     }
 
     /** Applies a resolved [Placement] to the window, if anything changed. */
