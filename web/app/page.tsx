@@ -9,15 +9,17 @@ import { Footer } from "@/components/Footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-canvas text-ink">
+    <div className="min-h-screen bg-canvas text-ink">
       <Nav />
-      <Hero />
-      <Pitch />
-      <Features />
-      <MotionSection />
-      <Install />
-      <DownloadCTA />
+      <main>
+        <Hero />
+        <Pitch />
+        <Features />
+        <MotionSection />
+        <Install />
+        <DownloadCTA />
+      </main>
       <Footer />
-    </main>
+    </div>
   );
 }

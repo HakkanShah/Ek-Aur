@@ -46,13 +46,16 @@ export function Hero() {
           </Reveal>
 
           <Reveal delay={0.24}>
-            <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:gap-4">
               <DownloadButton className="items-start" />
               <a
-                href="#how"
-                className="text-sm font-semibold text-ink/70 underline-offset-4 hover:text-ink hover:underline"
+                href="#see"
+                className="group inline-flex items-center justify-center gap-2 rounded-full border border-hairline bg-white px-6 py-3.5 text-[15px] font-semibold text-ink shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-ash/60 hover:shadow-md active:scale-[0.97]"
               >
-                See how it works ↓
+                See how it works
+                <span aria-hidden className="transition-transform duration-200 group-hover:translate-y-0.5">
+                  ↓
+                </span>
               </a>
             </div>
           </Reveal>

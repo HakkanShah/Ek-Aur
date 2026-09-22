@@ -3,7 +3,7 @@ import { Reveal } from "./Reveal";
 
 export function DownloadCTA() {
   return (
-    <section className="mx-auto max-w-6xl px-5 pb-24">
+    <section id="get" className="mx-auto max-w-6xl scroll-mt-24 px-5 pb-24">
       <Reveal>
         <div className="ig-gradient relative overflow-hidden rounded-[36px] px-6 py-16 text-center shadow-pill sm:px-10 sm:py-20">
           {/* soft glow accents */}

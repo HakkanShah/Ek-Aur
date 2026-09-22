@@ -1,4 +1,3 @@
-import { DownloadButton } from "./DownloadButton";
 import { Reveal } from "./Reveal";
 
 function Step({
@@ -49,9 +48,13 @@ export function Install() {
               </p>
             </div>
 
-            <div className="mt-8 hidden md:block">
-              <DownloadButton className="items-start" />
-            </div>
+            <a
+              href="#get"
+              className="mt-8 hidden items-center gap-2 text-sm font-semibold text-blue underline-offset-4 hover:underline md:inline-flex"
+            >
+              Jump to download
+              <span aria-hidden>↓</span>
+            </a>
           </div>
         </Reveal>
 
@@ -92,17 +95,13 @@ export function Install() {
                 </Step>
                 <Step n={2} title="“App not installed”? It's a downgrade">
                   That just means a newer build is already on your phone. Grab the newest file — the
-                  Download button here always points to it.
+                  Download button up top always points to it.
                 </Step>
                 <Step n={3} title="After that, it updates itself">
                   Ek Aur checks this same release page and offers a one-tap update — you never chase
                   APKs again.
                 </Step>
               </div>
-            </div>
-
-            <div className="md:hidden">
-              <DownloadButton className="items-start" />
             </div>
           </div>
         </Reveal>

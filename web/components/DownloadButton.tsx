@@ -86,11 +86,11 @@ export function DownloadButton({
       : "Latest release · Android 8+";
 
   const base =
-    "group inline-flex min-w-[230px] items-center justify-center gap-2.5 rounded-full px-6 py-3.5 text-[15px] font-semibold transition-transform duration-200 active:scale-[0.97] hover:-translate-y-0.5 ";
+    "group inline-flex min-w-[236px] items-center justify-center gap-2.5 rounded-full px-6 py-3.5 text-[15px] font-semibold transition-all duration-200 active:scale-[0.97] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acid/45 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ";
   const styles = {
-    solid: "ig-gradient text-white shadow-pill",
-    ghost: "grad-border bg-white text-ink",
-    white: "bg-white text-ink shadow-pill",
+    solid: "ig-gradient text-white shadow-pill hover:brightness-[1.05] hover:shadow-[0_26px_70px_-14px_rgba(129,52,175,0.6)]",
+    ghost: "grad-border bg-white text-ink hover:shadow-md",
+    white: "bg-white text-ink shadow-pill hover:shadow-[0_26px_70px_-14px_rgba(0,0,0,0.28)]",
   } as const;
 
   return (
