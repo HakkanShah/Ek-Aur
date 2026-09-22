@@ -37,22 +37,52 @@ function Tile({ n, label }: { n: string; label: string }) {
   );
 }
 
-function Rank({ r, name, n }: { r: number; name: string; n: number }) {
+const MEDAL: Record<number, string> = { 1: "#F5B301", 2: "#B6BECC", 3: "#CD7F45" };
+
+/** A race row like the app leaderboard: ranked, ringed avatar, and a bar to the leader. */
+function RaceRow({
+  r,
+  name,
+  n,
+  leader,
+  you = false,
+}: {
+  r: number;
+  name: string;
+  n: number;
+  leader: number;
+  you?: boolean;
+}) {
+  const pct = Math.max(6, Math.round((n / leader) * 100));
   return (
-    <div className="flex items-center gap-2.5">
+    <div className={"flex items-center gap-2.5 rounded-xl px-1.5 py-1 " + (you ? "bg-lav/70" : "")}>
       <span
-        className={
-          "grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold " +
-          (r <= 3 ? "ig-gradient text-white" : "bg-lav text-smoke")
-        }
+        className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-extrabold text-white"
+        style={{ backgroundColor: MEDAL[r] ?? "#B4B4C0" }}
       >
         {r}
       </span>
-      <span className="ig-gradient grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold text-white">
-        {name.charAt(0).toUpperCase()}
+      {/* stories-style gradient ring around the avatar */}
+      <span className="ig-gradient grid h-8 w-8 shrink-0 place-items-center rounded-full p-[1.5px]">
+        <span className="grid h-full w-full place-items-center rounded-full bg-white text-[11px] font-bold text-ink">
+          {name.charAt(0).toUpperCase()}
+        </span>
       </span>
-      <span className="flex-1 truncate text-[13px] font-medium text-ink">{name}</span>
-      <span className="text-[13px] font-bold text-ink tabular-nums">{n}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className={"truncate text-[13px] font-semibold " + (you ? "text-acid" : "text-ink")}>
+            {name}
+            {you ? " (you)" : ""}
+          </span>
+          <span className="shrink-0 text-[13px] font-bold text-ink tabular-nums">{n}</span>
+        </div>
+        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-lav">
+          <div
+            className={(you ? "bg-acid " : "ig-gradient ") + "h-full rounded-full"}
+            style={{ width: pct + "%" }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -98,10 +128,10 @@ export function Features() {
             title="One global leaderboard"
             desc="Everyone who installs it is on one list, ranked on today's reels. No adding friends, no join step."
           >
-            <div className="w-full space-y-2.5">
-              <Rank r={1} name="rohan" n={402} />
-              <Rank r={2} name="hakkan" n={137} />
-              <Rank r={3} name="priya" n={96} />
+            <div className="w-full space-y-1.5">
+              <RaceRow r={1} name="rohan" n={402} leader={402} />
+              <RaceRow r={2} name="hakkan" n={137} leader={402} you />
+              <RaceRow r={3} name="priya" n={96} leader={402} />
             </div>
           </Card>
         </Reveal>
