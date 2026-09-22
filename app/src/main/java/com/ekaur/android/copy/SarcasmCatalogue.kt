@@ -101,30 +101,70 @@ object SarcasmCatalogue {
             "Triple digits. impressive. concerning.",
             "100 reels. easy. 😈",
         ),
+        "reels_150" to listOf(
+            "150. no brakes on this thing. 😵‍💫",
+            "One-fifty. the thumb has opinions now.",
+            "150 deep and picking up speed.",
+        ),
         "reels_200" to listOf(
             "200. this stopped being a hobby.",
             "Double century. a legend, technically.",
             "200. scientists are confused.",
+        ),
+        "reels_250" to listOf(
+            "250. quarter of a thousand. 😈",
+            "Two-fifty. the feed calls you boss.",
+            "250 reels. no witnesses.",
         ),
         "reels_300" to listOf(
             "300. the feed fears you now.",
             "Three hundred. no notes. 💀",
             "300 deep. touch grass? never.",
         ),
+        "reels_400" to listOf(
+            "400. this is your Roman Empire. 💀",
+            "Four hundred. the thumb ascends.",
+            "400 reels. absolutely feral.",
+        ),
         "reels_500" to listOf(
             "500. send the thumb to the olympics.",
             "500 reels. history, of a sort.",
             "500. no records left to break. ☠️",
+        ),
+        "reels_600" to listOf(
+            "600. the algorithm filed a complaint.",
+            "Six hundred. unhinged. iconic. 💀",
+            "600 reels, zero regrets. (some regrets.)",
         ),
         "reels_750" to listOf(
             "750. this is a lifestyle now.",
             "Seven-fifty. the algorithm bows.",
             "750 reels. genuinely unwell. 💀",
         ),
+        "reels_800" to listOf(
+            "800. the phone is scared of you. ☠️",
+            "Eight hundred. certified menace.",
+            "800 reels. we stopped counting for you.",
+        ),
         "reels_1000" to listOf(
             "1000. a thousand. legendary. ☠️",
             "Four digits. touch grass immediately.",
             "1K reels. they'll study you.",
+        ),
+        "reels_1250" to listOf(
+            "1250. a full-time job now. 💀",
+            "Twelve-fifty. the thumb unionised.",
+            "1.25K reels. simply not okay.",
+        ),
+        "reels_1500" to listOf(
+            "1500. seek help (later). ☠️",
+            "1.5K reels. record-breaking, personal-worst.",
+            "1500. the grass misses you.",
+        ),
+        "reels_2000" to listOf(
+            "2000. a cautionary tale. ☠️",
+            "2K reels. they write songs about this.",
+            "2000. the thumb has transcended.",
         ),
         "session_30" to listOf(
             "30 minutes straight. locked in.",

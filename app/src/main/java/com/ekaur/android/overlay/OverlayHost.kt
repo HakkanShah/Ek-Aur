@@ -46,14 +46,8 @@ class OverlayHost(
     /** Where the pill rests. Never written while a message is on screen. */
     private val placement = PillPlacement()
 
-    /** Which edge the window is anchored to right now. */
-    private var anchoredRight = false
-
     /** The last collapsed width seen, so identical measurements cost nothing. */
     private var lastCollapsedWidth = -1
-
-    /** Set when a drag ended mid-message and its anchoring still has to land. */
-    private var placementPending = false
 
     /**
      * How wide the pill may grow, in pixels.
@@ -138,7 +132,6 @@ class OverlayHost(
         // The next show builds fresh params, so the remembered width belongs to
         // a window that no longer exists and must not suppress its placement.
         lastCollapsedWidth = -1
-        placementPending = false
     }
 
     private fun buildParams(): WindowManager.LayoutParams {
@@ -160,53 +153,45 @@ class OverlayHost(
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            // Absolute LEFT rather than START: an RTL locale must not flip which
-            // edge the pill is anchored to. Swapped to RIGHT once the collapsed
-            // width is known and the pill turns out to be parked on that half.
-            gravity = Gravity.TOP or Gravity.LEFT
-            // Clamped on read: a position stored by an older build, or one that
-            // no longer fits after a rotation, must never be applied off-screen.
-            val (safeX, safeY) = OverlayPlacement.clampOrigin(
-                x = prefs.x(defaultX()),
+            // Centre-anchored: the window's centre stays put and the pill grows
+            // symmetrically around it, so a message spreads equally both ways.
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            // Clamped on read: a centre stored by an older build, or one that no
+            // longer fits after a rotation, must never be applied off-screen.
+            val (safeCenter, safeY) = OverlayPlacement.clampOriginCenter(
+                center = prefs.x(defaultCenter()),
                 y = prefs.y(DEFAULT_Y),
                 screenWidth = screenWidth,
                 screenHeight = screenHeight,
                 margin = marginPx,
             )
-            x = safeX
+            x = OverlayPlacement.centerOffset(safeCenter, screenWidth)
             y = safeY
+            placement.settle(safeCenter)
         }
 
-        // The window starts left-anchored at the stored position, which is the
-        // same absolute place it would sit under either anchoring. If the pill
-        // turns out to be parked on the right half, the first collapsed
-        // measurement swaps the gravity for an identical position -- so the
-        // swap is invisible, and nothing has moved.
-        anchoredRight = false
         lastCollapsedWidth = -1
-        placementPending = false
-        placement.settle(layout.x)
         availableWidth.value =
-            OverlayPlacement.availableWidth(layout.x, screenWidth, marginPx)
+            OverlayPlacement.symmetricWidth(placement.restingCenter, screenWidth, marginPx)
         return layout
     }
 
     /**
-     * Learns where the pill rests, and anchors the window to the nearer edge.
+     * Learns where the pill rests and centres the window on it.
      *
      * Runs only for collapsed measurements, and in practice only when the pill
      * is first shown or the number gains a digit. A message never reaches this:
-     * the anchored edge stays fixed while the window grows inward, so there is
-     * nothing to reposition and nothing that could overwrite the resting spot.
+     * the core (face + number) is measured on its own, so its width does not
+     * change when a line appears, and the centre stays fixed while the window
+     * grows symmetrically.
      */
     private fun onCollapsedMeasured(width: Int) {
         if (width <= 0) return
-        if (width == lastCollapsedWidth && !placementPending) return
+        if (width == lastCollapsedWidth) return
         val view = composeView ?: return
         val layout = params ?: return
 
         lastCollapsedWidth = width
-        placementPending = false
         applyPlacement(view, layout, placement.onCollapsedMeasure(width, screenWidth, marginPx))
     }
 
@@ -217,23 +202,18 @@ class OverlayHost(
         placed: Placement,
     ) {
         availableWidth.value = placed.availableWidth
+        if (layout.x == placed.offset) return
 
-        val edge = if (placed.anchorsRight) Gravity.RIGHT else Gravity.LEFT
-        val gravity = Gravity.TOP or edge
-        if (layout.gravity == gravity && layout.x == placed.offset) return
-
-        layout.gravity = gravity
         layout.x = placed.offset
-        anchoredRight = placed.anchorsRight
         // Posted rather than applied inline: this runs from layout, and the
         // window manager must not be reentered mid-pass.
         view.post { runCatching { windowManager.updateViewLayout(view, layout) } }
     }
 
-    private fun defaultX(): Int {
-        val width = context.resources.displayMetrics.widthPixels
-        // Roughly centred; the pill is small and centres itself well enough.
-        return (width * 0.42f).roundToInt()
+    private fun defaultCenter(): Int {
+        // Dead-centre at the top, so the pill reads like a status island by
+        // default and a message opens evenly to both sides.
+        return context.resources.displayMetrics.widthPixels / 2
     }
 
     /** Brings the app to the front -- what a double-tap on the pill does. */
@@ -250,7 +230,8 @@ class OverlayHost(
         private val layout: WindowManager.LayoutParams,
     ) : android.view.View.OnTouchListener {
 
-        private var startX = 0
+        // The pill's centre when the drag began, in absolute screen pixels.
+        private var startCenter = 0
         private var startY = 0
         private var touchX = 0f
         private var touchY = 0f
@@ -267,11 +248,16 @@ class OverlayHost(
             },
         )
 
+        // The width to clamp the centre against: the resting pill, not whatever
+        // wide thing a message has made the view right now.
+        private fun clampWidth(view: android.view.View): Int =
+            if (lastCollapsedWidth > 0) lastCollapsedWidth else view.width
+
         override fun onTouch(view: android.view.View, event: MotionEvent): Boolean {
             gesture.onTouchEvent(event)
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    startX = layout.x
+                    startCenter = layout.x + screenWidth / 2
                     startY = layout.y
                     touchX = event.rawX
                     touchY = event.rawY
@@ -279,17 +265,16 @@ class OverlayHost(
                 }
 
                 MotionEvent.ACTION_MOVE -> {
-                    // x is measured from the anchored edge, so under right
-                    // anchoring the offset shrinks as the finger moves right.
+                    // The centre moves with the finger, clamped so the collapsed
+                    // pill can never be pushed off the display and left stranded.
                     val travel = (event.rawX - touchX).roundToInt()
-                    // Clamped so the pill cannot be pushed off the display and
-                    // left unreachable.
-                    layout.x = OverlayPlacement.clamp(
-                        x = startX + if (anchoredRight) -travel else travel,
-                        width = view.width,
+                    val center = OverlayPlacement.clampCenter(
+                        center = startCenter + travel,
+                        width = clampWidth(view),
                         screenWidth = screenWidth,
                         margin = marginPx,
                     )
+                    layout.x = OverlayPlacement.centerOffset(center, screenWidth)
                     val maxY = (screenHeight - view.height).coerceAtLeast(0)
                     layout.y = (startY + (event.rawY - touchY).roundToInt()).coerceIn(0, maxY)
                     runCatching { windowManager.updateViewLayout(view, layout) }
@@ -297,28 +282,13 @@ class OverlayHost(
                 }
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    // Dropping it on the other half of the screen flips which
-                    // way the next message opens. Dropping it while a message is
-                    // showing keeps the anchored edge, so the pill stays under
-                    // where it was let go once the message goes.
-                    val placed = placement.onDragEnd(
-                        offset = layout.x,
-                        anchoredRight = anchoredRight,
-                        viewWidth = view.width,
-                        screenWidth = screenWidth,
-                        margin = marginPx,
-                    )
-                    if (lastCollapsedWidth > 0 && view.width > lastCollapsedWidth) {
-                        // A message is still on screen. Re-anchoring now would
-                        // shift the line mid-sentence and re-measure it, so the
-                        // new anchoring lands when the pill next collapses.
-                        placementPending = true
-                    } else {
-                        applyPlacement(view, layout, placed)
-                    }
-                    // The resting left edge is stored, never a dragged offset or
-                    // an expanded one, so a reload lands back on the same spot.
-                    prefs.save(placement.restingLeft, layout.y)
+                    // The centre where it was let go becomes the resting centre.
+                    // Because the window stays centred, the pill collapses back
+                    // under exactly here, message on screen or not.
+                    val center = layout.x + screenWidth / 2
+                    val placed = placement.onDragEnd(center, screenWidth, marginPx)
+                    applyPlacement(view, layout, placed)
+                    prefs.save(placement.restingCenter, layout.y)
                     return true
                 }
             }

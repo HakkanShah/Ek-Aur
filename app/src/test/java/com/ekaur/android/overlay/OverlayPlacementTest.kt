@@ -1,7 +1,6 @@
 package com.ekaur.android.overlay
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,86 +11,85 @@ private const val COLLAPSED = 120
 class OverlayPlacementTest {
 
     @Test
-    fun `a pill on the left half anchors left`() {
-        assertFalse(OverlayPlacement.anchorsRight(x = 40, width = COLLAPSED, screenWidth = SCREEN))
+    fun `a centre is clamped so the pill stays fully on screen`() {
+        val half = COLLAPSED / 2
+        assertEquals(
+            "hard left is pushed in by half the pill",
+            MARGIN + half,
+            OverlayPlacement.clampCenter(-500, COLLAPSED, SCREEN, MARGIN),
+        )
+        assertEquals(
+            "hard right is pulled in by half the pill",
+            SCREEN - MARGIN - half,
+            OverlayPlacement.clampCenter(SCREEN + 500, COLLAPSED, SCREEN, MARGIN),
+        )
+        assertEquals(
+            "a centre already inside is left alone",
+            SCREEN / 2,
+            OverlayPlacement.clampCenter(SCREEN / 2, COLLAPSED, SCREEN, MARGIN),
+        )
     }
 
     @Test
-    fun `a pill on the right half anchors right`() {
-        val x = SCREEN - MARGIN - COLLAPSED
-        assertTrue(OverlayPlacement.anchorsRight(x = x, width = COLLAPSED, screenWidth = SCREEN))
-    }
-
-
-
-
-    @Test
-    fun `dragging cannot push the pill off either edge`() {
-        val farLeft = OverlayPlacement.clamp(-500, COLLAPSED, SCREEN, MARGIN)
-        val farRight = OverlayPlacement.clamp(SCREEN + 500, COLLAPSED, SCREEN, MARGIN)
-
-        assertEquals(MARGIN, farLeft)
-        assertEquals(SCREEN - COLLAPSED - MARGIN, farRight)
+    fun `symmetric width is the full inner width at centre`() {
+        assertEquals(
+            SCREEN - 2 * MARGIN,
+            OverlayPlacement.symmetricWidth(SCREEN / 2, SCREEN, MARGIN),
+        )
     }
 
     @Test
-    fun `a position saved beyond the right edge comes back on screen`() {
-        // An earlier build let the pill be dragged off the display entirely,
-        // with no way to retrieve it. A stored position like this must never be
-        // applied as-is.
-        val (x, y) = OverlayPlacement.clampOrigin(
-            x = SCREEN + 900,
-            y = 200,
-            screenWidth = SCREEN,
-            screenHeight = 2400,
-            margin = MARGIN,
+    fun `symmetric width shrinks toward an edge but never below the pill`() {
+        // Parked hard against the left (centre = margin + half): the symmetric
+        // room is exactly the pill's width, so the pill fits and a message wraps.
+        val half = COLLAPSED / 2
+        val center = OverlayPlacement.clampCenter(0, COLLAPSED, SCREEN, MARGIN)
+        val width = OverlayPlacement.symmetricWidth(center, SCREEN, MARGIN)
+
+        assertEquals(2 * half, width)
+        assertTrue("the resting pill must always fit", width >= COLLAPSED - 1)
+    }
+
+    @Test
+    fun `the centre offset places a CENTER_HORIZONTAL window on the centre`() {
+        assertEquals(0, OverlayPlacement.centerOffset(SCREEN / 2, SCREEN))
+        assertEquals(-200, OverlayPlacement.centerOffset(SCREEN / 2 - 200, SCREEN))
+        assertEquals(200, OverlayPlacement.centerOffset(SCREEN / 2 + 200, SCREEN))
+    }
+
+    @Test
+    fun `a centre saved off either edge comes back on screen`() {
+        val (right, _) = OverlayPlacement.clampOriginCenter(
+            center = SCREEN + 900, y = 200, screenWidth = SCREEN, screenHeight = 2400, margin = MARGIN,
+        )
+        val (left, _) = OverlayPlacement.clampOriginCenter(
+            center = -4_000, y = 200, screenWidth = SCREEN, screenHeight = 2400, margin = MARGIN,
         )
 
-        assertTrue("x=$x still off screen", x in MARGIN..(SCREEN - MARGIN))
-        assertEquals(200, y)
+        assertTrue("right=$right off screen", right in MARGIN..(SCREEN - MARGIN))
+        assertEquals(MARGIN, left)
     }
 
     @Test
-    fun `a position saved beyond the left edge or above the top comes back`() {
-        val (x, y) = OverlayPlacement.clampOrigin(
-            x = -4_000,
-            y = -900,
-            screenWidth = SCREEN,
-            screenHeight = 2400,
-            margin = MARGIN,
+    fun `a y saved beyond the top or bottom comes back`() {
+        val (_, top) = OverlayPlacement.clampOriginCenter(
+            center = 100, y = -900, screenWidth = SCREEN, screenHeight = 2400, margin = MARGIN,
+        )
+        val (_, bottom) = OverlayPlacement.clampOriginCenter(
+            center = 100, y = 5_000, screenWidth = SCREEN, screenHeight = 2400, margin = MARGIN,
         )
 
-        assertEquals(MARGIN, x)
-        assertEquals(0, y)
+        assertEquals(0, top)
+        assertTrue("y=$bottom below the display", bottom <= 2400 - MARGIN)
     }
 
     @Test
-    fun `a position saved below the bottom comes back`() {
-        // What a rotation from landscape to portrait can leave behind.
-        val (_, y) = OverlayPlacement.clampOrigin(
-            x = 100,
-            y = 5_000,
-            screenWidth = SCREEN,
-            screenHeight = 2400,
-            margin = MARGIN,
-        )
-
-        assertTrue("y=$y below the display", y <= 2400 - MARGIN)
-    }
-
-    @Test
-    fun `no stored position can land the window off screen`() {
-        // Sweep well past both edges rather than checking a couple of samples.
+    fun `no stored centre can land the window off screen`() {
         for (saved in -2_000..(SCREEN + 2_000) step 50) {
-            val (x, _) = OverlayPlacement.clampOrigin(
-                x = saved,
-                y = 0,
-                screenWidth = SCREEN,
-                screenHeight = 2400,
-                margin = MARGIN,
+            val (cx, _) = OverlayPlacement.clampOriginCenter(
+                center = saved, y = 0, screenWidth = SCREEN, screenHeight = 2400, margin = MARGIN,
             )
-            assertTrue("saved=$saved produced x=$x", x in MARGIN..(SCREEN - MARGIN))
+            assertTrue("saved=$saved produced cx=$cx", cx in MARGIN..(SCREEN - MARGIN))
         }
     }
-
 }

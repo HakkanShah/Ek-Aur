@@ -32,7 +32,10 @@ class OverlayPrefs(context: Context) {
 
     private companion object {
         const val NAME = "overlay"
-        const val KEY_X = "x"
-        const val KEY_Y = "y"
+        // "cx"/"cy": the pill is now stored by its centre. New keys so a
+        // left-edge position saved by an older build isn't misread as a centre --
+        // the pill just starts at its default centre once after upgrading.
+        const val KEY_X = "cx"
+        const val KEY_Y = "cy"
     }
 }

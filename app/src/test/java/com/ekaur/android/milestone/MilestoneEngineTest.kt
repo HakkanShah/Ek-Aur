@@ -49,7 +49,10 @@ class MilestoneEngineTest {
         assertEquals("reels_300", outcome?.announce?.id)
         assertEquals(
             "smaller thresholds should be retired, not queued up",
-            setOf("reels_25", "reels_50", "reels_100", "reels_200", "reels_300"),
+            setOf(
+                "reels_25", "reels_50", "reels_100", "reels_150",
+                "reels_200", "reels_250", "reels_300",
+            ),
             outcome?.spent?.toSet(),
         )
     }
