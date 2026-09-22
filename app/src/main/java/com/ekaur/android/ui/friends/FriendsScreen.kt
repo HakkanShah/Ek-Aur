@@ -1,9 +1,15 @@
 package com.ekaur.android.ui.friends
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,7 +49,6 @@ import com.ekaur.android.data.remote.LeaderboardRow
 import com.ekaur.android.di.AppContainer
 import com.ekaur.android.sync.Avatar
 import com.ekaur.android.ui.common.Card
-import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.UserAvatar
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
@@ -65,6 +71,43 @@ private fun medalFor(rank: Int): Color = when (rank) {
     1 -> Gold
     2 -> Silver
     else -> Bronze
+}
+
+/** A soft pill with a refresh glyph that spins while the board is loading. */
+@Composable
+private fun RefreshChip(loading: Boolean, onClick: () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "refresh")
+    val spin by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "spin",
+    )
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(SurfaceLav)
+            .clickable(enabled = !loading, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "↻",
+            style = MaterialTheme.typography.titleLarge,
+            color = Chalk,
+            modifier = Modifier.graphicsLayer { rotationZ = if (loading) spin else 0f },
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = if (loading) "Loading" else "Refresh",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Chalk,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
 }
 
 /**
@@ -142,10 +185,7 @@ fun FriendsScreen(
                     color = Smoke,
                 )
             }
-            FlatButton(
-                text = if (loading) "..." else "refresh",
-                onClick = { if (!loading) scope.launch { refresh() } },
-            )
+            RefreshChip(loading = loading, onClick = { if (!loading) scope.launch { refresh() } })
         }
 
         Spacer(Modifier.height(16.dp))

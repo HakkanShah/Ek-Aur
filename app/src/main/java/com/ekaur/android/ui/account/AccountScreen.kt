@@ -223,7 +223,7 @@ fun AccountScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FlatButton(
-                    text = if (avatarVersion == null) "Choose photo" else "Change photo",
+                    text = if (avatarVersion == null) "Add photo" else "New photo",
                     emphasised = !uploading,
                     modifier = Modifier.weight(1f),
                     onClick = {

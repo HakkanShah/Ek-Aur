@@ -1,7 +1,12 @@
 package com.ekaur.android.ui.common
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,18 +26,25 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Ink
+import com.ekaur.android.ui.theme.Poppins
 import com.ekaur.android.ui.theme.SurfaceLav
 import com.ekaur.android.ui.theme.Smoke
 import com.ekaur.android.ui.theme.instaGradient
@@ -62,9 +74,14 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * A pill button. [emphasised] fills it with the gradient (the one main action);
- * otherwise a soft lavender fill for everything secondary -- no outlines
- * anywhere, the whole app is soft-filled shapes now.
+ * A pill button. [emphasised] fills it with the gradient (the one main action)
+ * and lifts on a soft shadow; otherwise a soft lavender fill for everything
+ * secondary -- no outlines anywhere, the whole app is soft-filled shapes now.
+ *
+ * The label is a dedicated 15sp button size (titleLarge at 18sp was too big and
+ * clipped words like "Change photo" in a half-width row), single line with an
+ * ellipsis as a last resort so nothing is ever cut mid-glyph, and every tap
+ * answers with a quick squish.
  */
 @Composable
 fun FlatButton(
@@ -74,27 +91,47 @@ fun FlatButton(
     emphasised: Boolean = false,
 ) {
     val shape = RoundedCornerShape(percent = 50)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.95f else 1f,
+        animationSpec = tween(90, easing = FastOutSlowInEasing),
+        label = "press",
+    )
     Box(
         modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .then(
+                if (emphasised) Modifier.shadow(12.dp, shape, clip = false, spotColor = Acid)
+                else Modifier
+            )
             .clip(shape)
             .then(
                 if (emphasised) Modifier.background(brush = instaGradient())
                 else Modifier.background(color = SurfaceLav)
             )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 22.dp, vertical = 13.dp),
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 13.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
+            style = ButtonTextStyle,
             color = if (emphasised) Ink else Chalk,
             maxLines = 1,
             softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }
+
+private val ButtonTextStyle = TextStyle(
+    fontFamily = Poppins,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 15.sp,
+    letterSpacing = 0.1.sp,
+)
 
 /** A number painted with the Instagram gradient. The app's one hero figure. */
 @Composable

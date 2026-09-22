@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -416,10 +417,16 @@ private fun HomeScreen(
                     letterSpacing = 2.sp,
                 )
             }
+            // A stories-style gradient ring, matching the leaderboard avatars.
             Box(
                 Modifier
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .clickable(onClick = onOpenAccount),
+                    .clickable(onClick = onOpenAccount)
+                    .background(brush = instaGradient())
+                    .padding(2.5.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color.White)
+                    .padding(2.dp),
             ) {
                 UserAvatar(
                     username = username.orEmpty(),
@@ -428,45 +435,61 @@ private fun HomeScreen(
                         userId = container.settings.userId.orEmpty(),
                         version = container.settings.avatarVersion,
                     ),
-                    size = 44.dp,
+                    size = 42.dp,
                 )
             }
         }
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(18.dp))
 
-        // The hero number and its label together inside a soft glow.
-        Box(
-            Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                Modifier
-                    .size(260.dp)
-                    .background(
+        // The hero number and its label, sitting on a soft radial glow drawn
+        // behind the content so it adds atmosphere without adding empty height.
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(SurfaceLav, Color.Transparent),
+                            center = center,
+                            radius = size.width * 0.42f,
                         ),
-                        shape = androidx.compose.foundation.shape.CircleShape,
+                        radius = size.width * 0.42f,
+                        center = center,
                     )
+                }
+                .padding(vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            GradientNumber(
+                text = count.toString(),
+                style = MaterialTheme.typography.displayLarge,
             )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                GradientNumber(
-                    text = count.toString(),
-                    style = MaterialTheme.typography.displayLarge,
-                )
-                Text("Reels today", style = MaterialTheme.typography.bodyLarge, color = Smoke)
-                if (activeMs > 0) {
+            Text(
+                "Reels today",
+                style = MaterialTheme.typography.titleLarge,
+                color = Smoke,
+                fontWeight = FontWeight.Medium,
+            )
+            if (activeMs > 0) {
+                Spacer(Modifier.height(10.dp))
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(SurfaceLav)
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                ) {
                     Text(
                         text = formatDuration(activeMs) + " watched",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Ash,
+                        color = Smoke,
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(22.dp))
 
         // A compact summary row.
         Row(
