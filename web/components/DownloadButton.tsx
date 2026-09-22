@@ -86,7 +86,7 @@ export function DownloadButton({
       : "Latest release · Android 8+";
 
   const base =
-    "group inline-flex min-w-[236px] items-center justify-center gap-2.5 rounded-full px-6 py-3.5 text-[15px] font-semibold transition-all duration-200 active:scale-[0.97] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acid/45 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ";
+    "group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-6 py-3.5 text-[15px] font-semibold transition-all duration-200 active:scale-[0.97] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acid/45 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas sm:w-auto sm:min-w-[236px] ";
   const styles = {
     solid: "ig-gradient text-white shadow-pill hover:brightness-[1.05] hover:shadow-[0_26px_70px_-14px_rgba(129,52,175,0.6)]",
     ghost: "grad-border bg-white text-ink hover:shadow-md",
@@ -94,7 +94,7 @@ export function DownloadButton({
   } as const;
 
   return (
-    <div className={"flex flex-col items-center gap-2 " + className}>
+    <div className={"flex w-full flex-col items-center gap-2 sm:w-auto " + className}>
       <a
         href="/api/download"
         onClick={handleClick}
