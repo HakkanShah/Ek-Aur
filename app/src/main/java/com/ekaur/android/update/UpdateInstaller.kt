@@ -69,7 +69,12 @@ object UpdateInstaller {
 
     /** A PendingIntent the session posts install status (and the confirm UI) to. */
     private fun statusSender(context: Context, sessionId: Int): IntentSender {
-        val intent = Intent(ACTION_INSTALL_STATUS).setPackage(context.packageName)
+        // Explicit target: the receiver has no intent-filter, so an action-only
+        // intent would never reach it and the "confirm" callback would vanish --
+        // which is exactly why tapping Install did nothing. Naming the component
+        // delivers it regardless of any filter.
+        val intent = Intent(context, UpdateInstallReceiver::class.java)
+            .setAction(ACTION_INSTALL_STATUS)
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         } else {
