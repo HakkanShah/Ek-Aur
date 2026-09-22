@@ -15,8 +15,8 @@ android {
         applicationId = "com.ekaur.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 44
-        versionName = "0.18.8"
+        versionCode = 45
+        versionName = "0.18.9"
 
         // The GitHub repo the in-app updater reads releases from.
         buildConfigField("String", "UPDATE_REPO", "\"HakkanShah/Ek-Aur\"")
