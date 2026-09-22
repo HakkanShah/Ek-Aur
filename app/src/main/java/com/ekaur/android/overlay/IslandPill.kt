@@ -8,8 +8,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -52,7 +54,6 @@ fun IslandPill(
     message: String?,
     maxWidthPx: Int,
     onCollapsedWidth: (Int) -> Unit,
-    onPillWidth: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -61,15 +62,16 @@ fun IslandPill(
     }
     val paddingPx = with(density) { (H_PADDING * 2).roundToPx() }
 
+    // While a message shows, the host widens the window to make room; this box
+    // fills that width and centres the pill in it, so the pill grows evenly to
+    // both sides (dynamic-island style) and the line is never clipped. Collapsed,
+    // the window is wrap-content, so filling it keeps the pill exactly its size.
+    Box(
+        modifier = modifier.then(if (message != null) Modifier.fillMaxWidth() else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
     Row(
-        modifier = modifier
-            // Outermost, so it reports the pill's full width -- padding, border
-            // and message included. The host resizes the overlay window to it: a
-            // WRAP_CONTENT overlay does not reliably relayout itself when the
-            // content grows, so without this the message is measured but the
-            // window never widens and the line is clipped to nothing -- which
-            // read as "no text on a milestone".
-            .onSizeChanged { onPillWidth(it.width) }
+        modifier = Modifier
             .background(PillInk, RoundedCornerShape(50))
             // A single static hairline -- no count-reactive red. The climbing
             // "damage" now lives entirely in the emoji ladder, which reads cool
@@ -78,10 +80,9 @@ fun IslandPill(
             // Clips the message's slide, so it cannot be drawn past the pill's
             // rounded edge on the frames before it has settled.
             .clip(RoundedCornerShape(50))
-            // Always wrap the content: the pill is as wide as the number, or the
-            // number plus the line, and never wider than the room it has. Bounded,
-            // never animated -- the message is measured once, so no character is
-            // ever re-truncated and the pill never stretches to the full screen.
+            // The pill wraps its content -- the number, or the number plus the
+            // line -- bounded by the room it has, so a long line wraps to two
+            // rather than stretching. Never animated: measured once.
             .widthIn(max = maxWidth)
             .padding(horizontal = H_PADDING, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -160,6 +161,7 @@ fun IslandPill(
                 )
             }
         }
+    }
     }
 }
 
