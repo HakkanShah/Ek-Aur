@@ -10,7 +10,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -41,10 +40,11 @@ import com.ekaur.android.copy.SarcasmCatalogue
  * vision without addressing anyone -- and without a loud reactive colour, which
  * kept the pill calm and sleek rather than turning red.
  *
- * Nothing here animates a width. When a message is present the whole pill fills
- * the width it has been given ([maxWidthPx], the room between the margins), so the
- * line spans edge to edge and is laid out once at that width. At rest the pill
- * wraps its content and stays small.
+ * Nothing here animates a width. The pill always wraps its content -- a message
+ * makes it exactly as wide as the line needs, no more -- bounded by [maxWidthPx],
+ * the room from its anchored edge to the far margin, so a long line wraps to two
+ * lines rather than running off-screen. The window grows inward from the parked
+ * edge, so the pill stays put and the text simply extends beside the number.
  */
 @Composable
 fun IslandPill(
@@ -70,11 +70,11 @@ fun IslandPill(
             // Clips the message's slide, so it cannot be drawn past the pill's
             // rounded edge on the frames before it has settled.
             .clip(RoundedCornerShape(50))
-            // While a line shows, fill the given width so it spans both margins
-            // and distributes evenly; at rest, wrap the content and stay compact.
-            // Bounded either way, and never animated -- the message is measured
-            // once at its final width, so no character is ever re-truncated.
-            .then(if (message != null) Modifier.fillMaxWidth() else Modifier.widthIn(max = maxWidth))
+            // Always wrap the content: the pill is as wide as the number, or the
+            // number plus the line, and never wider than the room it has. Bounded,
+            // never animated -- the message is measured once, so no character is
+            // ever re-truncated and the pill never stretches to the full screen.
+            .widthIn(max = maxWidth)
             .padding(horizontal = H_PADDING, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -118,11 +118,9 @@ fun IslandPill(
         }
 
         AnimatedVisibility(
-            // weight(1f) only while visible, so the line fills from the number to
-            // the far margin -- evenly spread, both edges. Collapsed, the pill has
-            // no fillMaxWidth, so weight here would wrongly stretch it; hence the
-            // conditional.
-            modifier = if (message != null) Modifier.weight(1f) else Modifier,
+            // No weight: the message must not stretch the pill to fill anything.
+            // It takes exactly the width the text needs, up to the room the pill
+            // has, so the pill's length matches the line.
             visible = message != null,
             // Fade plus a short slide. Both are draw-layer properties applied to
             // content already measured at its full width, so no character is
@@ -132,10 +130,7 @@ fun IslandPill(
                 slideInHorizontally(tween(ENTER_MS)) { it / SLIDE_FRACTION },
             exit = fadeOut(tween(EXIT_MS)),
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.width(9.dp))
                 Text(
                     text = "·",
@@ -146,14 +141,14 @@ fun IslandPill(
                 Text(
                     text = message.orEmpty(),
                     color = PillChalk,
-                    // Measured once, at the width it will keep for its whole
-                    // life on screen.
+                    // Sizes to the text; the pill's widthIn(max) caps it, so a
+                    // long line wraps to two rather than pushing the pill wider
+                    // than the room it has.
                     fontSize = 12.5.sp,
                     lineHeight = 15.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
                 )
             }
         }

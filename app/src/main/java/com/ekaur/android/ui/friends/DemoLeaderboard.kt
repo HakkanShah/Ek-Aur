@@ -46,8 +46,20 @@ object DemoLeaderboard {
             reelCount = count,
             activeMs = count.toLong() * secsPerReel * 1000L,
             avatarVersion = null,
+            avatarUrl = avatarUrlFor(s.name),
         )
     }
+
+    /**
+     * A generated face for a seed user, stable per name.
+     *
+     * DiceBear serves a deterministic avatar for a seed, so each demo name gets a
+     * consistent, distinct picture without shipping any image or touching the
+     * Supabase avatar store. Real people are unaffected -- theirs still come from
+     * their upload.
+     */
+    fun avatarUrlFor(name: String): String =
+        "https://api.dicebear.com/9.x/adventurer/png?size=120&seed=$name"
 
     /**
      * Blend demo rows with the real ones and rank by today's reels. A real row

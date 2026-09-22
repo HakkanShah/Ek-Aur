@@ -66,6 +66,12 @@ data class LeaderboardRow(
     val activeMs: Long,
     /** Null when this person has never set a picture. */
     val avatarVersion: Long? = null,
+    /**
+     * A ready-made picture URL that bypasses the Supabase avatar path. Used by the
+     * seed users, whose faces come from a generator rather than an upload; null for
+     * real people, whose picture is built from [avatarVersion].
+     */
+    val avatarUrl: String? = null,
 )
 
 /**

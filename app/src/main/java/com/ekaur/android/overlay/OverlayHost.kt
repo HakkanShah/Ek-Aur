@@ -10,7 +10,6 @@ import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
@@ -56,9 +55,6 @@ class OverlayHost(
     /** Set when a drag ended mid-message and its anchoring still has to land. */
     private var placementPending = false
 
-    /** True while a line is showing and the window is stretched full width. */
-    private var inMessageMode = false
-
     /**
      * How wide the pill may grow, in pixels.
      *
@@ -97,10 +93,10 @@ class OverlayHost(
                 val count by counts.collectAsState()
                 val message by announcer.message.collectAsState()
                 val maxWidth by availableWidth.collectAsState()
-                // A line stretches the window to full width, then it returns to
-                // the parked compact pill. Driven from composition so the window
-                // change and the pill's own fillMaxWidth land on the same signal.
-                LaunchedEffect(message != null) { setMessageMode(message != null) }
+                // The window is WRAP_CONTENT and anchored to the parked edge, so a
+                // message simply grows the pill inward to fit the line -- no window
+                // widening, no full-width stretch. The pill's own widthIn(max) keeps
+                // it inside the room it has.
                 IslandPill(
                     count = count,
                     message = message,
@@ -143,7 +139,6 @@ class OverlayHost(
         // a window that no longer exists and must not suppress its placement.
         lastCollapsedWidth = -1
         placementPending = false
-        inMessageMode = false
     }
 
     private fun buildParams(): WindowManager.LayoutParams {
@@ -206,13 +201,6 @@ class OverlayHost(
      */
     private fun onCollapsedMeasured(width: Int) {
         if (width <= 0) return
-        // While a line stretches the window full width, the collapsed core is
-        // still measured -- record it so the parked placement is right on the way
-        // back down, but do not re-anchor now or it would fight the full width.
-        if (inMessageMode) {
-            lastCollapsedWidth = width
-            return
-        }
         if (width == lastCollapsedWidth && !placementPending) return
         val view = composeView ?: return
         val layout = params ?: return
@@ -220,42 +208,6 @@ class OverlayHost(
         lastCollapsedWidth = width
         placementPending = false
         applyPlacement(view, layout, placement.onCollapsedMeasure(width, screenWidth, marginPx))
-    }
-
-    /**
-     * Stretches the window to full width for a line, then restores the parked
-     * compact pill. The user keeps a freely draggable pill; a message simply
-     * fills margin-to-margin so it reads as evenly distributed, wherever the pill
-     * was parked. Runs on the main thread (called from composition).
-     */
-    private fun setMessageMode(present: Boolean) {
-        if (present == inMessageMode) return
-        val view = composeView ?: return
-        val layout = params ?: return
-        inMessageMode = present
-
-        if (present) {
-            layout.gravity = Gravity.TOP or Gravity.LEFT
-            layout.x = marginPx
-            layout.width = screenWidth - 2 * marginPx
-            anchoredRight = false
-            availableWidth.value = screenWidth - 2 * marginPx
-        } else {
-            // Back to the parked position. Re-measure through the placement so a
-            // digit gained while the line was up is accounted for.
-            val w = if (lastCollapsedWidth > 0) lastCollapsedWidth else placement.collapsedWidth
-            val placed = if (w > 0) {
-                placement.onCollapsedMeasure(w, screenWidth, marginPx)
-            } else {
-                placement.placement(screenWidth, marginPx)
-            }
-            layout.width = WindowManager.LayoutParams.WRAP_CONTENT
-            layout.gravity = Gravity.TOP or if (placed.anchorsRight) Gravity.RIGHT else Gravity.LEFT
-            layout.x = placed.offset
-            anchoredRight = placed.anchorsRight
-            availableWidth.value = placed.availableWidth
-        }
-        runCatching { windowManager.updateViewLayout(view, layout) }
     }
 
     /** Applies a resolved [Placement] to the window, if anything changed. */
