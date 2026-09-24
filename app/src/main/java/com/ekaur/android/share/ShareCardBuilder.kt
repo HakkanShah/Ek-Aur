@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.core.graphics.drawable.toBitmap
 import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -50,7 +51,8 @@ object ShareCardBuilder {
      * The user's own picture, from cache only, so the card is ready instantly.
      *
      * The avatar is already warm in Coil's cache from the leaderboard and setup
-     * screens, so a cache read costs nothing; disabling the network keeps a card
+     * screens -- read through the app's one shared loader, so its memory cache
+     * is actually hit -- so a cache read costs nothing; disabling the network keeps a card
      * from ever waiting on a download. A miss just falls back to the initial,
      * which still looks like a card.
      */
@@ -62,7 +64,7 @@ object ShareCardBuilder {
         ) ?: return null
 
         return runCatching {
-            val result = ImageLoader(context).execute(
+            val result = SingletonImageLoader.get(context).execute(
                 ImageRequest.Builder(context)
                     .data(url)
                     // A software bitmap: the card is drawn on a software Canvas,

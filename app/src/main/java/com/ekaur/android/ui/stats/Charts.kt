@@ -1,37 +1,63 @@
 package com.ekaur.android.ui.stats
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.ekaur.android.ui.theme.Acid
+import androidx.compose.ui.unit.sp
+import com.ekaur.android.ui.common.Motion
+import com.ekaur.android.ui.common.rememberHaptics
 import com.ekaur.android.ui.theme.AcidDim
-import com.ekaur.android.ui.theme.Ash
+import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.InkLine
+import com.ekaur.android.ui.theme.Poppins
+import com.ekaur.android.ui.theme.Smoke
+import com.ekaur.android.ui.theme.instaGradient
 
 /**
- * A row of columns standing on a baseline.
+ * A row of columns standing on a baseline, drawn in one Canvas.
  *
  * There is only ever one series here, which settles most of the design: the
- * column's *height* carries the magnitude, so shading them darker-where-taller
- * would encode the same thing twice and waste the only free channel. Every
- * column is one colour; the tallest, or the tapped one, gets the bright step of
- * that same colour. Nothing else on the chart is loud.
+ * column's *height* carries the magnitude, so every column is one soft colour
+ * and only the tallest -- or the one under your finger -- wears the gradient.
+ *
+ * - Columns grow in, staggered, the first time and whenever the range changes;
+ *   a new value eases from the old height rather than jumping.
+ * - Tap a column, or drag across the chart to scrub, with a light tick per
+ *   column; a small bubble names the value over the chosen one.
+ *
+ * One Canvas instead of a Box per column: a 30-day chart used to be 60
+ * composables, each recomposed on every tap.
  */
 @Composable
 fun ColumnChart(
@@ -39,82 +65,144 @@ fun ColumnChart(
     selected: Int?,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    height: Dp = 110.dp,
+    height: Dp = 132.dp,
+    onScrub: ((Int) -> Unit)? = null,
+    description: String = "",
 ) {
-    // A flat interaction source: this app has no ripples anywhere, and one
-    // spreading out of a 6dp-wide column looks like a rendering fault.
-    val interaction = remember { MutableInteractionSource() }
+    val haptics = rememberHaptics()
+    val measurer = rememberTextMeasurer()
+    val select by rememberUpdatedState(onSelect)
+    val scrub by rememberUpdatedState(onScrub ?: onSelect)
     val peak = peakIndex(values)
-    val tallest = (values.maxOrNull() ?: 0).coerceAtLeast(1)
+    val count = values.size.coerceAtLeast(1)
 
-    Box(modifier) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(height),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            values.forEachIndexed { index, value ->
-                val lit = if (selected != null) index == selected else index == peak
+    // Heights morph from what was shown to what is now true. A change of
+    // length (the range toggle) restarts from the floor so the columns grow.
+    var from by remember { mutableStateOf(List(values.size) { 0 }) }
+    var to by remember { mutableStateOf(values) }
+    val morph = remember { Animatable(0f) }
+    LaunchedEffect(values) {
+        val current = to
+        from = if (current.size == values.size) {
+            // Where the bars are right now, so an interrupted morph continues.
+            current.indices.map { i ->
+                val start = from.getOrElse(i) { 0 }
+                (start + (current[i] - start) * morph.value).toInt()
+            }
+        } else {
+            List(values.size) { 0 }
+        }
+        to = values
+        morph.snapTo(0f)
+        morph.animateTo(1f, if (current.size == values.size) Motion.standard() else Motion.emphasised())
+    }
 
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(
-                            interactionSource = interaction,
-                            indication = null,
-                            onClick = { onSelect(index) },
-                        ),
-                    contentAlignment = Alignment.BottomCenter,
-                ) {
-                    if (value > 0) {
-                        Box(
-                            Modifier
-                                // Kept off its full slot width so the gap
-                                // between columns does the separating -- a
-                                // border drawn round each one would be ink
-                                // that is not data.
-                                .fillMaxWidth(BAR_FILL)
-                                .widthIn(max = MAX_BAR)
-                                // Floored, so a single reel is still visible
-                                // next to a day that ran to three figures.
-                                .height((height * (value.toFloat() / tallest)).coerceAtLeast(MIN_BAR))
-                                .background(
-                                    // The peak/selected bar wears the gradient;
-                                    // the rest a soft magenta. Height still
-                                    // carries the value, colour only the accent.
-                                    brush = if (lit) {
-                                        com.ekaur.android.ui.theme.instaGradient()
-                                    } else {
-                                        androidx.compose.ui.graphics.SolidColor(AcidDim)
-                                    },
-                                    shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp),
-                                )
-                        )
-                    }
+    val bubbleStyle = remember {
+        TextStyle(fontFamily = Poppins, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = Color.White)
+    }
+
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            .height(height)
+            .semantics { if (description.isNotEmpty()) contentDescription = description }
+            .pointerInput(count) {
+                detectTapGestures { offset ->
+                    val i = (offset.x / (size.width / count.toFloat())).toInt().coerceIn(0, count - 1)
+                    haptics.tick()
+                    select(i)
                 }
             }
+            .pointerInput(count) {
+                var last = -1
+                detectHorizontalDragGestures(
+                    onDragStart = { last = -1 },
+                ) { change, _ ->
+                    change.consume()
+                    val i = (change.position.x / (size.width / count.toFloat())).toInt().coerceIn(0, count - 1)
+                    if (i != last) {
+                        last = i
+                        haptics.tick()
+                        scrub(i)
+                    }
+                }
+            },
+    ) {
+        val bubbleRoom = 24.dp.toPx()
+        val chartHeight = size.height - bubbleRoom
+        val slot = size.width / count
+        val barWidth = (slot * BAR_FILL).coerceAtMost(MAX_BAR.toPx())
+        val minBar = MIN_BAR.toPx()
+        val radius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+        val t = morph.value
+        val shown = to.indices.map { i ->
+            val start = from.getOrElse(i) { 0 }.toFloat()
+            // A small stagger across the chart, so the bars ripple up.
+            val lag = (i.toFloat() / count) * 0.35f
+            val p = ((t - lag) / (1f - lag)).coerceIn(0f, 1f)
+            val eased = 1f - (1f - p) * (1f - p) * (1f - p)
+            start + (to[i] - start) * eased
+        }
+        val tallest = (maxOf(to.maxOrNull() ?: 0, from.maxOrNull() ?: 0)).coerceAtLeast(1).toFloat()
+
+        shown.forEachIndexed { i, value ->
+            if (value <= 0f) return@forEachIndexed
+            val h = (chartHeight * value / tallest).coerceAtLeast(minBar)
+            val left = slot * i + (slot - barWidth) / 2f
+            val lit = if (selected != null) i == selected else i == peak
+            drawBar(left, size.height - h, barWidth, h, radius, lit)
         }
 
-        // Solid hairline, one step off the card. Never dashed -- a dashed rule
-        // reads as a threshold when it is only a floor.
-        Box(
-            Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(InkLine)
+        // Solid hairline floor. Never dashed -- a dashed rule reads as a
+        // threshold when it is only a floor.
+        drawRect(InkLine, topLeft = Offset(0f, size.height - 1.dp.toPx()), size = Size(size.width, 1.dp.toPx()))
+
+        // The value bubble over the chosen column.
+        val chosen = selected
+        if (chosen != null && chosen in to.indices) {
+            val label = measurer.measure(to[chosen].toString(), bubbleStyle)
+            val padX = 7.dp.toPx()
+            val padY = 3.dp.toPx()
+            val w = label.size.width + padX * 2
+            val hgt = label.size.height + padY * 2
+            val barH = (chartHeight * shown[chosen] / tallest).coerceAtLeast(if (shown[chosen] > 0f) minBar else 0f)
+            val cx = slot * chosen + slot / 2f
+            val left = (cx - w / 2f).coerceIn(0f, size.width - w)
+            val top = (size.height - barH - hgt - 4.dp.toPx()).coerceAtLeast(0f)
+            drawRoundRect(Chalk, topLeft = Offset(left, top), size = Size(w, hgt), cornerRadius = CornerRadius(hgt / 2f))
+            drawText(label, topLeft = Offset(left + padX, top + padY))
+        }
+    }
+}
+
+private fun DrawScope.drawBar(
+    left: Float,
+    top: Float,
+    width: Float,
+    height: Float,
+    radius: CornerRadius,
+    lit: Boolean,
+) {
+    if (lit) {
+        drawRoundRect(
+            brush = instaGradient(),
+            topLeft = Offset(left, top),
+            size = Size(width, height),
+            cornerRadius = radius,
+        )
+    } else {
+        drawRoundRect(
+            color = AcidDim,
+            topLeft = Offset(left, top),
+            size = Size(width, height),
+            cornerRadius = radius,
         )
     }
 }
 
 /**
- * Labels under an hourly chart, each sitting over the column it names.
- *
- * Four of them rather than twenty-four: an axis is there to orient the reader,
- * and the exact numbers come from tapping.
+ * Labels under an hourly chart. Each of the four sits at the start of its
+ * six-hour quarter, so "6am" is over the 6am column.
  */
 @Composable
 fun HourAxis(modifier: Modifier = Modifier) {
@@ -122,23 +210,27 @@ fun HourAxis(modifier: Modifier = Modifier) {
         for (hour in HOUR_TICKS) {
             Text(
                 text = hourLabel(hour),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Ash,
+                style = MaterialTheme.typography.bodySmall,
+                color = Smoke,
                 modifier = Modifier.weight(1f),
             )
         }
     }
 }
 
-/** First and last date under a daily chart. The days between are implied. */
+/** First, middle and last date under a daily chart. */
 @Composable
-fun RangeAxis(from: String, to: String, modifier: Modifier = Modifier) {
+fun RangeAxis(dates: List<String>, modifier: Modifier = Modifier) {
+    if (dates.isEmpty()) return
     Row(
         modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(dayLabel(from), style = MaterialTheme.typography.bodyMedium, color = Ash)
-        Text(dayLabel(to), style = MaterialTheme.typography.bodyMedium, color = Ash)
+        Text(dayLabel(dates.first()), style = MaterialTheme.typography.bodySmall, color = Smoke)
+        if (dates.size > 2) {
+            Text(dayLabel(dates[dates.size / 2]), style = MaterialTheme.typography.bodySmall, color = Smoke)
+        }
+        Text("Today", style = MaterialTheme.typography.bodySmall, color = Smoke)
     }
 }
 
@@ -157,6 +249,6 @@ fun Hairline(modifier: Modifier = Modifier) {
 private val HOUR_TICKS = listOf(0, 6, 12, 18)
 
 /** Columns never fill their slot; the leftover is deliberate air. */
-private const val BAR_FILL = 0.6f
+private const val BAR_FILL = 0.62f
 private val MAX_BAR = 24.dp
-private val MIN_BAR = 2.dp
+private val MIN_BAR = 3.dp

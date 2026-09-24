@@ -35,9 +35,12 @@ fun EkAurTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-            // Dark status-bar icons, because the bar now sits on a light canvas.
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            // Dark system-bar icons, because both bars sit on a light canvas.
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = true
+                isAppearanceLightNavigationBars = true
+            }
         }
     }
 

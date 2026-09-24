@@ -109,6 +109,16 @@ class SettingsStore(context: Context) : SessionStore {
         }
 
     /**
+     * Whether the "all set" confetti has played. It is a one-time moment; a
+     * permission switched off and on again later does not earn it twice.
+     */
+    var setupCelebrated: Boolean
+        get() = prefs.getBoolean(KEY_CELEBRATED, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_CELEBRATED, value).apply()
+        }
+
+    /**
      * Forgets everything about the account.
      *
      * The counts themselves stay -- they are the user's own data and were never
@@ -139,6 +149,7 @@ class SettingsStore(context: Context) : SessionStore {
         const val KEY_AVATAR = "avatar_version"
         const val KEY_AUTO_OFF = "auto_off_on_leave"
         const val KEY_WIZARD_SEEN = "setup_wizard_seen"
+        const val KEY_CELEBRATED = "setup_celebrated"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EXPIRES = "expires_at"

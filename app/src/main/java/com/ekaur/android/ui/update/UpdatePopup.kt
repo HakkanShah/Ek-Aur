@@ -27,6 +27,15 @@ import androidx.compose.ui.window.Dialog
 import com.ekaur.android.update.UpdateManager
 import com.ekaur.android.update.UpdateState
 import com.ekaur.android.ui.common.FlatButton
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.window.DialogProperties
+import com.ekaur.android.ui.common.GradientProgress
+import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Smoke
@@ -55,16 +64,37 @@ fun UpdatePopup(manager: UpdateManager) {
     }
 
     val current = state
+    // "Hide" during a download tucks the popup away without stopping the
+    // download; it comes back on its own once the update is ready.
+    var hiddenDownload by remember { mutableStateOf(false) }
+    LaunchedEffect(current is UpdateState.Downloading) {
+        if (current !is UpdateState.Downloading) hiddenDownload = false
+    }
     val visible = current is UpdateState.Available ||
-        current is UpdateState.Downloading ||
+        (current is UpdateState.Downloading && !hiddenDownload) ||
         current is UpdateState.Ready ||
         current is UpdateState.Failed
     if (!visible) return
 
-    Dialog(onDismissRequest = { manager.dismiss() }) {
+    val downloading = current is UpdateState.Downloading
+    val enter = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { enter.animateTo(1f, Motion.bouncy()) }
+
+    Dialog(
+        onDismissRequest = { if (downloading) hiddenDownload = true else manager.dismiss() },
+        // A stray tap outside must not look like it cancelled a download.
+        properties = DialogProperties(dismissOnClickOutside = !downloading),
+    ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.graphicsLayer {
+                val v = enter.value
+                val s = 0.9f + 0.1f * v
+                scaleX = s
+                scaleY = s
+                alpha = v.coerceIn(0f, 1f)
+            },
         ) {
             Column(Modifier.padding(22.dp)) {
                 when (current) {
@@ -87,12 +117,19 @@ fun UpdatePopup(manager: UpdateManager) {
                         SectionLabel("Downloading update")
                         Version(current.release.versionName)
                         Spacer(Modifier.height(16.dp))
-                        ProgressBar(current.progress)
+                        GradientProgress(current.progress, modifier = Modifier.fillMaxWidth())
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "${(current.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = "${(current.progress * 100).toInt()}% · keeps going if you hide this",
+                            style = MaterialTheme.typography.bodySmall,
                             color = Smoke,
+                        )
+                        Spacer(Modifier.height(14.dp))
+                        FlatButton(
+                            text = "Hide",
+                            quiet = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { hiddenDownload = true },
                         )
                     }
 
@@ -152,7 +189,7 @@ private fun Notes(notes: String?) {
     if (notes.isNullOrBlank()) return
     Spacer(Modifier.height(8.dp))
     Text(
-        text = notes.lineSequence().take(5).joinToString("\n"),
+        text = cleanNotes(notes),
         style = MaterialTheme.typography.bodyMedium,
         color = Smoke,
     )
@@ -169,23 +206,24 @@ private fun SecondaryRow(onLater: () -> Unit, onPage: () -> Unit) {
     }
 }
 
-@Composable
-private fun ProgressBar(fraction: Float) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(8.dp)
-            .clip(RoundedCornerShape(percent = 50))
-            .background(color = SurfaceLav),
-    ) {
-        if (fraction > 0f) {
-            Box(
-                Modifier
-                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(brush = instaGradient()),
-            )
+/**
+ * GitHub release notes are Markdown; the popup is plain text. Headings lose
+ * their hashes, list markers become bullets, bold markers go, blank lines
+ * collapse, and only the first few lines make it in.
+ */
+internal fun cleanNotes(notes: String): String =
+    notes.lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .map { line ->
+            val stripped = line.replace("**", "").replace("__", "").replace("`", "")
+            when {
+                stripped.startsWith("#") -> stripped.trimStart('#').trim()
+                stripped.startsWith("- ") || stripped.startsWith("* ") -> "• " + stripped.drop(2).trim()
+                stripped.startsWith(">") -> stripped.trimStart('>').trim()
+                else -> stripped
+            }
         }
-    }
-}
+        .filter { it.isNotEmpty() }
+        .take(6)
+        .joinToString("\n")

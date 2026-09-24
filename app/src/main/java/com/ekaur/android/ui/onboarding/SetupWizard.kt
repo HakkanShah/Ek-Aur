@@ -1,6 +1,12 @@
 package com.ekaur.android.ui.onboarding
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -54,6 +60,12 @@ import com.ekaur.android.setup.SetupFlow
 import com.ekaur.android.setup.SetupStep
 import com.ekaur.android.setup.Verdict
 import com.ekaur.android.ui.common.Card
+import com.ekaur.android.ui.common.Celebration
+import com.ekaur.android.ui.common.Motion
+import com.ekaur.android.ui.common.PulseDot
+import com.ekaur.android.ui.common.RoundIconButton
+import com.ekaur.android.ui.common.rememberHaptics
+import com.ekaur.android.ui.theme.buttonGradient
 import com.ekaur.android.ui.common.Expandable
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.theme.Acid
@@ -92,6 +104,7 @@ fun SetupWizard(
     onDone: () -> Unit,
     onSkip: () -> Unit,
     startInRecovery: Boolean = false,
+    onClose: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -126,6 +139,10 @@ fun SetupWizard(
                 done = SetupFlow.requiredDone(permissions.service, permissions.overlay),
                 current = step,
             )
+            if (onClose != null) {
+                Spacer(Modifier.width(14.dp))
+                RoundIconButton(glyph = "✕", description = "Close setup", onClick = onClose)
+            }
         }
         Spacer(Modifier.height(18.dp))
 
@@ -216,6 +233,12 @@ private fun AccessibilityStep(
     // grant never reaches here -- the step has already moved on.
     val showRecovery = recoveryOpen || (gateApplies && attempted)
 
+    // Back steps out of the recovery steps first, rather than out of setup.
+    BackHandler(enabled = showRecovery && !startInRecovery) {
+        recoveryOpen = false
+        attempted = false
+    }
+
     Column {
         Headline("Turn on Ek Aur in Accessibility")
         Spacer(Modifier.height(8.dp))
@@ -224,7 +247,7 @@ private fun AccessibilityStep(
 
         if (!showRecovery) {
             Card {
-                SettingsRowMock(checked = false)
+                SettingsRowMock()
                 Spacer(Modifier.height(14.dp))
                 Body("Look under “${hint.listSection}”, tap Ek Aur, then turn the switch on.")
                 Spacer(Modifier.height(16.dp))
@@ -280,18 +303,12 @@ private fun RecoveryCard(
 
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(Acid),
-            )
+            Text("🔒", fontSize = 18.sp)
             Spacer(Modifier.width(10.dp))
             Text(
-                text = "“Restricted setting” — here's the way through",
-                style = MaterialTheme.typography.titleLarge,
+                text = "“Restricted setting”: the way through",
+                style = MaterialTheme.typography.titleMedium,
                 color = Chalk,
-                fontWeight = FontWeight.SemiBold,
             )
         }
         Spacer(Modifier.height(6.dp))
@@ -319,20 +336,35 @@ private fun RecoveryCard(
 
         Spacer(Modifier.height(18.dp))
 
+        // An accordion: only the step you're on is open; finished ones fold
+        // into a checked line (tap one to reopen it). Half the reading.
+        val current = when {
+            !tapped -> 1
+            !allowed -> 2
+            else -> 3
+        }
+        var focus by rememberSaveable { mutableStateOf<Int?>(null) }
+        val open = focus ?: current
+
         RecoveryHop(
             n = 1,
+            expanded = open == 1,
+            onHeader = { focus = 1 },
             done = tapped,
             title = "Tap the switch once, press OK on the popup",
             detail = "It won't turn on yet — that tap is what unlocks the menu in step 2.",
             action = "Open Accessibility",
             onAction = {
                 tapped = true
+                focus = null
                 onOpenAccessibility()
             },
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
         RecoveryHop(
             n = 2,
+            expanded = open == 2,
+            onHeader = { focus = 2 },
             done = allowed,
             title = "App info → ⋮ → Allow restricted settings",
             detail = buildString {
@@ -344,19 +376,21 @@ private fun RecoveryCard(
             action = "Open App info",
             onAction = {
                 allowed = true
+                focus = null
                 ServiceControl.openAppInfo(context)
             },
             mock = { MenuMock() },
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
         RecoveryHop(
             n = 3,
+            expanded = open == 3,
+            onHeader = { focus = 3 },
             done = false,
             title = "Back to Accessibility, switch on",
-            detail = "This time it turns on.",
+            detail = "This time it turns on, and this screen moves on by itself.",
             action = "Open Accessibility",
             onAction = onOpenAccessibility,
-            emphasised = tapped && allowed,
         )
 
         Spacer(Modifier.height(18.dp))
@@ -424,21 +458,27 @@ private fun DoneStep(onDone: () -> Unit) {
     LaunchedEffect(Unit) { delay(80); shown = true }
     val pop by animateFloatAsState(
         targetValue = if (shown) 1f else 0.6f,
-        animationSpec = tween(360, easing = FastOutSlowInEasing),
+        animationSpec = Motion.bouncy(),
         label = "pop",
     )
 
+    val haptics = rememberHaptics()
+    LaunchedEffect(Unit) { haptics.confirm() }
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(24.dp))
-        Box(
-            Modifier
-                .size(88.dp)
-                .graphicsLayer { scaleX = pop; scaleY = pop; alpha = pop }
-                .clip(CircleShape)
-                .background(brush = instaGradient()),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("✓", color = Ink, fontSize = 44.sp, fontWeight = FontWeight.Black)
+        Box(Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .size(96.dp)
+                    .graphicsLayer { scaleX = pop; scaleY = pop; alpha = pop }
+                    .clip(CircleShape)
+                    .background(brush = buttonGradient()),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("✓", color = Ink, fontSize = 46.sp, fontWeight = FontWeight.Black)
+            }
+            Celebration(key = Unit, modifier = Modifier.matchParentSize())
         }
         Spacer(Modifier.height(22.dp))
         Text(
@@ -474,8 +514,8 @@ private fun DoneStep(onDone: () -> Unit) {
         Spacer(Modifier.height(18.dp))
         Text(
             text = "Optional: Battery and Usage access live in Setup. They keep counting alive on Realme, Xiaomi and Vivo phones.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Ash,
+            style = MaterialTheme.typography.bodySmall,
+            color = Smoke,
             textAlign = TextAlign.Center,
         )
     }
@@ -539,14 +579,9 @@ private fun TextLink(text: String, onClick: () -> Unit, modifier: Modifier = Mod
 @Composable
 private fun Waiting(text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(Acid),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = Ash)
+        PulseDot(color = Acid, active = true)
+        Spacer(Modifier.width(6.dp))
+        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = Smoke)
     }
 }
 
@@ -595,7 +630,7 @@ private fun NumberBadge(n: Int, done: Boolean) {
             .clip(CircleShape)
             .then(
                 if (done) Modifier.background(Good)
-                else Modifier.background(brush = instaGradient())
+                else Modifier.background(brush = buttonGradient())
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -611,32 +646,50 @@ private fun NumberBadge(n: Int, done: Boolean) {
 @Composable
 private fun RecoveryHop(
     n: Int,
+    expanded: Boolean,
+    onHeader: () -> Unit,
     done: Boolean,
     title: String,
     detail: String,
     action: String,
     onAction: () -> Unit,
-    emphasised: Boolean = !done,
     mock: (@Composable () -> Unit)? = null,
 ) {
-    Row {
-        NumberBadge(n, done)
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (expanded) SurfaceLav.copy(alpha = 0.55f) else Color.Transparent)
+            .animateContentSize(Motion.standard())
+            .padding(10.dp),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(enabled = !expanded, onClick = onHeader),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NumberBadge(n, done)
+            Spacer(Modifier.width(12.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = Chalk,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (done && !expanded) Smoke else Chalk,
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.height(4.dp))
-            Text(text = detail, style = MaterialTheme.typography.bodyMedium, color = Smoke)
-            if (mock != null) {
-                Spacer(Modifier.height(10.dp))
-                mock()
+        }
+        if (expanded) {
+            Column(Modifier.padding(start = 42.dp)) {
+                Spacer(Modifier.height(6.dp))
+                Text(text = detail, style = MaterialTheme.typography.bodyMedium, color = Smoke)
+                if (mock != null) {
+                    Spacer(Modifier.height(10.dp))
+                    mock()
+                }
+                Spacer(Modifier.height(12.dp))
+                FlatButton(action, emphasised = true, modifier = Modifier.fillMaxWidth(), onClick = onAction)
             }
-            Spacer(Modifier.height(10.dp))
-            FlatButton(action, emphasised = emphasised, onClick = onAction)
         }
     }
 }
@@ -645,7 +698,8 @@ private fun RecoveryHop(
 @Composable
 private fun ProgressDots(done: Int, current: SetupStep) {
     val active = when (current) {
-        SetupStep.Welcome, SetupStep.Accessibility -> 0
+        SetupStep.Welcome -> -1
+        SetupStep.Accessibility -> 0
         SetupStep.Overlay -> 1
         SetupStep.Done -> 2
     }
@@ -674,9 +728,21 @@ private fun ProgressDots(done: Int, current: SetupStep) {
 // Mocks of the system screens, so people know what they're looking for
 // ---------------------------------------------------------------------------
 
-/** A stand-in for the Settings row: the app's name and a switch. */
+/**
+ * A stand-in for the Settings row: the app's name and a switch that flips on
+ * by itself, over and over -- a two-second demo of exactly what to do.
+ */
 @Composable
-private fun SettingsRowMock(checked: Boolean) {
+private fun SettingsRowMock() {
+    val loop = rememberInfiniteTransition(label = "switch-demo")
+    val phase by loop.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2600, easing = LinearEasing)),
+        label = "switch-phase",
+    )
+    // Off for the first half, a quick flip, on for the rest.
+    val on = ((phase - 0.45f) / 0.1f).coerceIn(0f, 1f)
     Row(
         Modifier
             .fillMaxWidth()
@@ -699,24 +765,29 @@ private fun SettingsRowMock(checked: Boolean) {
                 color = Chalk,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(text = "Off", style = MaterialTheme.typography.bodySmall, color = Smoke)
+            Text(
+                text = if (on > 0.5f) "On" else "Off",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (on > 0.5f) Good else Smoke,
+            )
         }
-        SwitchMock(checked)
+        SwitchMock(on)
     }
 }
 
 @Composable
-private fun SwitchMock(checked: Boolean) {
+private fun SwitchMock(on: Float) {
     Box(
         Modifier
             .size(width = 40.dp, height = 22.dp)
             .clip(RoundedCornerShape(50))
-            .background(if (checked) Good else Ash.copy(alpha = 0.5f))
+            .background(androidx.compose.ui.graphics.lerp(Ash.copy(alpha = 0.5f), Good, on))
             .padding(3.dp),
-        contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
+        contentAlignment = Alignment.CenterStart,
     ) {
         Box(
             Modifier
+                .graphicsLayer { translationX = on * 18.dp.toPx() }
                 .size(16.dp)
                 .clip(CircleShape)
                 .background(Color.White),

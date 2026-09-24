@@ -15,8 +15,8 @@ android {
         applicationId = "com.ekaur.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 48
-        versionName = "0.20.0"
+        versionCode = 49
+        versionName = "0.21.0"
 
         // The GitHub repo the in-app updater reads releases from.
         buildConfigField("String", "UPDATE_REPO", "\"HakkanShah/Ek-Aur\"")
@@ -50,6 +50,9 @@ android {
         debug {
             signingConfig = signingConfigs.getByName("shared")
         }
+        // The build friends install. Same key as debug, so it updates over a
+        // debug install in place -- but non-debuggable, which lets ART
+        // optimise it: Compose runs noticeably smoother than in a debug APK.
         release {
             signingConfig = signingConfigs.getByName("shared")
             isMinifyEnabled = false
@@ -71,6 +74,12 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // No release lint: it only gates Play uploads, this app is sideloaded, and
+    // it pulls a whole lint toolchain into every release build.
+    lint {
+        checkReleaseBuilds = false
     }
 
     testOptions {
@@ -95,6 +104,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.kotlinx.serialization.json)
+    // Installs the Compose libraries' bundled baseline profiles on sideloaded
+    // phones (Play would otherwise do it), so first screens start smoother.
+    implementation(libs.androidx.profileinstaller)
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)

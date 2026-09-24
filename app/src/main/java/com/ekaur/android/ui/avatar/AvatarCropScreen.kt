@@ -36,7 +36,16 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.sync.Avatar
 import com.ekaur.android.sync.CropTransform
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import com.ekaur.android.ui.common.BannerTone
 import com.ekaur.android.ui.common.FlatButton
+import com.ekaur.android.ui.common.InfoBanner
+import com.ekaur.android.ui.common.ScreenHeader
+import com.ekaur.android.ui.theme.instaGradient
 import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Heat
@@ -97,21 +106,24 @@ fun AvatarCropScreen(
         offsetY = CropTransform.centreOffset(photo.height, scale, window)
     }
 
+    fun reset() {
+        if (window <= 0f) return
+        scale = CropTransform.minScale(photo.width, photo.height, window)
+        offsetX = CropTransform.centreOffset(photo.width, scale, window)
+        offsetY = CropTransform.centreOffset(photo.height, scale, window)
+    }
+
     Column(
         modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
-        Spacer(Modifier.height(16.dp))
-        SectionLabel("Set your photo")
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "Drag to move, pinch to zoom. what's inside the circle is what shows.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Smoke,
+        ScreenHeader(
+            title = "Set your photo",
+            subtitle = "Drag to move, pinch to zoom, double-tap to reset.",
+            onBack = { if (!busy) onCancel() },
         )
-
-        Spacer(Modifier.height(16.dp))
 
         Canvas(
             Modifier
@@ -121,6 +133,10 @@ fun AvatarCropScreen(
                 // state while drawing schedules another draw, which sets it
                 // again.
                 .onSizeChanged { window = it.width.toFloat() }
+                .clip(RoundedCornerShape(24.dp))
+                .pointerInput(photo) {
+                    detectTapGestures(onDoubleTap = { reset() })
+                }
                 .pointerInput(photo) {
                     detectTransformGestures { centroid, pan, zoom, _ ->
                         if (window <= 0f) return@detectTransformGestures
@@ -172,10 +188,10 @@ fun AvatarCropScreen(
                 drawRect(androidx.compose.ui.graphics.Color(0xFF0A0A0A).copy(alpha = 0.74f))
             }
             drawCircle(
-                color = Acid,
-                radius = radius - 1.dp.toPx(),
+                brush = instaGradient(),
+                radius = radius - 1.5.dp.toPx(),
                 center = Offset(radius, radius),
-                style = Stroke(width = 2.dp.toPx()),
+                style = Stroke(width = 3.dp.toPx()),
             )
         }
 
@@ -188,12 +204,15 @@ fun AvatarCropScreen(
         ) {
             FlatButton(
                 text = "Cancel",
-                emphasised = false,
+                enabled = !busy,
+                modifier = Modifier.weight(1f),
                 onClick = { if (!busy) onCancel() },
             )
             FlatButton(
-                text = if (busy) "uploading..." else "set",
-                emphasised = !busy,
+                text = "Use photo",
+                emphasised = true,
+                loading = busy,
+                modifier = Modifier.weight(1f),
                 onClick = {
                     if (busy || scale <= 0f) return@FlatButton
                     onConfirm(
@@ -210,22 +229,19 @@ fun AvatarCropScreen(
             )
         }
 
-        // Shown here rather than back on the setup card, because a failed
-        // upload leaves this screen open so lagao can simply be pressed again.
+        // Shown here rather than back on the account card, because a failed
+        // upload leaves this screen open so "Use photo" can be pressed again.
         if (error != null) {
             Spacer(Modifier.height(12.dp))
-            Text(
-                text = error,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Heat,
-            )
+            InfoBanner(text = error, tone = BannerTone.Warn, glyph = "⚠️")
         } else if (!touched) {
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "Looks fine as is? just tap set.",
+                text = "Looks fine as it is? Just tap Use photo.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
         }
+        Spacer(Modifier.height(24.dp))
     }
 }

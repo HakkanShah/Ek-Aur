@@ -324,14 +324,21 @@ you would rather manage it by hand.
 ## Building
 
 ```bash
-./gradlew assembleDebug     # APK at app/build/outputs/apk/debug/
+./gradlew assembleRelease   # the APK to ship: app/build/outputs/apk/release/
+./gradlew assembleDebug     # for development: app/build/outputs/apk/debug/
 ./gradlew test              # JVM + Robolectric suite
 ```
+
+Ship the **release** build. It is signed with the same key, so it installs over
+a debug install as a normal update, but it is not debuggable, which lets
+Android optimise it: Compose screens run noticeably smoother. It also carries
+the Compose libraries' baseline profiles, installed on the phone by
+`profileinstaller`.
 
 Requires the Android SDK with platform 37 and build-tools 37. `local.properties`
 points at it via `sdk.dir`.
 
-The project signs debug builds with a committed keystore (`keystore/ekaur.jks`)
+The project signs both build types with a committed keystore (`keystore/ekaur.jks`)
 rather than the per-machine default, so builds from anywhere install over each
 other without forcing an uninstall. Fine for a sideloaded hobby app; it would
 need replacing if this ever went near the Play Store.

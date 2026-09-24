@@ -1,13 +1,20 @@
 package com.ekaur.android.ui.stats
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -17,16 +24,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.data.repo.CounterRepository
 import com.ekaur.android.ui.common.Card
+import com.ekaur.android.ui.common.ChipTone
+import com.ekaur.android.ui.common.EmptyState
+import com.ekaur.android.ui.common.Motion
+import com.ekaur.android.ui.common.ScreenHeader
 import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.common.SegmentedToggle
+import com.ekaur.android.ui.common.Skeleton
 import com.ekaur.android.ui.common.StatTile
-import com.ekaur.android.ui.theme.Ash
+import com.ekaur.android.ui.common.StatusChip
+import com.ekaur.android.ui.common.rememberToday
+import com.ekaur.android.ui.common.reveal
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Smoke
 
@@ -46,31 +62,32 @@ fun StatsScreen(
     repository: CounterRepository,
     modifier: Modifier = Modifier,
 ) {
-    var range by remember { mutableStateOf(RANGES[1]) }
+    var range by rememberSaveable { mutableStateOf(RANGES[1]) }
     var pickedHour by remember { mutableStateOf<Int?>(null) }
     var pickedDay by remember { mutableStateOf<Int?>(null) }
+    val today = rememberToday()
 
-    // The dates the charts are drawn against, fixed for as long as the screen
-    // is open. Also the window the rows are fetched for -- by date, never by a
-    // row count, since one date can hold a row per tracked app.
-    val dates = remember { repository.lastDays(RANGES.last()) }
+    // The dates the charts are drawn against. Keyed on the day, so a screen
+    // left open overnight rolls over rather than charting yesterday as today.
+    val dates = remember(today) { repository.lastDays(RANGES.last()) }
 
-    // Every flow is remembered. Each tap on a column recomposes this screen,
-    // and rebuilding the flows here would tear down and resubscribe six Room
-    // queries on every one of them.
-    val today by remember { repository.observeTodayCount() }.collectAsState(initial = 0)
-    val activeMs by remember { repository.observeTodayActiveMs() }.collectAsState(initial = 0L)
-    val hourRows by remember { repository.observeTodayHours() }
-        .collectAsState(initial = emptyList())
-    val dayRows by remember(dates) { repository.observeDaysSince(dates.first()) }
-        .collectAsState(initial = emptyList())
-    val sessions by remember { repository.observeRecentSessions(SESSION_ROWS) }
-        .collectAsState(initial = emptyList())
+    // Every flow is remembered: rebuilding one would tear down and resubscribe
+    // a Room query. They start as null, which means "still loading" -- not
+    // "nothing yet" -- so the screen shows skeletons, not a false empty state.
+    val todayCount by remember(today) { repository.observeTodayCount() }.collectAsState(initial = null)
+    val activeMs by remember(today) { repository.observeTodayActiveMs() }.collectAsState(initial = 0L)
+    val hourRows by remember(today) { repository.observeTodayHours() }.collectAsState(initial = null)
+    val dayRows by remember(dates) { repository.observeDaysSince(dates.first()) }.collectAsState(initial = null)
+    val sessions by remember { repository.observeRecentSessions(SESSION_ROWS) }.collectAsState(initial = null)
     val best by remember { repository.observeBestDay() }.collectAsState(initial = null)
 
-    val hours = hourlySeries(hourRows)
-    val days = dailySeries(dayRows, dates.takeLast(range))
-    val weekTotal = dailySeries(dayRows, dates.takeLast(7)).sumOf { it.reels }
+    // Derived once per data change, never per tap.
+    val hours = remember(hourRows) { hourRows?.let(::hourlySeries) }
+    val allDays = remember(dayRows, dates) { dayRows?.let { dailySeries(it, dates) } }
+    val days = remember(allDays, range) { allDays?.takeLast(range) }
+    val dayValues = remember(days) { days?.map { it.reels } }
+    val weekTotal = remember(allDays) { allDays?.takeLast(7)?.sumOf { it.reels } }
+    val yesterday = allDays?.getOrNull(allDays.size - 2)?.reels
 
     Column(
         modifier
@@ -78,26 +95,41 @@ fun StatsScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
+        ScreenHeader(
+            title = "Stats",
+            subtitle = "Your numbers. No judgement. Tap or drag a chart.",
+            modifier = Modifier.reveal(0),
+        )
+
         Row(
-            Modifier.fillMaxWidth(),
+            Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+                .reveal(1),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            val shownToday = todayCount ?: 0
             StatTile(
                 label = "Today",
-                value = today.toString(),
-                caption = if (activeMs > 0) formatDuration(activeMs) else null,
-                modifier = Modifier.weight(1f),
+                value = shownToday.toString(),
+                count = shownToday,
+                delta = if (todayCount != null && yesterday != null && yesterday > 0) shownToday - yesterday else null,
+                caption = if (activeMs > 0) formatDuration(activeMs) else "so far",
+                modifier = Modifier.weight(1f).fillMaxHeight(),
             )
             StatTile(
                 label = "7 days",
-                value = weekTotal.toString(),
-                modifier = Modifier.weight(1f),
+                value = (weekTotal ?: 0).toString(),
+                count = weekTotal ?: 0,
+                caption = weekTotal?.let { "avg ${it / 7}/day" },
+                modifier = Modifier.weight(1f).fillMaxHeight(),
             )
             StatTile(
                 label = "Best day",
                 value = best?.total?.toString() ?: "—",
-                caption = best?.date?.let(::dayLabel),
-                modifier = Modifier.weight(1f),
+                count = best?.total,
+                caption = best?.date?.let(::dayLabel) ?: "not yet",
+                modifier = Modifier.weight(1f).fillMaxHeight(),
             )
         }
 
@@ -105,22 +137,26 @@ fun StatsScreen(
 
         ChartCard(
             title = "Today by hour",
-            // The tapped column's own number, so no value is locked behind a
-            // gesture -- the readout replaces the headline rather than floating
-            // over the chart, which has nowhere to float on a phone.
-            // getOrNull, not [], throughout: a selection index outlives the
-            // list it came from if the data shrinks under it, and a crash here
-            // is a crash on a screen with no way to report itself.
-            readout = pickedHour
-                ?.let { i -> hours.getOrNull(i)?.let { "${hourLabel(i)}  ·  $it reels" } }
-                ?: peakIndex(hours)?.let { "peak ${hourLabel(it)}  ·  ${hours[it]}" },
-            empty = hours.all { it == 0 },
-            emptyText = "Nothing today yet.",
+            // getOrNull, not [], throughout: a selection index can outlive the
+            // list it came from if the data shrinks under it.
+            readout = when {
+                hours == null -> null
+                pickedHour != null -> hours.getOrNull(pickedHour!!)?.let { "${hourLabel(pickedHour!!)} · $it reels" }
+                else -> peakIndex(hours)?.let { "Peak at ${hourLabel(it)} · ${hours[it]} reels" }
+            },
+            loading = hours == null,
+            empty = hours != null && hours.all { it == 0 },
+            emptyEmoji = "🌙",
+            emptyTitle = "Nothing today yet.",
+            emptyBody = "The chart fills in hour by hour as you scroll.",
+            modifier = Modifier.reveal(2),
         ) {
             ColumnChart(
-                values = hours,
+                values = hours.orEmpty(),
                 selected = pickedHour,
                 onSelect = { pickedHour = if (pickedHour == it) null else it },
+                onScrub = { pickedHour = it },
+                description = "Reels by hour today",
             )
             Spacer(Modifier.height(8.dp))
             HourAxis()
@@ -130,19 +166,24 @@ fun StatsScreen(
 
         ChartCard(
             title = "Last $range days",
-            readout = pickedDay
-                ?.let { i ->
-                    days.getOrNull(i)
-                        ?.let { "${dayLongLabel(it.date)}  ·  ${it.reels} reels" }
+            readout = when {
+                days == null || dayValues == null -> null
+                pickedDay != null -> days.getOrNull(pickedDay!!)?.let { "${dayLongLabel(it.date)} · ${it.reels} reels" }
+                else -> peakIndex(dayValues)?.let {
+                    val avg = dayValues.sum() / dayValues.size.coerceAtLeast(1)
+                    "Avg $avg a day · best ${dayLabel(days[it].date)} (${days[it].reels})"
                 }
-                ?: peakIndex(days.map { it.reels })
-                    ?.let { "best ${dayLabel(days[it].date)}  ·  ${days[it].reels}" },
-            empty = days.all { it.reels == 0 },
-            emptyText = "No counts yet.",
+            },
+            loading = days == null,
+            empty = dayValues != null && dayValues.all { it == 0 },
+            emptyEmoji = "📉",
+            emptyTitle = "No counts yet.",
+            emptyBody = "Come back after a scroll or two. It remembers everything.",
             action = {
                 SegmentedToggle(
-                    options = RANGES.map { it.toString() },
+                    options = RANGES.map { "${it}d" },
                     selectedIndex = RANGES.indexOf(range),
+                    segmentWidth = 46.dp,
                     onSelect = {
                         range = RANGES[it]
                         // The old index would point at a different day.
@@ -150,83 +191,113 @@ fun StatsScreen(
                     },
                 )
             },
+            modifier = Modifier.reveal(3),
         ) {
             ColumnChart(
-                values = days.map { it.reels },
+                values = dayValues.orEmpty(),
                 selected = pickedDay,
                 onSelect = { pickedDay = if (pickedDay == it) null else it },
+                onScrub = { pickedDay = it },
+                description = "Reels per day, last $range days",
             )
             Spacer(Modifier.height(8.dp))
-            if (days.isNotEmpty()) {
-                RangeAxis(from = days.first().date, to = days.last().date)
-            }
+            RangeAxis(days.orEmpty().map { it.date })
         }
 
         Spacer(Modifier.height(12.dp))
 
-        Card {
-            SectionLabel("Sessions")
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "A session = scrolling without a break",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Ash,
-            )
-            Spacer(Modifier.height(12.dp))
-
-            if (sessions.isEmpty()) {
-                Text(
-                    text = "No sessions yet.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Smoke,
-                )
-            } else {
-                sessions.forEachIndexed { index, session ->
-                    if (index > 0) Hairline()
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "${dayLabel(dateOf(session.startedAtMs))}, " +
-                                timeLabel(session.startedAtMs),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Smoke,
-                        )
-                        Text(
-                            text = "${formatDuration(session.durationMs)}  ·  " +
-                                "${session.reelCount} reels",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Chalk,
-                        )
-                    }
-                }
-            }
-        }
+        SessionsCard(sessions = sessions, modifier = Modifier.reveal(4))
 
         Spacer(Modifier.height(24.dp))
     }
 }
 
+@Composable
+private fun SessionsCard(
+    sessions: List<com.ekaur.android.data.local.SessionRecordEntity>?,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier) {
+        SectionLabel("Sessions")
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "One session = scrolling without a break.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Smoke,
+        )
+        Spacer(Modifier.height(10.dp))
+
+        when {
+            sessions == null -> repeat(3) {
+                Skeleton(Modifier.fillMaxWidth().height(20.dp))
+                Spacer(Modifier.height(14.dp))
+            }
+            sessions.isEmpty() -> EmptyState(
+                emoji = "⏱️",
+                title = "No sessions yet.",
+                body = "Open Instagram and give it a minute.",
+            )
+            else -> {
+                val longest = remember(sessions) { sessions.maxByOrNull { it.durationMs } }
+                sessions.forEachIndexed { index, session ->
+                    if (index > 0) Hairline()
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = "${dayLabel(dateOf(session.startedAtMs))}, ${timeLabel(session.startedAtMs)}",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Chalk,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = "${session.reelCount} reels",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Smoke,
+                            )
+                        }
+                        if (session === longest && sessions.size > 1) {
+                            StatusChip("Longest", ChipTone.Accent)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = formatDuration(session.durationMs),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Chalk,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 /**
- * A titled card with a number under the title and a chart inside it.
+ * A titled card with a readout under the title and a chart inside it.
  *
  * The readout line is where a tooltip would go on a screen that had room for
- * one: it names the tapped column, or the tallest when nothing is tapped.
+ * one: it names the tapped column, or sums the chart up when nothing is.
  */
 @Composable
 private fun ChartCard(
     title: String,
     readout: String?,
+    loading: Boolean,
     empty: Boolean,
-    emptyText: String,
+    emptyEmoji: String,
+    emptyTitle: String,
+    emptyBody: String,
+    modifier: Modifier = Modifier,
     action: @Composable (() -> Unit)? = null,
     chart: @Composable () -> Unit,
 ) {
-    Card {
+    Card(modifier) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -236,24 +307,28 @@ private fun ChartCard(
             action?.invoke()
         }
 
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(8.dp))
 
-        Text(
-            text = readout ?: "—",
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (readout == null) Ash else Chalk,
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        if (empty) {
+        AnimatedContent(
+            targetState = readout ?: "—",
+            transitionSpec = { fadeIn(Motion.quick()) togetherWith fadeOut(Motion.quick()) },
+            label = "readout",
+        ) { text ->
             Text(
-                text = emptyText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Smoke,
+                text = text,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (readout == null) Smoke else Chalk,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-        } else {
-            chart()
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        when {
+            loading -> Skeleton(Modifier.fillMaxWidth().height(132.dp), corner = 16.dp)
+            empty -> EmptyState(emoji = emptyEmoji, title = emptyTitle, body = emptyBody)
+            else -> chart()
         }
     }
 }

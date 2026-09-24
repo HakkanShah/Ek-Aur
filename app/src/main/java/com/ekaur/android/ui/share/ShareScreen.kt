@@ -1,6 +1,19 @@
 package com.ekaur.android.ui.share
 
 import android.graphics.Bitmap
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
+import com.ekaur.android.ui.common.EmptyState
+import com.ekaur.android.ui.common.Motion
+import com.ekaur.android.ui.common.ScreenHeader
+import com.ekaur.android.ui.common.Skeleton
+import com.ekaur.android.ui.theme.Acid
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,8 +69,10 @@ fun ShareScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    var card by remember { mutableStateOf<Bitmap?>(null) }
+    var card by remember { mutableStateOf<ImageBitmap?>(null) }
+    var raw by remember { mutableStateOf<Bitmap?>(null) }
     var failed by remember { mutableStateOf(false) }
+    var attempt by remember { mutableIntStateOf(0) }
 
     // The Poppins faces the app uses, so the card matches it. Loaded once, and
     // never a hard dependency -- a font that won't load falls back to the system
@@ -66,20 +81,27 @@ fun ShareScreen(
     val regular = remember { runCatching { ResourcesCompat.getFont(context, R.font.poppins_regular) }.getOrNull() }
 
     // Rendered off the main thread: this draws a 1080x1080 bitmap and has no
-    // business blocking a frame. Fast, because the stats come from Room and the
-    // avatar is already warm in Coil's cache.
-    LaunchedEffect(stats, avatar) {
+    // business blocking a frame. Keyed on [attempt] too, so "Try again" works.
+    LaunchedEffect(stats, avatar, attempt) {
         failed = false
+        card = null
         val rendered = withContext(Dispatchers.Default) {
             runCatching {
                 StatsCardRenderer.render(stats, CardShape.Square, avatar, heavy, regular)
             }.getOrNull()
         }
-        card = rendered
-        // Show a real state instead of an endless "getting it ready" if a render
-        // ever fails, so a failure is visible rather than a permanent spinner.
+        raw = rendered
+        // Converted once here, not on every recomposition.
+        card = rendered?.asImageBitmap()
         failed = rendered == null
     }
+
+    // The card lands with a small scale-and-fade, like a photo dropped on a desk.
+    val landed by animateFloatAsState(
+        targetValue = if (card != null) 1f else 0f,
+        animationSpec = Motion.bouncy(),
+        label = "card-land",
+    )
 
     Column(
         modifier
@@ -87,46 +109,58 @@ fun ShareScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SectionLabel("Share card")
-            FlatButton(text = "Close", onClick = onClose)
-        }
+        ScreenHeader(
+            title = "Share card",
+            subtitle = "One square card. Works everywhere.",
+            onBack = onClose,
+        )
 
-        Spacer(Modifier.height(16.dp))
-
+        // A fixed 1:1 slot, so nothing below it jumps when the card arrives.
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp)),
+                .aspectRatio(1f),
             contentAlignment = Alignment.Center,
         ) {
             val preview = card
-            if (preview != null) {
-                Image(
-                    bitmap = preview.asImageBitmap(),
-                    contentDescription = "Share card preview",
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier.fillMaxWidth(),
+            when {
+                preview != null -> Image(
+                    bitmap = preview,
+                    contentDescription = "Your share card: ${stats.reelsToday} reels today",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val s = 0.92f + 0.08f * landed
+                            scaleX = s
+                            scaleY = s
+                            alpha = landed.coerceIn(0f, 1f)
+                        }
+                        .shadow(18.dp, RoundedCornerShape(22.dp), spotColor = Acid)
+                        .clip(RoundedCornerShape(22.dp)),
                 )
-            } else {
-                Text(
-                    text = if (failed) "Couldn't build the card. Try again." else "Getting it ready…",
-                    color = Smoke,
+                failed -> EmptyState(
+                    emoji = "😵",
+                    title = "Couldn't build the card.",
+                    body = "Happens rarely. One more go usually does it.",
+                    action = "Try again",
+                    onAction = { attempt++ },
                 )
+                else -> Skeleton(Modifier.fillMaxSize(), corner = 22.dp)
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
 
         FlatButton(
             text = "Share",
-            emphasised = card != null,
+            icon = "↗",
+            emphasised = true,
+            enabled = card != null,
+            loading = card == null && !failed,
+            modifier = Modifier.fillMaxWidth(),
             onClick = {
-                val ready = card ?: return@FlatButton
+                val ready = raw ?: return@FlatButton
                 runCatching {
                     context.startActivity(
                         android.content.Intent.createChooser(
@@ -136,6 +170,14 @@ fun ShareScreen(
                     )
                 }
             },
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "WhatsApp, Instagram stories and DMs, X — anything that takes a picture.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Smoke,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(Modifier.height(24.dp))

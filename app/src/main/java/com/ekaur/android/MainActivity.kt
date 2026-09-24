@@ -2,36 +2,20 @@ package com.ekaur.android
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import com.ekaur.android.ui.theme.Ink
-import com.ekaur.android.ui.theme.SurfaceLav
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,59 +27,59 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import com.ekaur.android.di.AppContainer
 import com.ekaur.android.share.CardStats
-import com.ekaur.android.share.ShareCardBuilder
-import com.ekaur.android.ui.share.ShareScreen
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import com.ekaur.android.service.ServiceControl
-import com.ekaur.android.sync.Avatar
 import com.ekaur.android.ui.account.AccountScreen
-import com.ekaur.android.ui.common.Card
-import com.ekaur.android.ui.common.FlatButton
-import com.ekaur.android.ui.common.GradientNumber
-import com.ekaur.android.ui.common.StatTile
-import com.ekaur.android.ui.common.UserAvatar
+import com.ekaur.android.ui.common.pressScale
+import com.ekaur.android.ui.common.rememberHaptics
 import com.ekaur.android.ui.debug.DiagnosticsScreen
+import com.ekaur.android.ui.debug.EventInspectorScreen
 import com.ekaur.android.ui.friends.FriendsScreen
 import com.ekaur.android.ui.friends.UsernameScreen
-import com.ekaur.android.ui.debug.EventInspectorScreen
+import com.ekaur.android.ui.home.HomeScreen
 import com.ekaur.android.ui.onboarding.PermissionState
 import com.ekaur.android.ui.onboarding.SetupScreen
 import com.ekaur.android.ui.onboarding.SetupWizard
+import com.ekaur.android.ui.share.ShareScreen
 import com.ekaur.android.ui.stats.StatsScreen
-import com.ekaur.android.ui.stats.formatDuration
-import com.ekaur.android.ui.update.UpdatePopup
-import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
+import com.ekaur.android.ui.theme.Canvas
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.EkAurTheme
-import com.ekaur.android.ui.theme.Good
-import com.ekaur.android.ui.theme.Heat
-import com.ekaur.android.ui.theme.InkLine
+import com.ekaur.android.ui.theme.Ink
 import com.ekaur.android.ui.theme.Smoke
-import com.ekaur.android.ui.theme.instaGradient
+import com.ekaur.android.ui.theme.buttonGradient
+import com.ekaur.android.ui.update.UpdatePopup
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 private enum class Tab(val label: String, val icon: Int) {
     Home("Home", R.drawable.ic_nav_home),
@@ -106,8 +90,13 @@ private enum class Tab(val label: String, val icon: Int) {
 
 private val BOTTOM_TABS = Tab.entries.toList()
 
-/** The developer-only screens, shown as a full overlay above the tabs. */
-private enum class DevScreen { Events, Status }
+/** A full screen shown over the tabs. The tabs stay alive underneath it. */
+private sealed interface Overlay {
+    data class Share(val stats: CardStats, val avatar: android.graphics.Bitmap?) : Overlay
+    data object Account : Overlay
+    data object Events : Overlay
+    data object Status : Overlay
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -130,7 +119,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun AppScaffold(container: AppContainer) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val username by container.settings.username.collectAsState()
 
     // The one gate: everyone is on one leaderboard, so a name is the whole
@@ -140,11 +129,8 @@ private fun AppScaffold(container: AppContainer) {
         return
     }
 
-    var permissions by remember { mutableStateOf(PermissionState()) }
-    var sharing by remember { mutableStateOf<CardStats?>(null) }
-    var cardAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var dev by remember { mutableStateOf<DevScreen?>(null) }
-    var account by remember { mutableStateOf(false) }
+    var permissions by remember { mutableStateOf(PermissionState.read(context)) }
+    var overlay by remember { mutableStateOf<Overlay?>(null) }
     val pagerState = rememberPagerState { BOTTOM_TABS.size }
     val scope = rememberCoroutineScope()
 
@@ -161,116 +147,145 @@ private fun AppScaffold(container: AppContainer) {
     var wizardOpen by remember { mutableStateOf(false) }
     var wizardRecovery by remember { mutableStateOf(false) }
     if (wizardOpen || (!permissions.service && !wizardSeen)) {
+        val close = {
+            container.settings.setupWizardSeen = true
+            wizardSeen = true
+            wizardOpen = false
+            wizardRecovery = false
+        }
+        // Back leaves the wizard: on first run that counts as "skip for now",
+        // opened by hand it returns to where it was opened from.
+        BackHandler(onBack = close)
         SetupWizard(
             permissions = permissions,
             startInRecovery = wizardRecovery,
-            onDone = {
-                container.settings.setupWizardSeen = true
-                wizardSeen = true
-                wizardOpen = false
-                wizardRecovery = false
-            },
-            onSkip = {
-                container.settings.setupWizardSeen = true
-                wizardSeen = true
-                wizardOpen = false
-                wizardRecovery = false
-            },
+            onDone = close,
+            onSkip = close,
+            onClose = if (wizardOpen) close else null,
             modifier = Modifier.systemBarsPadding(),
         )
         return
     }
 
     // Look for a newer build on GitHub once the app is open (throttled inside).
-    androidx.compose.runtime.LaunchedEffect(Unit) { container.updateManager.checkOnLaunch() }
+    LaunchedEffect(Unit) { container.updateManager.checkOnLaunch() }
 
     UpdatePopup(container.updateManager)
 
-    val card = sharing
+    fun goToTab(index: Int) {
+        overlay = null
+        scope.launch {
+            // A brisk, fixed-duration glide rather than the default spring,
+            // so a far jump (Home -> Setup) still lands fast and deliberate
+            // instead of drifting through the middle tabs.
+            pagerState.animateScrollToPage(
+                page = index,
+                animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing),
+            )
+        }
+    }
+
+    // System back closes a full screen first; from a tab other than Home it
+    // returns Home; only from Home does it leave the app.
+    BackHandler(enabled = overlay != null) { overlay = null }
+    BackHandler(enabled = overlay == null && pagerState.currentPage != Tab.Home.ordinal) {
+        goToTab(Tab.Home.ordinal)
+    }
+
     Column(
         Modifier
             .fillMaxSize()
             .systemBarsPadding(),
     ) {
         Box(Modifier.weight(1f)) {
-            when {
-                // The share card and the dev screens replace the tab area but keep
-                // the bar below, so tapping any tab returns. The nav no longer
-                // disappears on the share screen the way an early return made it.
-                card != null -> ShareScreen(
-                    stats = card,
-                    avatar = cardAvatar,
-                    onClose = { sharing = null },
-                )
-                account -> AccountScreen(container, onClose = { account = false })
-                dev == DevScreen.Events -> EventInspectorScreen(container.eventLog)
-                dev == DevScreen.Status -> DiagnosticsScreen(
-                    status = container.serviceStatus,
-                    eventLog = container.eventLog,
-                    crashReporter = container.crashReporter,
-                    serviceEnabled = permissions.service,
-                )
-                // The four main tabs live in a pager so switching slides natively
-                // and each screen stays composed -- no repaint hitch, no refetch.
-                else -> HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    beyondViewportPageCount = 1,
-                ) { page ->
-                    when (BOTTOM_TABS[page]) {
-                        Tab.Home -> HomeScreen(
-                            container = container,
-                            permissions = permissions,
-                            onOpenSetup = { wizardOpen = true },
-                            onOpenAccount = { account = true },
-                            onShare = { stats, avatar ->
-                                cardAvatar = avatar
-                                sharing = stats
-                            },
-                        )
-                        Tab.Stats -> StatsScreen(container.counterRepository)
-                        Tab.Ranks -> FriendsScreen(container)
-                        Tab.Setup -> SetupScreen(
-                            container = container,
-                            permissions = permissions,
-                            onGuidedSetup = { recovery ->
-                                wizardRecovery = recovery
-                                wizardOpen = true
-                            },
-                            onOpenEvents = { dev = DevScreen.Events },
-                            onOpenStatus = { dev = DevScreen.Status },
-                        )
+            // All four tabs stay composed, so every tab keeps its scroll and
+            // state however far you jump -- no repaint hitch, no refetch.
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                beyondViewportPageCount = BOTTOM_TABS.size - 1,
+            ) { page ->
+                when (BOTTOM_TABS[page]) {
+                    Tab.Home -> HomeScreen(
+                        container = container,
+                        permissions = permissions,
+                        onOpenWizard = { wizardOpen = true },
+                        onOpenSetupTab = { goToTab(Tab.Setup.ordinal) },
+                        onOpenAccount = { overlay = Overlay.Account },
+                        onShare = { stats, avatar -> overlay = Overlay.Share(stats, avatar) },
+                    )
+                    Tab.Stats -> StatsScreen(container.counterRepository)
+                    Tab.Ranks -> FriendsScreen(
+                        container = container,
+                        onOpenAccount = { overlay = Overlay.Account },
+                    )
+                    Tab.Setup -> SetupScreen(
+                        container = container,
+                        permissions = permissions,
+                        onGuidedSetup = { recovery ->
+                            wizardRecovery = recovery
+                            wizardOpen = true
+                        },
+                        onOpenEvents = { overlay = Overlay.Events },
+                        onOpenStatus = { overlay = Overlay.Status },
+                    )
+                }
+            }
+
+            // Full screens slide up over the tabs rather than snapping in, and
+            // slide away again on close or back.
+            AnimatedContent(
+                targetState = overlay,
+                transitionSpec = {
+                    (slideInVertically(tween(320, easing = FastOutSlowInEasing)) { it / 8 } +
+                        fadeIn(tween(220))) togetherWith
+                        (slideOutVertically(tween(240)) { it / 10 } + fadeOut(tween(180)))
+                },
+                contentKey = { it?.javaClass },
+                label = "overlay",
+            ) { current ->
+                if (current != null) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Canvas),
+                    ) {
+                        when (current) {
+                            is Overlay.Share -> ShareScreen(
+                                stats = current.stats,
+                                avatar = current.avatar,
+                                onClose = { overlay = null },
+                            )
+                            Overlay.Account -> AccountScreen(container, onClose = { overlay = null })
+                            Overlay.Events -> EventInspectorScreen(container.eventLog)
+                            Overlay.Status -> DiagnosticsScreen(
+                                status = container.serviceStatus,
+                                eventLog = container.eventLog,
+                                crashReporter = container.crashReporter,
+                                serviceEnabled = permissions.service,
+                            )
+                        }
                     }
                 }
             }
         }
 
-        BottomBar(
-            pagerState = pagerState,
-            onSelect = { index ->
-                dev = null
-                sharing = null
-                account = false
-                scope.launch {
-                    // A brisk, fixed-duration glide rather than the default spring,
-                    // so a far jump (Home -> Setup) still lands fast and deliberate
-                    // instead of drifting through the middle tabs.
-                    pagerState.animateScrollToPage(
-                        page = index,
-                        animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing),
-                    )
-                }
-            },
-        )
+        BottomBar(pagerState = pagerState, onSelect = ::goToTab)
     }
 }
 
+/**
+ * The floating tab bar.
+ *
+ * The highlight follows the pager's live scroll position, so it glides as you
+ * swipe. That position is only ever read inside draw-layer lambdas, never in
+ * composition, so a swipe animates the bar without recomposing it each frame.
+ * The active and inactive looks are two stacked layers cross-faded by that
+ * same position, which keeps the label width fixed -- no mid-swipe jump.
+ */
 @Composable
 private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
-    // The live scroll position, so the gradient highlight glides between items as
-    // you swipe or tap instead of snapping -- the "not laggy" feel.
-    val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
-    val haptic = LocalHapticFeedback.current
+    val haptics = rememberHaptics()
     Box(Modifier.padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 10.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -281,39 +296,36 @@ private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 BOTTOM_TABS.forEachIndexed { index, entry ->
                     // 1 on the active item, fading to 0 as the swipe moves away.
-                    val t = (1f - kotlin.math.abs(position - index)).coerceIn(0f, 1f)
-
-                    // A quick squish on touch so every tap feels answered.
+                    // A lambda, so it is evaluated in the draw phase only.
+                    val t = {
+                        val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+                        (1f - abs(position - index)).coerceIn(0f, 1f)
+                    }
                     val interaction = remember { MutableInteractionSource() }
-                    val pressed by interaction.collectIsPressedAsState()
-                    val pressScale by animateFloatAsState(
-                        targetValue = if (pressed) 0.86f else 1f,
-                        animationSpec = tween(120, easing = FastOutSlowInEasing),
-                        label = "press",
-                    )
 
                     Column(
                         Modifier
                             .weight(1f)
+                            .semantics {
+                                role = Role.Tab
+                                selected = pagerState.currentPage == index
+                            }
+                            .pressScale(interaction, 0.86f)
                             .clip(RoundedCornerShape(18.dp))
-                            .clickable(
-                                interactionSource = interaction,
-                                indication = null,
-                            ) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            .clickable(interactionSource = interaction, indication = null) {
+                                if (pagerState.currentPage != index) haptics.tick()
                                 onSelect(index)
                             }
-                            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
                             .padding(vertical = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(
-                            Modifier.size(width = 46.dp, height = 30.dp),
+                            Modifier.size(width = 50.dp, height = 32.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             // The gradient pill grows in as the tab becomes active.
@@ -321,346 +333,59 @@ private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
                                 Modifier
                                     .matchParentSize()
                                     .graphicsLayer {
-                                        alpha = t
-                                        val s = 0.7f + 0.3f * t
+                                        val v = t()
+                                        alpha = v
+                                        val s = 0.7f + 0.3f * v
                                         scaleX = s
                                         scaleY = s
                                     }
                                     .clip(RoundedCornerShape(50))
-                                    .background(brush = instaGradient()),
+                                    .background(brush = buttonGradient()),
+                            )
+                            // Two icon layers: grey fading out, white fading in.
+                            Icon(
+                                painter = painterResource(entry.icon),
+                                contentDescription = null,
+                                tint = Ash,
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .graphicsLayer { alpha = 1f - t() },
                             )
                             Icon(
                                 painter = painterResource(entry.icon),
-                                contentDescription = entry.label,
-                                tint = lerp(Ash, Ink, t),
+                                contentDescription = null,
+                                tint = Ink,
                                 modifier = Modifier
                                     .size(22.dp)
                                     .graphicsLayer {
+                                        val v = t()
+                                        alpha = v
                                         // A gentle lift on the active icon.
-                                        val s = 1f + 0.10f * t
+                                        val s = 1f + 0.08f * v
                                         scaleX = s
                                         scaleY = s
-                                        translationY = -2f * t
+                                        translationY = -1.5f * v
                                     },
                             )
                         }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = entry.label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = lerp(Smoke, Chalk, t),
-                            fontWeight = if (t > 0.5f) FontWeight.SemiBold else FontWeight.Normal,
-                        )
+                        Spacer(Modifier.height(3.dp))
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = entry.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Smoke,
+                                modifier = Modifier.graphicsLayer { alpha = 1f - t() },
+                            )
+                            Text(
+                                text = entry.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Chalk,
+                                modifier = Modifier.graphicsLayer { alpha = t() },
+                            )
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun HomeScreen(
-    container: AppContainer,
-    permissions: PermissionState,
-    onOpenSetup: () -> Unit,
-    onOpenAccount: () -> Unit,
-    onShare: (CardStats, android.graphics.Bitmap?) -> Unit,
-) {
-    val scope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
-    var building by remember { mutableStateOf(false) }
-    val count by container.counterRepository.observeTodayCount().collectAsState(initial = 0)
-    val activeMs by container.counterRepository.observeTodayActiveMs().collectAsState(initial = 0L)
-    val connected by container.serviceStatus.connected.collectAsState()
-    val state by container.serviceStatus.detectorState.collectAsState()
-    val username by container.settings.username.collectAsState()
-
-    // A small week + best summary under the hero, so the home screen reads as a
-    // dashboard rather than one lonely number on a lot of empty space.
-    val dates = remember { container.counterRepository.lastDays(7) }
-    val dayRows by remember(dates) { container.counterRepository.observeDaysSince(dates.first()) }
-        .collectAsState(initial = emptyList())
-    val weekTotal = com.ekaur.android.ui.stats.dailySeries(dayRows, dates).sumOf { it.reels }
-    val best by remember { container.counterRepository.observeBestDay() }.collectAsState(initial = null)
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp),
-    ) {
-        Spacer(Modifier.height(14.dp))
-
-        // Header: app name on the left, the account avatar on the right.
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.Top) {
-                    Text(
-                        text = "EK AUR",
-                        style = androidx.compose.ui.text.TextStyle(
-                            fontFamily = com.ekaur.android.ui.theme.Poppins,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 26.sp,
-                            letterSpacing = 4.sp,
-                            brush = instaGradient(),
-                        ),
-                    )
-                    Spacer(Modifier.size(6.dp))
-                    // A small superscript "beta" tag at the top-right of the mark.
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(percent = 50))
-                            .background(color = SurfaceLav)
-                            .padding(horizontal = 7.dp, vertical = 2.dp),
-                    ) {
-                        Text(
-                            text = "BETA",
-                            style = androidx.compose.ui.text.TextStyle(
-                                fontFamily = com.ekaur.android.ui.theme.Poppins,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 9.sp,
-                                letterSpacing = 1.5.sp,
-                                brush = instaGradient(),
-                            ),
-                        )
-                    }
-                }
-                Text(
-                    text = "one more",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Smoke,
-                    letterSpacing = 2.sp,
-                )
-            }
-            // A stories-style gradient ring, matching the leaderboard avatars.
-            Box(
-                Modifier
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .clickable(onClick = onOpenAccount)
-                    .background(brush = instaGradient())
-                    .padding(2.5.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color.White)
-                    .padding(2.dp),
-            ) {
-                UserAvatar(
-                    username = username.orEmpty(),
-                    url = Avatar.urlFor(
-                        baseUrl = container.supabase.baseUrl,
-                        userId = container.settings.userId.orEmpty(),
-                        version = container.settings.avatarVersion,
-                    ),
-                    size = 42.dp,
-                )
-            }
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        // The hero number and its label, sitting on a soft radial glow drawn
-        // behind the content so it adds atmosphere without adding empty height.
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .drawBehind {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(SurfaceLav, Color.Transparent),
-                            center = center,
-                            radius = size.width * 0.42f,
-                        ),
-                        radius = size.width * 0.42f,
-                        center = center,
-                    )
-                }
-                .padding(vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            GradientNumber(
-                text = count.toString(),
-                style = MaterialTheme.typography.displayLarge,
-            )
-            Text(
-                "Reels today",
-                style = MaterialTheme.typography.titleLarge,
-                color = Smoke,
-                fontWeight = FontWeight.Medium,
-            )
-            if (activeMs > 0) {
-                Spacer(Modifier.height(10.dp))
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(percent = 50))
-                        .background(SurfaceLav)
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                ) {
-                    Text(
-                        text = formatDuration(activeMs) + " watched",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Smoke,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(22.dp))
-
-        // A compact summary row.
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            StatTile(label = "Today", value = count.toString(), modifier = Modifier.weight(1f))
-            StatTile(label = "7 days", value = weekTotal.toString(), modifier = Modifier.weight(1f))
-            StatTile(
-                label = "Best day",
-                value = best?.total?.toString() ?: "—",
-                modifier = Modifier.weight(1f),
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        FlatButton(
-            text = if (building) "Making…" else "Share card",
-            emphasised = count > 0 && !building,
-            modifier = Modifier.fillMaxWidth(),
-            onClick = {
-                if (count <= 0 || building) return@FlatButton
-                building = true
-                scope.launch {
-                    val ready = withContext(Dispatchers.IO) {
-                        ShareCardBuilder.gather(container, context)
-                    }
-                    building = false
-                    if (ready != null) onShare(ready.first, ready.second)
-                }
-            },
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        StatusCard(
-            permissions = permissions,
-            connected = connected,
-            state = state,
-            onOpenSetup = onOpenSetup,
-        )
-
-        Spacer(Modifier.height(16.dp))
-    }
-}
-
-/** The look of the counting-status card: a colour, a headline, and a plain line. */
-private data class StatusLook(
-    val color: Color,
-    val title: String,
-    val detail: String,
-    val live: Boolean,
-)
-
-private fun statusLook(permissions: PermissionState, connected: Boolean, state: String): StatusLook =
-    when {
-        !permissions.service ->
-            StatusLook(Heat, "Counting is off", "Turn on accessibility to start counting.", false)
-        !connected ->
-            StatusLook(Heat, "Not connected yet", "It's on — open Instagram to wake it up.", false)
-        !permissions.overlay ->
-            StatusLook(Heat, "The pill is hidden", "Counting works. Allow overlay to see it float.", true)
-        !permissions.battery ->
-            StatusLook(Heat, "Battery may stop it", "Counting now, but battery saver can kill it.", true)
-        else -> when (state) {
-            "InReels" -> StatusLook(Good, "Counting", "You're watching reels right now.", true)
-            "InApp" -> StatusLook(Good, "Ready", "Instagram's open — swipe into reels.", true)
-            else -> StatusLook(Good, "Standing by", "Waiting for you to open Instagram.", false)
-        }
-    }
-
-@Composable
-private fun StatusCard(
-    permissions: PermissionState,
-    connected: Boolean,
-    state: String,
-    onOpenSetup: () -> Unit,
-) {
-    val look = statusLook(permissions, connected, state)
-    Card {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            LiveBadge(color = look.color, live = look.live)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = look.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Chalk,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = look.detail,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Smoke,
-                )
-            }
-        }
-
-        if (!permissions.allGranted) {
-            Spacer(Modifier.height(16.dp))
-            FlatButton(
-                text = "Finish setup",
-                emphasised = true,
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenSetup,
-            )
-        }
-    }
-}
-
-/** A tinted badge holding a dot that softly pulses while counting is live. */
-@Composable
-private fun LiveBadge(color: Color, live: Boolean) {
-    val pulse = rememberInfiniteTransition(label = "pulse")
-    val ring by pulse.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "ring",
-    )
-    Box(
-        Modifier
-            .size(42.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(color.copy(alpha = 0.12f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (live) {
-            // An expanding, fading ring — a heartbeat behind the dot.
-            Box(
-                Modifier
-                    .size(16.dp)
-                    .graphicsLayer {
-                        val s = 1f + ring * 1.4f
-                        scaleX = s
-                        scaleY = s
-                        alpha = (1f - ring) * 0.5f
-                    }
-                    .clip(CircleShape)
-                    .background(color),
-            )
-        }
-        Box(
-            Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(color),
-        )
     }
 }

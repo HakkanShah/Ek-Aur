@@ -1,20 +1,27 @@
 package com.ekaur.android.ui.common
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,27 +34,40 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
+import com.ekaur.android.ui.theme.Good
+import com.ekaur.android.ui.theme.GoodSoft
+import com.ekaur.android.ui.theme.Heat
+import com.ekaur.android.ui.theme.HeatSoft
 import com.ekaur.android.ui.theme.Ink
 import com.ekaur.android.ui.theme.Poppins
-import com.ekaur.android.ui.theme.SurfaceLav
 import com.ekaur.android.ui.theme.Smoke
+import com.ekaur.android.ui.theme.SurfaceBlush
+import com.ekaur.android.ui.theme.SurfaceLav
+import com.ekaur.android.ui.theme.buttonGradient
 import com.ekaur.android.ui.theme.instaGradient
+import com.ekaur.android.ui.theme.instaGradientSoft
 
 /**
  * A section heading: a short gradient bar, then the title. The gradient bar is
@@ -74,14 +94,93 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * A pill button. [emphasised] fills it with the gradient (the one main action)
- * and lifts on a soft shadow; otherwise a soft lavender fill for everything
- * secondary -- no outlines anywhere, the whole app is soft-filled shapes now.
+ * The top of every tab and full screen: a title, an optional line under it,
+ * an optional back button, and an optional trailing slot. One header means
+ * every screen starts at the same height with the same rhythm.
+ */
+@Composable
+fun ScreenHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    onBack: (() -> Unit)? = null,
+    trailing: (@Composable RowScope.() -> Unit)? = null,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (onBack != null) {
+            RoundIconButton(glyph = "←", description = "Back", onClick = onBack)
+            Spacer(Modifier.width(12.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineMedium,
+                color = Chalk,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (subtitle != null) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Smoke,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (trailing != null) {
+            Spacer(Modifier.width(12.dp))
+            trailing()
+        }
+    }
+}
+
+/** A 40dp round soft button holding a single glyph: back, close. */
+@Composable
+fun RoundIconButton(
+    glyph: String,
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        modifier
+            .size(40.dp)
+            .pressScale(interaction, 0.9f)
+            .clip(CircleShape)
+            .background(SurfaceLav)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Button,
+                onClickLabel = description,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(glyph, style = MaterialTheme.typography.titleLarge, color = Chalk)
+    }
+}
+
+/**
+ * A pill button.
  *
- * The label is a dedicated 15sp button size (titleLarge at 18sp was too big and
- * clipped words like "Change photo" in a half-width row), single line with an
- * ellipsis as a last resort so nothing is ever cut mid-glyph, and every tap
- * answers with a quick squish.
+ * - [emphasised] (primary) fills it with the gradient -- the one main action on
+ *   a screen -- and lifts it on a soft shadow.
+ * - Otherwise it's secondary: a soft lavender fill.
+ * - [quiet] drops the fill entirely, for "Skip" and "Later".
+ *
+ * [loading] swaps the label for a spinner without changing the width, and
+ * disables the button; [enabled] false fades it. [icon] is an optional
+ * leading glyph. Every tap answers with a quick squish.
  */
 @Composable
 fun FlatButton(
@@ -89,40 +188,69 @@ fun FlatButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     emphasised: Boolean = false,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+    quiet: Boolean = false,
+    icon: String? = null,
 ) {
     val shape = RoundedCornerShape(percent = 50)
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.95f else 1f,
-        animationSpec = tween(90, easing = FastOutSlowInEasing),
-        label = "press",
-    )
+    val active = enabled && !loading
+    val fade by animateFloatAsState(if (enabled) 1f else 0.45f, Motion.quick(), label = "enabled")
     Box(
         modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .heightIn(min = 46.dp)
+            .pressScale(interaction, 0.95f)
+            .alpha(fade)
             .then(
-                if (emphasised) Modifier.shadow(12.dp, shape, clip = false, spotColor = Acid)
+                if (emphasised && enabled) Modifier.shadow(12.dp, shape, clip = false, spotColor = Acid)
                 else Modifier
             )
             .clip(shape)
             .then(
-                if (emphasised) Modifier.background(brush = instaGradient())
-                else Modifier.background(color = SurfaceLav)
+                when {
+                    quiet -> Modifier
+                    emphasised -> Modifier.background(brush = buttonGradient())
+                    else -> Modifier.background(color = SurfaceLav)
+                }
             )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 13.dp),
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = active,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = text,
-            style = ButtonTextStyle,
-            color = if (emphasised) Ink else Chalk,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
+        val contentColor = when {
+            emphasised -> Ink
+            quiet -> Smoke
+            else -> Chalk
+        }
+        Row(
+            Modifier.alpha(if (loading) 0f else 1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (icon != null) {
+                Text(icon, style = ButtonTextStyle, color = contentColor)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                text = text,
+                style = ButtonTextStyle,
+                color = contentColor,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
+        if (loading) {
+            Spinner(size = 18.dp, color = if (emphasised) Ink else Acid)
+        }
     }
 }
 
@@ -159,7 +287,8 @@ fun StatRow(label: String, value: String, tint: Color = Chalk) {
         verticalAlignment = Alignment.Top,
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = Smoke)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = tint)
+        Spacer(Modifier.width(12.dp))
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = tint, textAlign = TextAlign.End)
     }
 }
 
@@ -168,26 +297,37 @@ fun Dot(color: Color, modifier: Modifier = Modifier) {
     Box(modifier.size(9.dp).background(color, CircleShape))
 }
 
-/** One headline number with its name under it, a gradient tick before the name. */
+/**
+ * One headline number with its name under it, a gradient tick before the name.
+ *
+ * Pass [count] to have the number count up instead of [value] snapping in.
+ * [delta] adds a small "▲ 12" chip (compared with yesterday, say). In a row,
+ * give the Row `IntrinsicSize.Min` height and each tile `fillMaxHeight()` so
+ * they line up whatever their captions.
+ */
 @Composable
 fun StatTile(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
     caption: String? = null,
+    count: Int? = null,
+    delta: Int? = null,
 ) {
-    // Compact padding and a title-sized number: three of these share one screen
-    // width, so heavy card padding or a 26sp value pushes the row off the edge.
     Card(modifier = modifier, contentPadding = 14.dp) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineMedium,
-            color = Chalk,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            softWrap = false,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-        )
+        val numberStyle = MaterialTheme.typography.headlineSmall
+        if (count != null) {
+            AnimatedCount(value = count, style = numberStyle, color = Chalk)
+        } else {
+            Text(
+                text = value,
+                style = numberStyle,
+                color = Chalk,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -199,32 +339,51 @@ fun StatTile(
             Spacer(Modifier.width(6.dp))
             Text(
                 label,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = Smoke,
                 maxLines = 1,
                 softWrap = false,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        if (caption != null) {
-            Spacer(Modifier.height(2.dp))
+        if (delta != null && delta != 0) {
+            Spacer(Modifier.height(6.dp))
+            DeltaChip(delta)
+        } else if (caption != null) {
+            Spacer(Modifier.height(4.dp))
             Text(
                 caption,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Ash,
+                style = MaterialTheme.typography.bodySmall,
+                color = Smoke,
                 maxLines = 1,
                 softWrap = false,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
+}
+
+/** "▲ 12" or "▼ 3" in a small tinted pill. Up is magenta: more is the joke. */
+@Composable
+fun DeltaChip(delta: Int, modifier: Modifier = Modifier) {
+    val up = delta > 0
+    Text(
+        text = (if (up) "▲ " else "▼ ") + kotlin.math.abs(delta),
+        style = MaterialTheme.typography.labelMedium,
+        color = if (up) Acid else Smoke,
+        maxLines = 1,
+        modifier = modifier
+            .clip(RoundedCornerShape(percent = 50))
+            .background(if (up) SurfaceBlush else SurfaceLav)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
 }
 
 /** A soft rounded card, floating on the tinted canvas. */
 @Composable
 fun Card(
     modifier: Modifier = Modifier,
-    contentPadding: androidx.compose.ui.unit.Dp = 18.dp,
+    contentPadding: Dp = 18.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(24.dp)
@@ -239,35 +398,74 @@ fun Card(
     }
 }
 
-/** A tap-to-open section, so long detail can hide until it's wanted. */
+/**
+ * A tap-to-open section, so long detail can hide until it's wanted. Opens with
+ * an eased height change and a turning chevron, and remembers whether it was
+ * open across a rotation.
+ */
 @Composable
 fun Expandable(
     title: String,
     modifier: Modifier = Modifier,
+    initiallyOpen: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val open = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var open by rememberSaveable { mutableStateOf(initiallyOpen) }
+    val haptics = rememberHaptics()
+    val turn by animateFloatAsState(if (open) 180f else 0f, Motion.standard(), label = "chevron")
     Column(modifier) {
         Row(
-            Modifier.fillMaxWidth().clickable { open.value = !open.value },
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button) {
+                    haptics.tick()
+                    open = !open
+                }
+                .padding(vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = Chalk)
-            Text(if (open.value) "–" else "+", style = MaterialTheme.typography.titleLarge, color = Smoke)
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = Chalk,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(10.dp))
+            Box(
+                Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(SurfaceLav),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "⌄",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Smoke,
+                    modifier = Modifier
+                        .rotate(turn)
+                        .offset(y = (-3).dp),
+                )
+            }
         }
-        if (open.value) {
-            Spacer(Modifier.height(12.dp))
-            content()
+        AnimatedVisibility(
+            visible = open,
+            enter = expandVertically(Motion.standard()) + fadeIn(Motion.standard()),
+            exit = shrinkVertically(Motion.standard()) + fadeOut(Motion.quick()),
+        ) {
+            Column {
+                Spacer(Modifier.height(10.dp))
+                content()
+            }
         }
     }
 }
 
 /**
- * A compact segmented switch: one soft pill split into tight segments, the
- * active one filled with the gradient. Fixed, small, and single-line, so it can
- * sit beside a title without crushing or wrapping the way three separate pill
- * buttons did.
+ * A compact segmented switch: one soft pill split into equal segments, with a
+ * gradient indicator that slides to the chosen one.
  */
 @Composable
 fun SegmentedToggle(
@@ -275,36 +473,50 @@ fun SegmentedToggle(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    segmentWidth: Dp = 52.dp,
 ) {
     val shape = RoundedCornerShape(percent = 50)
-    Row(
+    val haptics = rememberHaptics()
+    val indicatorX by animateDpAsState(
+        targetValue = segmentWidth * selectedIndex,
+        animationSpec = Motion.bouncy(),
+        label = "segment",
+    )
+    Box(
         modifier
             .clip(shape)
             .background(color = SurfaceLav)
             .padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        options.forEachIndexed { index, option ->
-            val selected = index == selectedIndex
-            Box(
-                Modifier
-                    .clip(shape)
-                    .then(
-                        if (selected) Modifier.background(brush = instaGradient())
-                        else Modifier
+        Box(
+            Modifier
+                .offset(x = indicatorX)
+                .size(width = segmentWidth, height = 36.dp)
+                .clip(shape)
+                .background(brush = buttonGradient()),
+        )
+        Row {
+            options.forEachIndexed { index, option ->
+                val selected = index == selectedIndex
+                val color by animateColorAsState(if (selected) Ink else Smoke, Motion.quick(), label = "seg-text")
+                Box(
+                    Modifier
+                        .size(width = segmentWidth, height = 36.dp)
+                        .clip(shape)
+                        .clickable(role = Role.Tab) {
+                            if (!selected) haptics.tick()
+                            onSelect(index)
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = option,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = color,
+                        maxLines = 1,
+                        softWrap = false,
                     )
-                    .clickable { onSelect(index) }
-                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = option,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (selected) Ink else Smoke,
-                    maxLines = 1,
-                    softWrap = false,
-                )
+                }
             }
         }
     }
@@ -312,8 +524,8 @@ fun SegmentedToggle(
 
 /**
  * A labelled switch row: a title (and optional description) on the left, a real
- * Material switch on the right. Reads as an on/off setting, where a pill that
- * said "Auto-off: on" read as a button.
+ * Material switch on the right. [busy] shows a small spinner in place of the
+ * switch while a change is being saved.
  */
 @Composable
 fun ToggleRow(
@@ -322,29 +534,207 @@ fun ToggleRow(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    busy: Boolean = false,
 ) {
+    val haptics = rememberHaptics()
     Row(
         modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = Chalk)
+            Text(title, style = MaterialTheme.typography.titleMedium, color = Chalk)
             if (subtitle != null) {
                 Spacer(Modifier.height(2.dp))
                 Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Smoke)
             }
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Ink,
-                checkedTrackColor = Acid,
-                uncheckedThumbColor = Smoke,
-                uncheckedTrackColor = SurfaceLav,
-                uncheckedBorderColor = Ash,
-            ),
+        Box(Modifier.width(52.dp), contentAlignment = Alignment.Center) {
+            if (busy) {
+                Spinner()
+            } else {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = {
+                        haptics.tick()
+                        onCheckedChange(it)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Ink,
+                        checkedTrackColor = Acid,
+                        checkedBorderColor = Acid,
+                        uncheckedThumbColor = Smoke,
+                        uncheckedTrackColor = SurfaceLav,
+                        uncheckedBorderColor = Ash,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+/** A tinted rounded square holding an emoji or glyph -- a row's icon. */
+@Composable
+fun IconTile(
+    glyph: String,
+    modifier: Modifier = Modifier,
+    tint: Color = SurfaceLav,
+    size: Dp = 40.dp,
+) {
+    Box(
+        modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.32f))
+            .background(tint),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(glyph, fontSize = (size.value * 0.46f).sp)
+    }
+}
+
+enum class ChipTone { Good, Warn, Neutral, Accent }
+
+/** A small status pill: "On", "Needed", "Optional". */
+@Composable
+fun StatusChip(text: String, tone: ChipTone, modifier: Modifier = Modifier) {
+    val (bg, fg) = when (tone) {
+        ChipTone.Good -> GoodSoft to Good
+        ChipTone.Warn -> HeatSoft to Heat
+        ChipTone.Neutral -> SurfaceLav to Smoke
+        ChipTone.Accent -> SurfaceBlush to Acid
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = fg,
+        maxLines = 1,
+        modifier = modifier
+            .clip(RoundedCornerShape(percent = 50))
+            .background(bg)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
+enum class BannerTone { Info, Warn, Good }
+
+/**
+ * A soft inline notice with an optional action: offline, "needs usage access",
+ * a failed save. Never a dialog -- it sits where the problem is.
+ */
+@Composable
+fun InfoBanner(
+    text: String,
+    modifier: Modifier = Modifier,
+    tone: BannerTone = BannerTone.Info,
+    glyph: String? = null,
+    action: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    val (bg, fg) = when (tone) {
+        BannerTone.Info -> SurfaceLav to Chalk
+        BannerTone.Warn -> HeatSoft to Heat
+        BannerTone.Good -> GoodSoft to Good
+    }
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(bg)
+            .padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (glyph != null) {
+            Text(glyph, fontSize = 16.sp)
+            Spacer(Modifier.width(10.dp))
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (tone == BannerTone.Info) Chalk else fg,
+            modifier = Modifier.weight(1f),
         )
+        if (action != null && onAction != null) {
+            Spacer(Modifier.width(8.dp))
+            val interaction = remember { MutableInteractionSource() }
+            Text(
+                text = action,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (tone == BannerTone.Info) Acid else fg,
+                maxLines = 1,
+                modifier = Modifier
+                    .pressScale(interaction, 0.92f)
+                    .clip(RoundedCornerShape(percent = 50))
+                    .background(Color.White.copy(alpha = 0.75f))
+                    .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onAction)
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
+            )
+        }
+    }
+}
+
+/**
+ * What a screen shows when there is nothing yet: a big emoji, a line of the
+ * app's humour, and optionally one thing to do about it.
+ */
+@Composable
+fun EmptyState(
+    emoji: String,
+    title: String,
+    modifier: Modifier = Modifier,
+    body: String? = null,
+    action: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .padding(vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                .size(60.dp)
+                .clip(CircleShape)
+                .background(instaGradientSoft()),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(emoji, fontSize = 28.sp)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = Chalk,
+            textAlign = TextAlign.Center,
+        )
+        if (body != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+                textAlign = TextAlign.Center,
+            )
+        }
+        if (action != null && onAction != null) {
+            Spacer(Modifier.height(14.dp))
+            FlatButton(action, onClick = onAction)
+        }
+    }
+}
+
+/** A bullet point with a small gradient dot, for readable lists of steps. */
+@Composable
+fun Bullet(text: String, modifier: Modifier = Modifier) {
+    Row(modifier.padding(bottom = 10.dp)) {
+        Box(
+            Modifier
+                .padding(top = 7.dp)
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(brush = instaGradient()),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = Smoke)
     }
 }

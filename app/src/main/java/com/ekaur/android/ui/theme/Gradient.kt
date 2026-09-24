@@ -9,24 +9,34 @@ import androidx.compose.ui.graphics.Shape
 /**
  * The Instagram gradient, in one place.
  *
- * A diagonal sweep across the five brand stops. Used on the hero number, the
- * wordmark, primary buttons, avatar rings and the active tab -- the one accent
- * that makes the app read as Instagram-adjacent without copying it outright.
+ * A diagonal sweep across the five brand stops. The brush is size-relative
+ * (it spans whatever it paints, via [Offset.Infinite]), so one instance serves
+ * every call site -- it used to be rebuilt on every call, 20-odd times a frame.
  */
-fun instaGradient(): Brush = Brush.linearGradient(
+private val InstaBrush: Brush = Brush.linearGradient(
     colors = InstaStops,
     start = Offset.Zero,
     end = Offset.Infinite,
 )
 
-/** A softer wash of the same, for large fills that should not shout. */
-fun instaGradientSoft(): Brush = Brush.linearGradient(
-    colors = listOf(
-        SurfaceLav,
-        SurfaceBlush,
-        SurfacePeach,
-    ),
+/** The same sweep without the pale end, so white text on it stays legible. */
+private val ButtonBrush: Brush = Brush.linearGradient(
+    colors = ButtonStops,
+    start = Offset.Zero,
+    end = Offset.Infinite,
 )
+
+private val SoftBrush: Brush = Brush.linearGradient(
+    colors = listOf(SurfaceLav, SurfaceBlush, SurfacePeach),
+)
+
+fun instaGradient(): Brush = InstaBrush
+
+/** For fills that carry white text: buttons, badges, the active tab. */
+fun buttonGradient(): Brush = ButtonBrush
+
+/** A softer wash of the same, for large fills that should not shout. */
+fun instaGradientSoft(): Brush = SoftBrush
 
 fun Modifier.gradientBackground(shape: Shape): Modifier =
     background(brush = instaGradient(), shape = shape)

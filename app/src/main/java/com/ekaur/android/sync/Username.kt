@@ -56,13 +56,13 @@ object Username {
 
     /** What to put under the field. Never scolds; just says what to change. */
     fun message(problem: Problem): String = when (problem) {
-        Problem.Empty -> "type a name"
-        Problem.TooShort -> "kam se kam $MIN akshar"
-        Problem.TooLong -> "max $MAX characters"
-        Problem.BadStart -> "start with a letter or number"
-        Problem.BadCharacter -> "sirf a-z, 0-9, . aur _"
-        Problem.DoubledSeparator -> "no double . or _"
-        Problem.TrailingSeparator -> "can't end with . or _"
+        Problem.Empty -> "Type a name."
+        Problem.TooShort -> "At least $MIN characters."
+        Problem.TooLong -> "$MAX characters max."
+        Problem.BadStart -> "Start with a letter or number."
+        Problem.BadCharacter -> "Only a–z, 0–9, dots and underscores."
+        Problem.DoubledSeparator -> "No double dots or underscores."
+        Problem.TrailingSeparator -> "Can't end with a dot or underscore."
     }
 
     private fun Char.isAllowed(): Boolean =

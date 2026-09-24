@@ -1,6 +1,45 @@
 package com.ekaur.android.ui.account
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.graphics.Bitmap
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import com.ekaur.android.ui.common.BannerTone
+import com.ekaur.android.ui.common.ChipTone
+import com.ekaur.android.ui.common.InfoBanner
+import com.ekaur.android.ui.common.ScreenHeader
+import com.ekaur.android.ui.common.Spinner
+import com.ekaur.android.ui.common.StatusChip
+import com.ekaur.android.ui.common.pressScale
+import com.ekaur.android.ui.common.reveal
+import com.ekaur.android.ui.friends.NameState
+import com.ekaur.android.ui.friends.NameStatusLine
+import com.ekaur.android.ui.friends.rememberNameCheck
+import com.ekaur.android.ui.theme.Ink
+import com.ekaur.android.ui.theme.SurfaceLav
+import com.ekaur.android.ui.theme.buttonGradient
+import com.ekaur.android.ui.theme.instaGradient
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -140,6 +179,8 @@ fun AccountScreen(
 
     val cropping = pendingPhoto
     if (cropping != null) {
+        // Back from the crop returns to the account, not out of it.
+        BackHandler { pendingPhoto = null; avatarNote = null }
         AvatarCropScreen(
             photo = cropping,
             busy = uploading,
@@ -151,71 +192,126 @@ fun AccountScreen(
         return
     }
 
-    LaunchedEffect(Unit) {
-        if (recoveryCode == null) {
-            recoveryCode = withContext(Dispatchers.IO) {
+    var codeLoading by remember { mutableStateOf(false) }
+    fun fetchCode() {
+        if (codeLoading) return
+        codeLoading = true
+        scope.launch {
+            val fetched = withContext(Dispatchers.IO) {
                 runCatching { container.supabase.registerDevice(container.deviceKey) }.getOrNull()
             }
-            recoveryCode?.let { container.settings.saveRecoveryCode(it) }
+            fetched?.let { container.settings.saveRecoveryCode(it) }
+            recoveryCode = fetched ?: recoveryCode
+            codeLoading = false
         }
+    }
+    LaunchedEffect(Unit) { if (recoveryCode == null) fetchCode() }
+
+    val nameCheck = rememberNameCheck(container, newName, current = username)
+    var hideError by remember { mutableStateOf<String?>(null) }
+    val pickPhoto = {
+        if (!uploading) picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
     Column(
         modifier
             .fillMaxSize()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SectionLabel("Account")
-            FlatButton(text = "Close", onClick = onClose)
-        }
-
-        Spacer(Modifier.height(16.dp))
+        ScreenHeader(
+            title = "Account",
+            subtitle = "Your name, your photo, your way back in.",
+            onBack = onClose,
+        )
 
         // Who you are
-        Card {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                UserAvatar(
-                    username = username.orEmpty(),
-                    url = Avatar.urlFor(
-                        baseUrl = container.supabase.baseUrl,
-                        userId = container.settings.userId.orEmpty(),
-                        version = avatarVersion,
-                    ),
-                    size = 68.dp,
-                )
+        Card(Modifier.reveal(0)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box {
+                    val interaction = remember { MutableInteractionSource() }
+                    Box(
+                        Modifier
+                            .pressScale(interaction, 0.94f)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = interaction,
+                                indication = null,
+                                role = Role.Button,
+                                onClickLabel = "Change photo",
+                                onClick = pickPhoto,
+                            )
+                            .background(brush = instaGradient())
+                            .padding(3.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .padding(2.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        UserAvatar(
+                            username = username.orEmpty(),
+                            url = Avatar.urlFor(
+                                baseUrl = container.supabase.baseUrl,
+                                userId = container.settings.userId.orEmpty(),
+                                version = avatarVersion,
+                            ),
+                            size = 72.dp,
+                        )
+                        if (uploading) {
+                            Box(
+                                Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.7f)),
+                                contentAlignment = Alignment.Center,
+                            ) { Spinner(size = 26.dp, stroke = 3.dp) }
+                        }
+                    }
+                    // The edit badge, so the picture reads as tappable.
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .padding(2.dp)
+                            .clip(CircleShape)
+                            .background(brush = buttonGradient()),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("✎", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = username.orEmpty(),
-                        style = MaterialTheme.typography.headlineMedium,
+                        text = "@" + username.orEmpty(),
+                        style = MaterialTheme.typography.headlineSmall,
                         color = Chalk,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
+                    Spacer(Modifier.height(4.dp))
+                    StatusChip(
                         text = when {
                             uploading -> "Uploading photo…"
                             hidden -> "Hidden from the leaderboard"
                             else -> "On the leaderboard"
                         },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Smoke,
+                        tone = if (hidden) ChipTone.Neutral else ChipTone.Good,
                     )
                 }
             }
-            if (avatarNote != null) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = avatarNote!!,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (avatarOk) Acid else Heat,
-                )
+            AnimatedVisibility(visible = avatarNote != null) {
+                Column {
+                    Spacer(Modifier.height(12.dp))
+                    InfoBanner(
+                        text = avatarNote.orEmpty(),
+                        tone = if (avatarOk) BannerTone.Good else BannerTone.Warn,
+                        glyph = if (avatarOk) "✓" else "⚠️",
+                    )
+                }
             }
             Spacer(Modifier.height(14.dp))
             Row(
@@ -224,16 +320,15 @@ fun AccountScreen(
             ) {
                 FlatButton(
                     text = if (avatarVersion == null) "Add photo" else "New photo",
-                    emphasised = !uploading,
+                    icon = "🖼️",
+                    enabled = !uploading,
                     modifier = Modifier.weight(1f),
-                    onClick = {
-                        if (!uploading) picker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
+                    onClick = pickPhoto,
                 )
                 FlatButton(
                     text = "From files",
+                    icon = "📁",
+                    enabled = !uploading,
                     modifier = Modifier.weight(1f),
                     onClick = { if (!uploading) files.launch("image/*") },
                 )
@@ -243,43 +338,62 @@ fun AccountScreen(
         Spacer(Modifier.height(12.dp))
 
         // Name
-        Card {
+        Card(Modifier.reveal(1)) {
             SectionLabel("Name")
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
-                text = "Now \"" + username.orEmpty() + "\". Change once every 14 days.",
+                text = "You can change it once every 14 days.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Smoke,
             )
             Spacer(Modifier.height(12.dp))
-            BasicTextField(
-                value = newName,
-                onValueChange = { newName = Username.normalise(it).take(Username.MAX) },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.titleLarge.copy(color = Chalk),
-                cursorBrush = SolidColor(Acid),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { inner ->
-                    if (newName.isEmpty()) {
-                        Text("New name", style = MaterialTheme.typography.titleLarge, color = Ash)
-                    }
-                    inner()
-                },
-            )
-            if (renameNote != null) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = renameNote!!,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (renameOk) Good else Heat,
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(SurfaceLav)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("@", style = MaterialTheme.typography.titleLarge, color = Smoke)
+                Spacer(Modifier.width(4.dp))
+                BasicTextField(
+                    value = newName,
+                    onValueChange = { newName = Username.normalise(it).take(Username.MAX) },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.titleLarge.copy(color = Chalk),
+                    cursorBrush = SolidColor(Acid),
+                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (newName.isEmpty()) {
+                            Text("new name", style = MaterialTheme.typography.titleLarge, color = Ash)
+                        }
+                        inner()
+                    },
                 )
+            }
+            Spacer(Modifier.height(8.dp))
+            NameStatusLine(nameCheck.state)
+            AnimatedVisibility(visible = renameNote != null) {
+                Column {
+                    Spacer(Modifier.height(10.dp))
+                    InfoBanner(
+                        text = renameNote.orEmpty(),
+                        tone = if (renameOk) BannerTone.Good else BannerTone.Warn,
+                        glyph = if (renameOk) "✓" else "⚠️",
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
             FlatButton(
-                text = if (renaming) "Saving…" else "Change name",
-                emphasised = Username.isValid(newName) && !renaming,
+                text = "Change name",
+                emphasised = nameCheck.state is NameState.Free,
+                enabled = nameCheck.state is NameState.Free,
+                loading = renaming,
+                modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    if (!Username.isValid(newName) || renaming) return@FlatButton
+                    if (nameCheck.state !is NameState.Free || renaming) return@FlatButton
                     renaming = true
                     renameNote = null
                     scope.launch {
@@ -291,14 +405,17 @@ fun AccountScreen(
                             container.settings.saveUsername(applied)
                             newName = ""
                             renameOk = true
-                            renameNote = "Done."
+                            renameNote = "Done. You're @$applied now."
                         }.onFailure { thrown ->
                             renameOk = false
                             renameNote = when (val cause = (thrown as? SyncException)?.error) {
                                 is SyncError.Cooldown -> "Not yet — ${cause.daysLeft} days to go."
-                                SyncError.NameTaken -> "That name is taken."
-                                SyncError.Offline -> "No internet."
-                                else -> "Didn't work. Try again."
+                                SyncError.NameTaken -> {
+                                    nameCheck.markTaken(newName)
+                                    "Someone just took it."
+                                }
+                                SyncError.Offline -> "No internet. Try again when you're online."
+                                else -> "That didn't work. Try again."
                             }
                         }
                     }
@@ -309,59 +426,112 @@ fun AccountScreen(
         Spacer(Modifier.height(12.dp))
 
         // Leaderboard visibility
-        Card {
+        Card(Modifier.reveal(2)) {
             SectionLabel("Leaderboard")
             Spacer(Modifier.height(12.dp))
             ToggleRow(
                 title = "Hide me",
                 subtitle = if (hidden) {
-                    "You're hidden — your name and counts show on nobody's list."
+                    "Hidden. Your name and counts show on nobody's list."
                 } else {
                     "You're on the list. Only your name and daily total show."
                 },
                 checked = hidden,
+                busy = hideBusy,
                 onCheckedChange = { target ->
                     if (hideBusy) return@ToggleRow
                     hideBusy = true
+                    hideError = null
                     scope.launch {
                         val ok = withContext(Dispatchers.IO) {
                             runCatching { container.supabase.setHidden(target) }.isSuccess
                         }
                         if (ok) container.settings.setHidden(target)
+                        else hideError = "Couldn't save that. Check your internet and try again."
                         hideBusy = false
                     }
                 },
             )
+            AnimatedVisibility(visible = hideError != null) {
+                Column {
+                    Spacer(Modifier.height(10.dp))
+                    InfoBanner(text = hideError.orEmpty(), tone = BannerTone.Warn, glyph = "⚠️")
+                }
+            }
         }
 
         Spacer(Modifier.height(12.dp))
 
         // Recovery code
-        Card {
+        Card(Modifier.reveal(3)) {
             SectionLabel("Recovery code")
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Reinstall on this phone and your account comes back by itself. " +
+                    "On a new phone you'll need this code.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+            )
+            Spacer(Modifier.height(10.dp))
             Expandable("Show my code") {
-                Text(
-                    text = "Reinstall on this phone and your account comes back on its own. " +
-                        "On a new phone you'll need this code — write it down.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Smoke,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = recoveryCode ?: "—",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = Acid,
-                )
-                Spacer(Modifier.height(12.dp))
-                FlatButton("Share code", onClick = {
-                    val code = recoveryCode ?: return@FlatButton
-                    ServiceControl.shareText(
-                        context,
-                        "Ek Aur recovery code: " + code +
-                            "\n(to get your account back on a new phone)",
+                val code = recoveryCode
+                when {
+                    code != null -> {
+                        Text(
+                            text = code.chunked(4).joinToString(" "),
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                letterSpacing = 4.sp,
+                                brush = instaGradient(),
+                            ),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(SurfaceLav)
+                                .padding(vertical = 16.dp),
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FlatButton(
+                                text = "Copy",
+                                icon = "📋",
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                    clipboard?.setPrimaryClip(ClipData.newPlainText("Ek Aur recovery code", code))
+                                    // Android 13+ confirms a copy itself.
+                                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                        Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                            )
+                            FlatButton(
+                                text = "Share",
+                                icon = "↗",
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    ServiceControl.shareText(
+                                        context,
+                                        "Ek Aur recovery code: " + code +
+                                            "\n(to get your account back on a new phone)",
+                                    )
+                                },
+                            )
+                        }
+                    }
+                    codeLoading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spinner()
+                        Spacer(Modifier.width(10.dp))
+                        Text("Getting your code…", style = MaterialTheme.typography.bodyMedium, color = Smoke)
+                    }
+                    else -> InfoBanner(
+                        text = "Couldn't get your code right now.",
+                        tone = BannerTone.Warn,
+                        glyph = "⚠️",
+                        action = "Retry",
+                        onAction = ::fetchCode,
                     )
-                })
+                }
             }
         }
 
@@ -369,8 +539,10 @@ fun AccountScreen(
 
         Text(
             text = "Only your name and daily total ever leave the phone.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Ash,
+            style = MaterialTheme.typography.bodySmall,
+            color = Smoke,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(Modifier.height(24.dp))
