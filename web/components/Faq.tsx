@@ -23,6 +23,10 @@ export const FAQS: { q: string; a: string }[] = [
     a: "It's a hobby app you sideload directly. Android throws a couple of scary-looking warnings for anything not from the Play Store — they're expected, and the install guide walks you past Play Protect and the 'install unknown apps' prompt in a few taps.",
   },
   {
+    q: "It says “Restricted setting” and I can't turn on accessibility. Now what?",
+    a: "That's Android 13+ guarding the accessibility switch for any app not from the Play Store — expected, and it clears in three taps. Tap the Ek Aur switch once and press OK on the popup. Then open the app's App info page (Settings → Apps → Ek Aur), tap the ⋮ menu in the top-right and choose “Allow restricted settings”. Go back to Accessibility and switch it on. If you can't see the ⋮ item, it's because it only appears after that first tap on the switch — close Settings from Recents, tap the switch, press OK, and open App info again. The app's guided setup walks you through exactly this, with a button for every step.",
+  },
+  {
     q: "Will it interfere with my banking or UPI apps?",
     a: "No. Ek Aur switches itself off automatically the moment you leave Instagram, so payment apps that dislike accessibility services just work. You tap it back on when you want to scroll.",
   },

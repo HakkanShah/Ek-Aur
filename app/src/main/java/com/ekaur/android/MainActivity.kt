@@ -81,7 +81,9 @@ import com.ekaur.android.ui.debug.DiagnosticsScreen
 import com.ekaur.android.ui.friends.FriendsScreen
 import com.ekaur.android.ui.friends.UsernameScreen
 import com.ekaur.android.ui.debug.EventInspectorScreen
+import com.ekaur.android.ui.onboarding.PermissionState
 import com.ekaur.android.ui.onboarding.SetupScreen
+import com.ekaur.android.ui.onboarding.SetupWizard
 import com.ekaur.android.ui.stats.StatsScreen
 import com.ekaur.android.ui.stats.formatDuration
 import com.ekaur.android.ui.update.UpdatePopup
@@ -106,15 +108,6 @@ private val BOTTOM_TABS = Tab.entries.toList()
 
 /** The developer-only screens, shown as a full overlay above the tabs. */
 private enum class DevScreen { Events, Status }
-
-/** The three grants the app needs, re-read whenever the screen comes forward. */
-private data class Permissions(
-    val service: Boolean = false,
-    val overlay: Boolean = false,
-    val battery: Boolean = false,
-) {
-    val allGranted: Boolean get() = service && overlay && battery
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -147,7 +140,7 @@ private fun AppScaffold(container: AppContainer) {
         return
     }
 
-    var permissions by remember { mutableStateOf(Permissions()) }
+    var permissions by remember { mutableStateOf(PermissionState()) }
     var sharing by remember { mutableStateOf<CardStats?>(null) }
     var cardAvatar by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var dev by remember { mutableStateOf<DevScreen?>(null) }
@@ -155,13 +148,37 @@ private fun AppScaffold(container: AppContainer) {
     val pagerState = rememberPagerState { BOTTOM_TABS.size }
     val scope = rememberCoroutineScope()
 
+    // Every grant, read in one go whenever the app comes forward -- the one
+    // source of truth for Home, Setup and the wizard, so they never disagree.
     LifecycleResumeEffect(Unit) {
-        permissions = Permissions(
-            service = ServiceControl.isAccessibilityServiceEnabled(context),
-            overlay = ServiceControl.canDrawOverlay(context),
-            battery = ServiceControl.isIgnoringBatteryOptimisations(context),
-        )
+        permissions = PermissionState.read(context)
         onPauseOrDispose { }
+    }
+
+    // The guided setup fronts the app until accessibility is on or it has been
+    // skipped once; after that it is one tap away from Home and Setup.
+    var wizardSeen by remember { mutableStateOf(container.settings.setupWizardSeen) }
+    var wizardOpen by remember { mutableStateOf(false) }
+    var wizardRecovery by remember { mutableStateOf(false) }
+    if (wizardOpen || (!permissions.service && !wizardSeen)) {
+        SetupWizard(
+            permissions = permissions,
+            startInRecovery = wizardRecovery,
+            onDone = {
+                container.settings.setupWizardSeen = true
+                wizardSeen = true
+                wizardOpen = false
+                wizardRecovery = false
+            },
+            onSkip = {
+                container.settings.setupWizardSeen = true
+                wizardSeen = true
+                wizardOpen = false
+                wizardRecovery = false
+            },
+            modifier = Modifier.systemBarsPadding(),
+        )
+        return
     }
 
     // Look for a newer build on GitHub once the app is open (throttled inside).
@@ -204,9 +221,7 @@ private fun AppScaffold(container: AppContainer) {
                         Tab.Home -> HomeScreen(
                             container = container,
                             permissions = permissions,
-                            onOpenSetup = {
-                                scope.launch { pagerState.animateScrollToPage(Tab.Setup.ordinal) }
-                            },
+                            onOpenSetup = { wizardOpen = true },
                             onOpenAccount = { account = true },
                             onShare = { stats, avatar ->
                                 cardAvatar = avatar
@@ -217,7 +232,11 @@ private fun AppScaffold(container: AppContainer) {
                         Tab.Ranks -> FriendsScreen(container)
                         Tab.Setup -> SetupScreen(
                             container = container,
-                            serviceEnabled = permissions.service,
+                            permissions = permissions,
+                            onGuidedSetup = { recovery ->
+                                wizardRecovery = recovery
+                                wizardOpen = true
+                            },
                             onOpenEvents = { dev = DevScreen.Events },
                             onOpenStatus = { dev = DevScreen.Status },
                         )
@@ -342,7 +361,7 @@ private fun BottomBar(pagerState: PagerState, onSelect: (Int) -> Unit) {
 @Composable
 private fun HomeScreen(
     container: AppContainer,
-    permissions: Permissions,
+    permissions: PermissionState,
     onOpenSetup: () -> Unit,
     onOpenAccount: () -> Unit,
     onShare: (CardStats, android.graphics.Bitmap?) -> Unit,
@@ -545,7 +564,7 @@ private data class StatusLook(
     val live: Boolean,
 )
 
-private fun statusLook(permissions: Permissions, connected: Boolean, state: String): StatusLook =
+private fun statusLook(permissions: PermissionState, connected: Boolean, state: String): StatusLook =
     when {
         !permissions.service ->
             StatusLook(Heat, "Counting is off", "Turn on accessibility to start counting.", false)
@@ -564,7 +583,7 @@ private fun statusLook(permissions: Permissions, connected: Boolean, state: Stri
 
 @Composable
 private fun StatusCard(
-    permissions: Permissions,
+    permissions: PermissionState,
     connected: Boolean,
     state: String,
     onOpenSetup: () -> Unit,

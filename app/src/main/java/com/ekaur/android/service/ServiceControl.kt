@@ -10,7 +10,12 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.view.accessibility.AccessibilityManager
 import android.accessibilityservice.AccessibilityServiceInfo
+import com.ekaur.android.BuildConfig
 import com.ekaur.android.R
+import com.ekaur.android.setup.OemHint
+import com.ekaur.android.setup.OemHints
+import com.ekaur.android.setup.RestrictedSetting
+import com.ekaur.android.setup.Verdict
 
 /**
  * Whether the accessibility service is switched on, and how to get the user to
@@ -208,6 +213,103 @@ object ServiceControl {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(intent) }
     }
+
+    /**
+     * Opens the system's list of all apps, for finding this app's App info the
+     * long way round.
+     *
+     * Some manufacturers answer the App info deep link with a cut-down page
+     * that has no overflow menu at all, so "Allow restricted settings" is
+     * nowhere on it -- while the same app opened from Settings → Apps shows the
+     * full page. Offered as a fallback, never first.
+     */
+    fun openAppsList(context: Context) {
+        val intent = Intent(Settings.ACTION_MANAGE_ALL_APPLICATIONS_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+            .onFailure { openAppInfo(context) }
+    }
+
+    /** Brings Instagram to the front. False if it is not installed. */
+    fun openInstagram(context: Context): Boolean {
+        val intent = context.packageManager.getLaunchIntentForPackage(INSTAGRAM)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) ?: return false
+        return runCatching { context.startActivity(intent) }.isSuccess
+    }
+
+    fun isInstagramInstalled(context: Context): Boolean =
+        context.packageManager.getLaunchIntentForPackage(INSTAGRAM) != null
+
+    /**
+     * How this build got onto the phone, as the platform recorded it.
+     *
+     * Android 13+ keeps the installer's declared package source, and it is
+     * what decides whether the accessibility switch will be met with the
+     * "Restricted setting" dialog. Null below 13 or when it cannot be read.
+     */
+    fun installPackageSource(context: Context): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+        return runCatching {
+            context.packageManager.getInstallSourceInfo(context.packageName).packageSource
+        }.getOrNull()
+    }
+
+    /**
+     * The mode of the hidden app-op Android keeps the restricted-setting
+     * decision in, for this app's own uid.
+     *
+     * The op name is not a public constant, but an app may check its own ops
+     * by name (the same call [hasUsageAccess] makes). A build that does not
+     * know the name throws, which reads as null and leaves the decision to the
+     * package source.
+     */
+    fun restrictedSettingsOpMode(context: Context): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+        val ops = context.getSystemService(android.app.AppOpsManager::class.java) ?: return null
+        return runCatching {
+            ops.unsafeCheckOpNoThrow(
+                RestrictedSetting.OP_ACCESS_RESTRICTED_SETTINGS,
+                android.os.Process.myUid(),
+                context.packageName,
+            )
+        }.getOrNull()
+    }
+
+    /** Whether the accessibility switch is likely to be gated, and how far along. */
+    fun restrictedVerdict(context: Context): Verdict = RestrictedSetting.assess(
+        sdkInt = Build.VERSION.SDK_INT,
+        packageSource = installPackageSource(context),
+        opMode = restrictedSettingsOpMode(context),
+    )
+
+    /** Where the settings screens live on this phone's brand of Android. */
+    fun oemHint(): OemHint = OemHints.forDevice(Build.MANUFACTURER, Build.BRAND)
+
+    /** One line naming the phone and the build, for a help email. */
+    fun deviceLine(): String =
+        "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} " +
+            "(API ${Build.VERSION.SDK_INT}) · Ek Aur ${BuildConfig.VERSION_NAME} " +
+            "(${BuildConfig.VERSION_CODE})"
+
+    /**
+     * Opens a mail app with a message to the developer already written.
+     *
+     * The one thing a stuck person can always do. The body carries the phone
+     * model and what the app could read about the gate, so the reply can be
+     * specific rather than "which phone do you have?".
+     */
+    fun emailDeveloper(context: Context, subject: String, body: String): Boolean {
+        val uri = Uri.parse(
+            "mailto:$DEVELOPER_EMAIL" +
+                "?subject=" + Uri.encode(subject) +
+                "&body=" + Uri.encode(body),
+        )
+        val intent = Intent(Intent.ACTION_SENDTO, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(intent) }.isSuccess
+    }
+
+    const val DEVELOPER_EMAIL = "hakkanparbej@gmail.com"
+    private const val INSTAGRAM = "com.instagram.android"
 
     /** Hands text to the share sheet -- the only way anything leaves this phone. */
     fun shareText(context: android.content.Context, text: String) {

@@ -97,6 +97,18 @@ class SettingsStore(context: Context) : SessionStore {
         }
 
     /**
+     * Whether the guided setup has been walked through or skipped once.
+     *
+     * The wizard fronts the app while accessibility is off and this is false;
+     * after that it is one tap away from Home and Setup, never in the way.
+     */
+    var setupWizardSeen: Boolean
+        get() = prefs.getBoolean(KEY_WIZARD_SEEN, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_WIZARD_SEEN, value).apply()
+        }
+
+    /**
      * Forgets everything about the account.
      *
      * The counts themselves stay -- they are the user's own data and were never
@@ -126,6 +138,7 @@ class SettingsStore(context: Context) : SessionStore {
         const val KEY_RECOVERY = "recovery_code"
         const val KEY_AVATAR = "avatar_version"
         const val KEY_AUTO_OFF = "auto_off_on_leave"
+        const val KEY_WIZARD_SEEN = "setup_wizard_seen"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EXPIRES = "expires_at"

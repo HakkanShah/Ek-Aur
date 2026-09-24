@@ -106,6 +106,14 @@ fun DiagnosticsScreen(
             StatRow("version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             StatRow("android", android.os.Build.VERSION.SDK_INT.toString())
             StatRow("device", "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+            // How the platform sees the "Restricted setting" gate for this install,
+            // so a friend's screenshot says which case their phone is.
+            StatRow(
+                "restricted",
+                "${com.ekaur.android.service.ServiceControl.restrictedVerdict(context)} " +
+                    "(src=${com.ekaur.android.service.ServiceControl.installPackageSource(context) ?: "-"}, " +
+                    "op=${com.ekaur.android.service.ServiceControl.restrictedSettingsOpMode(context) ?: "-"})",
+            )
 
             Spacer(Modifier.height(14.dp))
             FlatButton(

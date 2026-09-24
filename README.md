@@ -43,24 +43,50 @@ You're installing an **older** build over a newer one. Android refuses to
 downgrade. Install the APK with the highest version number, or uninstall first
 (which wipes your counts).
 
-### Then, in the app's **setup** tab
+### Then, the guided setup
 
-Three permissions, in order:
+The app fronts a short guided setup the first time it opens: one screen per
+switch, a button for every hop into Settings, and it notices each switch the
+moment you come back. Two switches are required, two are recommended:
 
-1. **Accessibility** — how reels get counted. Nothing works without it.
-   Android 13+ blocks this for sideloaded apps with a *"Restricted setting"*
-   dialog that offers only an OK button. The way out: App info → ⋮ (top right)
-   → **Allow restricted settings**, then go back and enable it.
-2. **Overlay** — draws the counter over Instagram.
-3. **Battery** — Realme, Oppo, Xiaomi and Vivo kill background services hard,
-   and a killed accessibility service stops counting with no visible sign.
+1. **Accessibility** (required) — how reels get counted. Nothing works without
+   it. See the "Restricted setting" wall below; the app walks you through it.
+2. **Overlay** (required) — draws the counter over Instagram.
+3. **Battery** (recommended) — Realme, Oppo, Xiaomi and Vivo kill background
+   services hard, and a killed accessibility service stops counting with no
+   visible sign.
+4. **Usage access** (recommended) — lets the app tell when you've left
+   Instagram, so it can switch itself off for payments.
+
+The same steps live in the **Setup** tab, with a **Guided setup** button to
+bring the walkthrough back any time.
+
+### "Restricted setting" (Android 13+)
+
+Android blocks the accessibility switch for any app not from the Play Store
+with a *"Restricted setting"* dialog that offers only an OK button. It clears
+in three taps, in this order:
+
+1. Settings → Accessibility → Ek Aur → tap the switch. It won't turn on yet —
+   press **OK** on the popup. *This tap is what unlocks step 2.*
+2. Open the app's App info page (Settings → Apps → Ek Aur) → **⋮** (top right)
+   → **Allow restricted settings**.
+3. Back to Accessibility → Ek Aur → switch on. This time it sticks.
+
+**If the ⋮ menu item isn't there:** it only appears *after* the switch has
+been tapped once. Close Settings from Recents, tap the switch, press OK, then
+open App info again. Where App info lives: Xiaomi/Redmi/POCO — Settings → Apps
+→ Manage apps; realme/OPPO/OnePlus and vivo/iQOO — Settings → Apps → App
+management; Samsung and Pixel — Settings → Apps. The app's setup screen shows
+the path for the phone it's on, and has an **Email me** button that sends the
+phone model along, for anything still stuck.
 
 ---
 
 ## Counter lost off the edge of the screen?
 
 It can't be dragged off any more, but if it ever goes missing there's a
-**"counter wapas laao"** button in the setup tab that returns it to the middle.
+**"Reset counter"** button in the setup tab that returns it to the middle.
 
 ---
 
@@ -268,17 +294,17 @@ is deliberately not done.
 
 So the honest answer is a fast toggle. Setup lays out three, quickest first:
 
-- **The accessibility floating button.** Setup's *"shortcut set karo"* opens Ek
+- **The accessibility floating button.** Setup's *"Set up shortcut"* opens Ek
   Aur's accessibility page; turn on its **shortcut / accessibility button** and a
   small floating button appears that toggles the service on and off from *any*
   screen — the bank app included. One tap off to pay, one tap on to scroll. This
   is the closest thing to frictionless, and on many phones it skips the
   "Restricted setting" gate on resume.
-- **A Quick Settings tile.** Add the *"Ek Aur"* tile from setup (*"tile add
-  karo"*, Android 13+) or the shade's edit screen: pull the shade, tap to pause,
-  tap to resume.
-- **The in-app pause** — *"payment ke liye abhi band karo"* in setup — for when
-  the shade is not to hand.
+- **A Quick Settings tile.** Add the *"Ek Aur"* tile from setup (*"Add tile"*,
+  Android 13+) or the shade's edit screen: pull the shade, tap to pause, tap to
+  resume.
+- **The in-app pause** — *"Turn off for a payment"* in setup — for when the
+  shade is not to hand.
 
 Android never lets an app switch its own accessibility back on, so resume is
 always a tap you make, not one the app makes for you. None of this is needed

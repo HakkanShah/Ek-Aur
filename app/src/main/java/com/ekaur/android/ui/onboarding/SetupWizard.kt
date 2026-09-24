@@ -1,0 +1,809 @@
+package com.ekaur.android.ui.onboarding
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ekaur.android.service.ServiceControl
+import com.ekaur.android.setup.OemHint
+import com.ekaur.android.setup.OemHints
+import com.ekaur.android.setup.RestrictedSetting
+import com.ekaur.android.setup.SetupFlow
+import com.ekaur.android.setup.SetupStep
+import com.ekaur.android.setup.Verdict
+import com.ekaur.android.ui.common.Card
+import com.ekaur.android.ui.common.Expandable
+import com.ekaur.android.ui.common.FlatButton
+import com.ekaur.android.ui.theme.Acid
+import com.ekaur.android.ui.theme.Ash
+import com.ekaur.android.ui.theme.Chalk
+import com.ekaur.android.ui.theme.Good
+import com.ekaur.android.ui.theme.Ink
+import com.ekaur.android.ui.theme.InkLine
+import com.ekaur.android.ui.theme.Smoke
+import com.ekaur.android.ui.theme.SurfaceLav
+import com.ekaur.android.ui.theme.instaGradient
+import kotlinx.coroutines.delay
+
+/**
+ * The guided setup: one screen per switch, and a way through Android's
+ * "Restricted setting" wall.
+ *
+ * People were installing the app, hitting that wall on the accessibility
+ * switch, and deleting it -- the unblock lives in a menu that only exists
+ * after the switch has been tapped once, on a page nobody thinks to open. So
+ * this walks it: tells them the wall is coming and that it's normal, gives a
+ * button for every hop, knows where the menu is on their brand of phone, and
+ * notices each grant the moment they come back so the next step slides in on
+ * its own.
+ *
+ * The step is never stored. It is derived from [permissions] on every pass
+ * ([SetupFlow.nextStep]), so a switch flipped in Settings moves the flow
+ * forward with nothing to fall out of sync. The only state kept is whether
+ * the welcome has been pressed through and which recovery hops have been
+ * pressed, saved across the process death MIUI and ColorOS inflict on a
+ * backgrounded activity.
+ */
+@Composable
+fun SetupWizard(
+    permissions: PermissionState,
+    onDone: () -> Unit,
+    onSkip: () -> Unit,
+    startInRecovery: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var welcomed by rememberSaveable { mutableStateOf(startInRecovery) }
+    val step = SetupFlow.nextStep(welcomed, permissions.service, permissions.overlay)
+
+    // Read once per showing: cheap, and neither changes while the wizard is up
+    // except by the user going through Settings, which brings a resume.
+    val hint = remember { ServiceControl.oemHint() }
+    val verdict = remember(permissions.service) { ServiceControl.restrictedVerdict(context) }
+
+    Column(
+        modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+    ) {
+        Spacer(Modifier.height(18.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "SETUP",
+                style = MaterialTheme.typography.labelLarge,
+                color = Smoke,
+                letterSpacing = 2.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.weight(1f))
+            ProgressDots(
+                done = SetupFlow.requiredDone(permissions.service, permissions.overlay),
+                current = step,
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+
+        AnimatedContent(
+            targetState = step,
+            transitionSpec = {
+                val forward = targetState.ordinal >= initialState.ordinal
+                val dir = if (forward) 1 else -1
+                (slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) { dir * it / 5 } +
+                    fadeIn(tween(220))) togetherWith
+                    (slideOutHorizontally(tween(200)) { -dir * it / 5 } + fadeOut(tween(160)))
+            },
+            label = "setup-step",
+        ) { current ->
+            when (current) {
+                SetupStep.Welcome -> WelcomeStep(
+                    onStart = { welcomed = true },
+                    onSkip = onSkip,
+                )
+                SetupStep.Accessibility -> AccessibilityStep(
+                    hint = hint,
+                    verdict = verdict,
+                    startInRecovery = startInRecovery,
+                    onSkip = onSkip,
+                )
+                SetupStep.Overlay -> OverlayStep(onSkip = onSkip)
+                SetupStep.Done -> DoneStep(onDone = onDone)
+            }
+        }
+
+        Spacer(Modifier.height(28.dp))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Steps
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun WelcomeStep(onStart: () -> Unit, onSkip: () -> Unit) {
+    Column {
+        Headline("Two switches and you're counting.")
+        Spacer(Modifier.height(8.dp))
+        Lead("About a minute. Android will send you to Settings twice; this screen tells you exactly what to tap.")
+        Spacer(Modifier.height(22.dp))
+
+        Card {
+            PreviewRow(1, "Accessibility", "How reels get counted.")
+            Spacer(Modifier.height(14.dp))
+            PreviewRow(2, "Overlay", "So the counter can float over Instagram.")
+            Spacer(Modifier.height(14.dp))
+            PreviewRow(3, "Done", "Open Instagram and scroll.")
+        }
+
+        Spacer(Modifier.height(14.dp))
+        Callout(
+            title = "Heads-up",
+            body = "Android will say “Restricted setting” once when you flip the first switch. " +
+                "That's normal for any app not from the Play Store, and it takes three taps to clear. " +
+                "We'll walk you through it.",
+        )
+
+        Spacer(Modifier.height(24.dp))
+        FlatButton("Let's go", emphasised = true, modifier = Modifier.fillMaxWidth(), onClick = onStart)
+        Spacer(Modifier.height(12.dp))
+        TextLink("Skip for now", onClick = onSkip, modifier = Modifier.align(Alignment.CenterHorizontally))
+    }
+}
+
+@Composable
+private fun AccessibilityStep(
+    hint: OemHint,
+    verdict: Verdict,
+    startInRecovery: Boolean,
+    onSkip: () -> Unit,
+) {
+    val context = LocalContext.current
+    // Pressed "Open Accessibility" at least once. Coming back without the
+    // grant after that is the signal the wall was hit, so the recovery shows
+    // itself rather than waiting to be found.
+    var attempted by rememberSaveable { mutableStateOf(startInRecovery) }
+    var recoveryOpen by rememberSaveable { mutableStateOf(startInRecovery) }
+    val gateApplies = RestrictedSetting.applies(verdict)
+
+    // Once the switch has been tried and the app is back without the grant,
+    // the wall is the likeliest reason, so the recovery steps take the card
+    // over by themselves (only where the gate exists). A return *with* the
+    // grant never reaches here -- the step has already moved on.
+    val showRecovery = recoveryOpen || (gateApplies && attempted)
+
+    Column {
+        Headline("Turn on Ek Aur in Accessibility")
+        Spacer(Modifier.height(8.dp))
+        Lead("Counting works through an accessibility switch. It sees the swipe to the next reel and nothing else.")
+        Spacer(Modifier.height(22.dp))
+
+        if (!showRecovery) {
+            Card {
+                SettingsRowMock(checked = false)
+                Spacer(Modifier.height(14.dp))
+                Body("Look under “${hint.listSection}”, tap Ek Aur, then turn the switch on.")
+                Spacer(Modifier.height(16.dp))
+                FlatButton(
+                    text = "Open Accessibility",
+                    emphasised = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        attempted = true
+                        ServiceControl.openAccessibilityServiceDetails(context)
+                    },
+                )
+            }
+            if (gateApplies) {
+                Spacer(Modifier.height(14.dp))
+                TextLink(
+                    text = "Saw “Restricted setting”?",
+                    onClick = { recoveryOpen = true },
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+            }
+        } else {
+            RecoveryCard(
+                hint = hint,
+                verdict = verdict,
+                onOpenAccessibility = {
+                    attempted = true
+                    ServiceControl.openAccessibilityServiceDetails(context)
+                },
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+        Waiting("Come back here once it's on — this moves on by itself.")
+        Spacer(Modifier.height(10.dp))
+        TextLink("Skip for now", onClick = onSkip, modifier = Modifier.align(Alignment.CenterHorizontally))
+    }
+}
+
+/**
+ * The three hops through the "Restricted setting" wall, each with its own
+ * button, and a way out when the menu still isn't there.
+ */
+@Composable
+private fun RecoveryCard(
+    hint: OemHint,
+    verdict: Verdict,
+    onOpenAccessibility: () -> Unit,
+) {
+    val context = LocalContext.current
+    var tapped by rememberSaveable { mutableStateOf(false) }
+    var allowed by rememberSaveable { mutableStateOf(false) }
+
+    Card {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(Acid),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "“Restricted setting” — here's the way through",
+                style = MaterialTheme.typography.titleLarge,
+                color = Chalk,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Body(
+            "Android blocks this switch for apps not from the Play Store. " +
+                "It's expected, and it clears in three taps.",
+        )
+
+        if (verdict == Verdict.Cleared) {
+            Spacer(Modifier.height(16.dp))
+            Callout(
+                title = "Already allowed",
+                body = "Your phone has already allowed restricted settings for Ek Aur. " +
+                    "Go back to Accessibility and flip the switch.",
+            )
+            Spacer(Modifier.height(14.dp))
+            FlatButton(
+                text = "Open Accessibility",
+                emphasised = true,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenAccessibility,
+            )
+            return@Card
+        }
+
+        Spacer(Modifier.height(18.dp))
+
+        RecoveryHop(
+            n = 1,
+            done = tapped,
+            title = "Tap the switch once, press OK on the popup",
+            detail = "It won't turn on yet — that tap is what unlocks the menu in step 2.",
+            action = "Open Accessibility",
+            onAction = {
+                tapped = true
+                onOpenAccessibility()
+            },
+        )
+        Spacer(Modifier.height(16.dp))
+        RecoveryHop(
+            n = 2,
+            done = allowed,
+            title = "App info → ⋮ → Allow restricted settings",
+            detail = buildString {
+                hint.brand?.let { append("On $it: ") }
+                append(hint.menuLine)
+                append(' ')
+                append(OemHints.MENU_RULE)
+            },
+            action = "Open App info",
+            onAction = {
+                allowed = true
+                ServiceControl.openAppInfo(context)
+            },
+            mock = { MenuMock() },
+        )
+        Spacer(Modifier.height(16.dp))
+        RecoveryHop(
+            n = 3,
+            done = false,
+            title = "Back to Accessibility, switch on",
+            detail = "This time it turns on.",
+            action = "Open Accessibility",
+            onAction = onOpenAccessibility,
+            emphasised = tapped && allowed,
+        )
+
+        Spacer(Modifier.height(18.dp))
+        Expandable("Still no ⋮ menu?") {
+            Bullet("Go back and tap the Ek Aur switch once. Press OK. Then open App info again — the menu appears only after that tap.")
+            Bullet("Close Settings from Recents first. The menu is worked out when App info opens, so a Settings screen already sitting in the background never gets it.")
+            Bullet("Open App info the long way: ${hint.appInfoPath}. Some phones show a cut-down page from the shortcut and the full one from the list.")
+            Spacer(Modifier.height(6.dp))
+            FlatButton("Open the apps list", onClick = { ServiceControl.openAppsList(context) })
+            Spacer(Modifier.height(12.dp))
+            Bullet("Restart the phone and try steps 1–3 again.")
+            Bullet("Still stuck? Email me — your phone model goes in automatically, so I can tell you exactly where it is.")
+            Spacer(Modifier.height(6.dp))
+            FlatButton(
+                text = "Email me",
+                onClick = {
+                    ServiceControl.emailDeveloper(
+                        context,
+                        subject = "Ek Aur setup help",
+                        body = "Hi Hakkan,\n\nI can't find “Allow restricted settings” on my phone.\n\n" +
+                            "Phone: ${ServiceControl.deviceLine()}\n" +
+                            "Gate: $verdict\n\nWhat I see: ",
+                    )
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun OverlayStep(onSkip: () -> Unit) {
+    val context = LocalContext.current
+    Column {
+        Headline("Let the counter float over Instagram")
+        Spacer(Modifier.height(8.dp))
+        Lead("Counting is on. This lets the little pill sit on top of Instagram so you can watch the number climb.")
+        Spacer(Modifier.height(22.dp))
+
+        Card {
+            PillMock()
+            Spacer(Modifier.height(14.dp))
+            Body("Turn on “Allow display over other apps” and come back.")
+            Spacer(Modifier.height(16.dp))
+            FlatButton(
+                text = "Allow overlay",
+                emphasised = true,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { ServiceControl.openOverlaySettings(context) },
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+        Waiting("This moves on by itself once it's allowed.")
+        Spacer(Modifier.height(10.dp))
+        TextLink("Skip for now", onClick = onSkip, modifier = Modifier.align(Alignment.CenterHorizontally))
+    }
+}
+
+@Composable
+private fun DoneStep(onDone: () -> Unit) {
+    val context = LocalContext.current
+    val hasInstagram = remember { ServiceControl.isInstagramInstalled(context) }
+    // A short hold on the check before anything else, so the moment lands.
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { delay(80); shown = true }
+    val pop by animateFloatAsState(
+        targetValue = if (shown) 1f else 0.6f,
+        animationSpec = tween(360, easing = FastOutSlowInEasing),
+        label = "pop",
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(Modifier.height(24.dp))
+        Box(
+            Modifier
+                .size(88.dp)
+                .graphicsLayer { scaleX = pop; scaleY = pop; alpha = pop }
+                .clip(CircleShape)
+                .background(brush = instaGradient()),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("✓", color = Ink, fontSize = 44.sp, fontWeight = FontWeight.Black)
+        }
+        Spacer(Modifier.height(22.dp))
+        Text(
+            text = "You're counting.",
+            style = MaterialTheme.typography.headlineMedium,
+            color = Chalk,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Go scroll. The pill shows up the moment you're in Reels.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Smoke,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(28.dp))
+        if (hasInstagram) {
+            FlatButton(
+                text = "Open Instagram",
+                emphasised = true,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    onDone()
+                    ServiceControl.openInstagram(context)
+                },
+            )
+            Spacer(Modifier.height(10.dp))
+            FlatButton("Go to Home", modifier = Modifier.fillMaxWidth(), onClick = onDone)
+        } else {
+            FlatButton("Go to Home", emphasised = true, modifier = Modifier.fillMaxWidth(), onClick = onDone)
+        }
+        Spacer(Modifier.height(18.dp))
+        Text(
+            text = "Optional: Battery and Usage access live in Setup. They keep counting alive on Realme, Xiaomi and Vivo phones.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Ash,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pieces
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun Headline(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.headlineMedium,
+        color = Chalk,
+        fontWeight = FontWeight.Bold,
+        lineHeight = 32.sp,
+    )
+}
+
+@Composable
+private fun Lead(text: String) {
+    Text(text = text, style = MaterialTheme.typography.bodyLarge, color = Smoke)
+}
+
+@Composable
+private fun Body(text: String) {
+    Text(text = text, style = MaterialTheme.typography.bodyMedium, color = Smoke)
+}
+
+@Composable
+private fun Bullet(text: String) {
+    Row(Modifier.padding(bottom = 10.dp)) {
+        Box(
+            Modifier
+                .padding(top = 7.dp)
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(brush = instaGradient()),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = Smoke)
+    }
+}
+
+@Composable
+private fun TextLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = Smoke,
+        fontWeight = FontWeight.SemiBold,
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    )
+}
+
+/** A quiet "we're watching" line with a soft pulsing dot. */
+@Composable
+private fun Waiting(text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(Acid),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = Ash)
+    }
+}
+
+@Composable
+private fun Callout(title: String, body: String) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(SurfaceLav)
+            .padding(16.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = Chalk,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(text = body, style = MaterialTheme.typography.bodyMedium, color = Smoke)
+    }
+}
+
+@Composable
+private fun PreviewRow(n: Int, title: String, detail: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        NumberBadge(n, done = false)
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = Chalk,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(text = detail, style = MaterialTheme.typography.bodyMedium, color = Smoke)
+        }
+    }
+}
+
+@Composable
+private fun NumberBadge(n: Int, done: Boolean) {
+    Box(
+        Modifier
+            .size(30.dp)
+            .clip(CircleShape)
+            .then(
+                if (done) Modifier.background(Good)
+                else Modifier.background(brush = instaGradient())
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = if (done) "✓" else n.toString(),
+            color = Ink,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun RecoveryHop(
+    n: Int,
+    done: Boolean,
+    title: String,
+    detail: String,
+    action: String,
+    onAction: () -> Unit,
+    emphasised: Boolean = !done,
+    mock: (@Composable () -> Unit)? = null,
+) {
+    Row {
+        NumberBadge(n, done)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = Chalk,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(text = detail, style = MaterialTheme.typography.bodyMedium, color = Smoke)
+            if (mock != null) {
+                Spacer(Modifier.height(10.dp))
+                mock()
+            }
+            Spacer(Modifier.height(10.dp))
+            FlatButton(action, emphasised = emphasised, onClick = onAction)
+        }
+    }
+}
+
+/** Three dots: one per required switch, plus the finish. */
+@Composable
+private fun ProgressDots(done: Int, current: SetupStep) {
+    val active = when (current) {
+        SetupStep.Welcome, SetupStep.Accessibility -> 0
+        SetupStep.Overlay -> 1
+        SetupStep.Done -> 2
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(3) { i ->
+            val filled = i < done || i == active
+            val w by animateFloatAsState(
+                targetValue = if (i == active) 22f else 8f,
+                animationSpec = tween(260, easing = FastOutSlowInEasing),
+                label = "dot",
+            )
+            Box(
+                Modifier
+                    .size(width = w.dp, height = 8.dp)
+                    .clip(RoundedCornerShape(50))
+                    .then(
+                        if (filled) Modifier.background(brush = instaGradient())
+                        else Modifier.background(InkLine)
+                    ),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Mocks of the system screens, so people know what they're looking for
+// ---------------------------------------------------------------------------
+
+/** A stand-in for the Settings row: the app's name and a switch. */
+@Composable
+private fun SettingsRowMock(checked: Boolean) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(SurfaceLav)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(brush = instaGradient()),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = "Ek Aur (One More)",
+                style = MaterialTheme.typography.titleMedium,
+                color = Chalk,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(text = "Off", style = MaterialTheme.typography.bodySmall, color = Smoke)
+        }
+        SwitchMock(checked)
+    }
+}
+
+@Composable
+private fun SwitchMock(checked: Boolean) {
+    Box(
+        Modifier
+            .size(width = 40.dp, height = 22.dp)
+            .clip(RoundedCornerShape(50))
+            .background(if (checked) Good else Ash.copy(alpha = 0.5f))
+            .padding(3.dp),
+        contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Box(
+            Modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(Color.White),
+        )
+    }
+}
+
+/** The App info overflow menu, with the item to tap. */
+@Composable
+private fun MenuMock() {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(SurfaceLav)
+            .padding(12.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "App info",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Smoke,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(text = "⋮", style = MaterialTheme.typography.titleLarge, color = Chalk)
+        }
+        Spacer(Modifier.height(8.dp))
+        Column(
+            Modifier
+                .align(Alignment.End)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.White)
+                .border(1.dp, InkLine, RoundedCornerShape(10.dp))
+                .padding(vertical = 4.dp),
+        ) {
+            Text(
+                text = "Uninstall updates",
+                style = MaterialTheme.typography.bodySmall,
+                color = Ash,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            )
+            Text(
+                text = "Allow restricted settings",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Chalk,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .background(SurfaceLav)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            )
+        }
+    }
+}
+
+/** The floating counter, over a faux reel. */
+@Composable
+private fun PillMock() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(92.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color(0xFF2A2233), Color(0xFF14111A)),
+                ),
+            ),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Row(
+            Modifier
+                .padding(top = 14.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xF00A0A0A))
+                .border(1.dp, Color(0x33DD2A7B), RoundedCornerShape(50))
+                .padding(horizontal = 13.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("😎", fontSize = 14.sp)
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = "1",
+                color = Color(0xFFF2F2F2),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+            )
+        }
+    }
+}

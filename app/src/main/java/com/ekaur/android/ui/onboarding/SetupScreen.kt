@@ -27,10 +27,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.ekaur.android.di.AppContainer
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
+import com.ekaur.android.setup.SetupFlow
 import com.ekaur.android.update.UpdateState
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Dot
@@ -57,7 +57,8 @@ import com.ekaur.android.ui.theme.instaGradient
 @Composable
 fun SetupScreen(
     container: AppContainer,
-    serviceEnabled: Boolean,
+    permissions: PermissionState,
+    onGuidedSetup: (recovery: Boolean) -> Unit = {},
     onOpenEvents: () -> Unit = {},
     onOpenStatus: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -65,20 +66,14 @@ fun SetupScreen(
     val context = LocalContext.current
     var reset by remember { mutableStateOf(false) }
     var paymentPaused by remember { mutableStateOf(false) }
-    var usageOk by remember { mutableStateOf(ServiceControl.hasUsageAccess(context)) }
     var autoOff by remember { mutableStateOf(container.settings.autoOffOnLeave) }
     var autoUpdate by remember { mutableStateOf(container.updateManager.autoDownload) }
     val updateState by container.updateManager.state.collectAsState()
 
-    LifecycleResumeEffect(Unit) {
-        usageOk = ServiceControl.hasUsageAccess(context)
-        onPauseOrDispose { }
-    }
-
-    val canOverlay = ServiceControl.canDrawOverlay(context)
-    val batteryExempt = ServiceControl.isIgnoringBatteryOptimisations(context)
-    val allDone = serviceEnabled && canOverlay && batteryExempt && usageOk
-    val stepsLeft = listOf(serviceEnabled, canOverlay, batteryExempt, usageOk).count { !it }
+    // Every grant comes in from the activity, read in one go on resume, so
+    // this screen can never show a stale row or disagree with Home.
+    val required = permissions.requiredMissing
+    val allDone = permissions.allGranted
 
     Column(
         modifier
@@ -88,7 +83,7 @@ fun SetupScreen(
     ) {
         Spacer(Modifier.height(12.dp))
 
-        // 1 — Status + permissions, one card
+        // 1 — Status + the two switches that matter, one card
         Card {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -96,33 +91,59 @@ fun SetupScreen(
             ) {
                 Dot(if (allDone) Good else Heat)
                 Text(
-                    text = if (allDone) "You're all set. Go scroll." else "$stepsLeft steps left.",
+                    text = if (allDone) "You're all set. Go scroll." else SetupFlow.statusLine(required),
                     style = MaterialTheme.typography.titleLarge,
                     color = Chalk,
                 )
             }
             Spacer(Modifier.height(14.dp))
-            ProgressBar(done = 4 - stepsLeft, total = 4)
+            ProgressBar(done = SetupFlow.REQUIRED - required, total = SetupFlow.REQUIRED)
+            if (!allDone) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "The guided setup walks you through it one screen at a time, " +
+                        "including the \"Restricted setting\" popup.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Smoke,
+                )
+                Spacer(Modifier.height(10.dp))
+                FlatButton(
+                    text = "Guided setup",
+                    emphasised = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onGuidedSetup(false) },
+                )
+            }
             Spacer(Modifier.height(18.dp))
-            SectionLabel("Permissions")
+            SectionLabel("Required")
             Spacer(Modifier.height(6.dp))
-            PermRow("Accessibility", "Counts your reels. Nothing works without it.", serviceEnabled,
-                "Open", { ServiceControl.openAccessibilitySettings(context) }) {
+            PermRow("Accessibility", "Counts your reels. Nothing works without it.", permissions.service,
+                "Open", { ServiceControl.openAccessibilityServiceDetails(context) }) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "Blocked by a \"Restricted setting\" popup? App info → ⋮ " +
-                        "→ Allow restricted settings, then come back.",
+                    text = "Blocked by a \"Restricted setting\" popup? That's normal — " +
+                        "it clears in three taps.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Ash,
                 )
                 Spacer(Modifier.height(8.dp))
-                FlatButton("Open app info", onClick = { ServiceControl.openAppInfo(context) })
+                FlatButton("Fix \"Restricted setting\"", onClick = { onGuidedSetup(true) })
             }
-            PermRow("Overlay", "Shows the counter over Instagram.", canOverlay,
+            PermRow("Overlay", "Shows the counter over Instagram.", permissions.overlay,
                 "Allow", { ServiceControl.openOverlaySettings(context) })
-            PermRow("Battery", "Some phones kill background apps and counting stops.", batteryExempt,
+
+            Spacer(Modifier.height(14.dp))
+            SectionLabel("Recommended")
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Not needed to count — they keep it alive on phones that kill background apps.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ash,
+            )
+            Spacer(Modifier.height(4.dp))
+            PermRow("Battery", "Some phones kill background apps and counting stops.", permissions.battery,
                 "Allow", { ServiceControl.openBatterySettings(context) })
-            PermRow("Usage access", "Lets the app tell when you've left Instagram.", usageOk,
+            PermRow("Usage access", "Lets the app tell when you've left Instagram.", permissions.usage,
                 "Allow", { ServiceControl.openUsageAccessSettings(context) })
         }
 
@@ -153,7 +174,7 @@ fun SetupScreen(
                     container.settings.autoOffOnLeave = it
                 },
             )
-            if (autoOff && !usageOk) {
+            if (autoOff && !permissions.usage) {
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = "Needs \"Usage access\" above to work.",
@@ -275,7 +296,10 @@ fun SetupScreen(
                     text = "• \"App blocked\" by Play Protect: Play Store → profile " +
                         "→ Play Protect → ⚙ → turn off scanning, install, turn it " +
                         "back on.\n\n• \"App not installed\" means an older APK over a newer " +
-                        "one — install the newest file.",
+                        "one — install the newest file.\n\n• \"Restricted setting\" on the " +
+                        "accessibility switch: tap the switch once and press OK, then App info " +
+                        "→ ⋮ → Allow restricted settings, then switch it on. The ⋮ item only " +
+                        "appears after that first tap.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Ash,
                 )
