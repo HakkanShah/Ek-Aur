@@ -54,6 +54,8 @@ object EkIcons {
     val Sparkle by lazy { filled("sparkle", "M12 2.5l2 5.9 5.9 2-5.9 2-2 5.9-2-5.9-5.9-2 5.9-2z") }
     val Target by lazy { line("target", CIRCLE_9, "M12 12m-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0", "M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0") }
     val Moon by lazy { line("moon", "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z") }
+    val ArrowUp by lazy { line("arrow-up", "M12 19V5", "M6 11l6-6 6 6") }
+    val ArrowDown by lazy { line("arrow-down", "M12 5v14", "M6 13l6 6 6-6") }
     val TrendDown by lazy { line("trend-down", "M3 7l6 6 4-4 8 8", "M21 11v6h-6") }
     val Timer by lazy { line("timer", "M12 14m-7 0a7 7 0 1 0 14 0a7 7 0 1 0-14 0", "M12 14v-4", "M9.5 3h5") }
     val Person by lazy {

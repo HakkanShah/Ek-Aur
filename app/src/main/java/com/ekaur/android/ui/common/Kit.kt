@@ -302,7 +302,7 @@ fun Dot(color: Color, modifier: Modifier = Modifier) {
  * One headline number with its name under it, a gradient tick before the name.
  *
  * Pass [count] to have the number count up instead of [value] snapping in.
- * [delta] adds a small "▲ 12" chip (compared with yesterday, say). In a row,
+ * [delta] adds a small up/down chip (compared with yesterday, say). In a row,
  * give the Row `IntrinsicSize.Min` height and each tile `fillMaxHeight()` so
  * they line up whatever their captions.
  */
@@ -364,20 +364,27 @@ fun StatTile(
     }
 }
 
-/** "▲ 12" or "▼ 3" in a small tinted pill. Up is magenta: more is the joke. */
+/** An up or down arrow and the difference, in a small tinted pill. Up is magenta: more is the joke. */
 @Composable
 fun DeltaChip(delta: Int, modifier: Modifier = Modifier) {
     val up = delta > 0
-    Text(
-        text = (if (up) "▲ " else "▼ ") + kotlin.math.abs(delta),
-        style = MaterialTheme.typography.labelMedium,
-        color = if (up) Acid else Smoke,
-        maxLines = 1,
-        modifier = modifier
+    val color = if (up) Acid else Smoke
+    Row(
+        modifier
             .clip(RoundedCornerShape(percent = 50))
             .background(if (up) SurfaceBlush else SurfaceLav)
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-    )
+            .padding(start = 6.dp, end = 8.dp, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        EkIcon(if (up) EkIcons.ArrowUp else EkIcons.ArrowDown, tint = color, size = 12.dp)
+        Spacer(Modifier.width(3.dp))
+        Text(
+            text = kotlin.math.abs(delta).toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            maxLines = 1,
+        )
+    }
 }
 
 /** A soft rounded card, floating on the tinted canvas. */

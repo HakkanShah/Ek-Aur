@@ -16,7 +16,7 @@ class IconsTest {
     private val all: List<ImageVector> = with(EkIcons) {
         listOf(
             Back, Close, Check, ChevronDown, Warning, Alert, Lock, Refresh, WifiOff, EyeOff,
-            Crown, Pencil, Image, Folder, Copy, Share, Sparkle, Target, Moon, TrendDown, Timer,
+            Crown, Pencil, Image, Folder, Copy, Share, Sparkle, Target, Moon, ArrowUp, ArrowDown, TrendDown, Timer,
             Person, Layers, Battery, Activity, FloatingButton, Tiles, Pause, Download, Gift,
             Box, CheckCircle, MoreVert, Reels, Shorts,
         )
