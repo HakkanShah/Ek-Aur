@@ -95,11 +95,22 @@ It can't be dragged off any more, but if it ever goes missing there's a
 
 ## How counting works
 
-The same rule counts both apps. Reels and Shorts are each a vertical pager
-showing one full-screen video at a time; every feed, comment list and carousel
-around them shows several items. Pagers that do show one item but are not the
-player (Instagram's main tabs, a YouTube channel's tab strip) scroll sideways,
-so a scroll that moves only sideways never counts.
+Reels and Shorts are each a vertical pager showing one full-screen video at a
+time; every feed, comment list and carousel around them shows several items.
+Pagers that do show one item but are not the player (Instagram's main tabs, a
+YouTube channel's tab strip) scroll sideways, so a scroll that moves only
+sideways never counts.
+
+The two apps report their pagers differently, so they are counted differently:
+
+- **Instagram** says which item is on screen. Moving from one item to the next
+  is one reel.
+- **YouTube** says nothing about position, only how far the list moved. A swipe
+  to the next Short moves it exactly one page (2100px on a 2400px phone), while
+  its screen's containers scroll alongside. A burst of scrolling that comes to
+  rest exactly one page forward is one Short; back, a snap-back, or a feed
+  fling of some other length is not. The page height is learned from the first
+  swipe.
 
 A day's upload always carries every app's count for that day summed, with the
 Reels / Shorts split alongside: the server keeps one row per person per day,

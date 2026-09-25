@@ -74,7 +74,20 @@ data class AppRules(
      * reports no deltas at all (Android 8) falls back to the shape rule.
      */
     val verticalOnly: Boolean = true,
+
+    /**
+     * Class-name fragments of a pager that reports no positions and has to be
+     * counted by distance instead (see [PageFlip]). Empty for an app whose
+     * pager reports positions, which is always preferred when present.
+     */
+    val pageFlipClassHints: List<String> = emptyList(),
 ) {
+    /** Whether this scroll came from a pager counted by distance. */
+    fun isPageFlipPager(signal: ScrollSignal): Boolean {
+        val cls = signal.className?.lowercase() ?: return false
+        return pageFlipClassHints.any { cls.contains(it) }
+    }
+
     fun matchesPackage(pkg: String): Boolean = pkg == packageName
 
     /**
@@ -140,12 +153,12 @@ object DetectorRules {
     )
 
     /**
-     * YouTube Shorts: a vertical, one-video-at-a-time feed, the same shape as
-     * Reels. YouTube's player is a snapping pager (ViewPager2 or a paged
-     * RecyclerView), which reports one visible item once a swipe settles; the
-     * home feed, the comments and the watch-page lists all show several. The
-     * ids are corroboration for a build that can read them; the shape and the
-     * direction guard do the work on a phone.
+     * YouTube Shorts: a vertical, one-video-at-a-time feed, the same idea as
+     * Reels but not the same events. A device dump showed its pager is a
+     * RecyclerView whose layout manager reports no positions at all, so the
+     * shape rule never fires and Shorts are counted by distance: each swipe
+     * moves the list exactly one page ([PageFlip]). The ids are kept for a
+     * build that can read them; a phone never sees one.
      */
     val YouTube = AppRules(
         packageName = "com.google.android.youtube",
@@ -158,6 +171,7 @@ object DetectorRules {
             "viewpager",
         ),
         nonPlayerViewIdHints = emptyList(),
+        pageFlipClassHints = listOf("recyclerview"),
     )
 
     val all: List<AppRules> = listOf(Instagram, YouTube)

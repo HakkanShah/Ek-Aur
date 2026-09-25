@@ -20,6 +20,8 @@ data class CapturedEvent(
     val fromIndex: Int,
     val toIndex: Int,
     val itemCount: Int,
+    /** Sideways movement; defaulted so older call sites still build. */
+    val scrollDeltaX: Int = 0,
     /** Whether the detector turned this event into a count. */
     val counted: Boolean = false,
     /** Detector state immediately after this event. */
@@ -35,9 +37,11 @@ data class CapturedEvent(
         className?.let { append("    class=").append(it).append('\n') }
         viewId?.let { append("    viewId=").append(it).append('\n') }
         contentDescription?.let { append("    desc=").append(it).append('\n') }
-        if (scrollDeltaY != 0 || scrollY != 0) {
+        if (scrollDeltaY != 0 || scrollY != 0 || scrollDeltaX != 0) {
             append("    scrollDeltaY=").append(scrollDeltaY)
-            append(" scrollY=").append(scrollY).append('\n')
+            append(" scrollY=").append(scrollY)
+            if (scrollDeltaX != 0) append(" scrollDeltaX=").append(scrollDeltaX)
+            append('\n')
         }
         if (fromIndex >= 0 || toIndex >= 0 || itemCount >= 0) {
             append("    fromIndex=").append(fromIndex)

@@ -35,7 +35,12 @@ class EkAurAccessibilityService : AccessibilityService() {
 
     // Rules only for the apps the user counts: an app switched off reads as
     // untracked, so its events are ignored and leaving to it ends the sitting.
-    private val detector = ReelDetector(rulesFor = { pkg -> trackedRules(pkg) })
+    private val detector = ReelDetector(
+        rulesFor = { pkg -> trackedRules(pkg) },
+        // Read live, so a rotation or split screen is picked up. Only used to
+        // recognise the first Shorts page flip before its height is known.
+        screenHeightPx = { resources.displayMetrics.heightPixels },
+    )
     private lateinit var eventLog: EventLog
     private lateinit var status: ServiceStatus
     private lateinit var counters: CounterRepository
@@ -217,6 +222,7 @@ class EkAurAccessibilityService : AccessibilityService() {
                 viewId = viewId,
                 contentDescription = signal.contentDescription,
                 scrollDeltaY = scrollDeltaY,
+                scrollDeltaX = scrollDeltaX,
                 scrollY = event.scrollY,
                 fromIndex = event.fromIndex,
                 toIndex = event.toIndex,

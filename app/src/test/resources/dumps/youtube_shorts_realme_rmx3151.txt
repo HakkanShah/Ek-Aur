@@ -1,0 +1,638 @@
+EK AUR event dump
+events=160  counted=1  liveCount=3
+
+92129  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-1 scrollY=0
+92919  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=com.google.android.apps.youtube.app.watchwhile.MainActivity
+    scrollDeltaY=-1 scrollY=0
+92919  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-1 scrollY=0
+92919  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-1 scrollY=0
+95859  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    desc=filters
+95897  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+97965  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-1 scrollY=0
+98016  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-1 scrollY=0
+98017  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-1 scrollY=0
+98194  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+98476  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-1 scrollY=0
+99393  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+99393  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+99393  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+100228  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1275 scrollY=0
+100229  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-825 scrollY=-825
+100229  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-825 scrollY=-825
+100339  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=820 scrollY=0
+100343  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=820 scrollY=-5
+100343  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=820 scrollY=-5
+100506  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=5 scrollY=0
+100506  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=5 scrollY=0
+100506  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=5 scrollY=0
+101947  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=288 scrollY=0
+101948  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=288 scrollY=288
+101948  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=288 scrollY=288
+103436  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+103456  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-288 scrollY=0
+103456  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-288 scrollY=0
+103665  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-1250 scrollY=0
+103670  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=850 scrollY=850
+103670  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=850 scrollY=850
+103784  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-841 scrollY=0
+103784  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-841 scrollY=9
+103785  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-841 scrollY=9
+103893  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-9 scrollY=0
+103893  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-9 scrollY=0
+103893  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-9 scrollY=0
+104271  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1205 scrollY=0
+104272  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-895 scrollY=-895
+104272  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-895 scrollY=-895
+104385  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=890 scrollY=0
+104390  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=890 scrollY=-5
+104390  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=890 scrollY=-5
+104495  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=5 scrollY=0
+104495  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=5 scrollY=0
+104498  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=5 scrollY=0
+113476  WindowStateChanged     state=InApp   
+    pkg=com.instagram.android
+    class=com.instagram.mainactivity.InstagramMainActivity
+    scrollDeltaY=-1 scrollY=0
+113662  ViewScrolled           state=InReels 
+    pkg=com.instagram.android
+    class=androidx.viewpager.widget.ViewPager
+    fromIndex=15 toIndex=15 itemCount=24
+114003  WindowStateChanged     state=InReels 
+    pkg=com.instagram.android
+    class=com.instagram.mainactivity.InstagramMainActivity
+    scrollDeltaY=-1 scrollY=0
+114011  ViewScrolled           state=InReels 
+    pkg=com.instagram.android
+    class=androidx.viewpager.widget.ViewPager
+    fromIndex=13 toIndex=13 itemCount=25
+114343  ViewScrolled           state=InReels  [COUNT]
+    pkg=com.instagram.android
+    class=androidx.viewpager.widget.ViewPager
+    scrollDeltaY=1183 scrollY=0
+    fromIndex=16 toIndex=16 itemCount=24
+114551  ViewScrolled           state=InReels 
+    pkg=com.instagram.android
+    class=androidx.viewpager.widget.ViewPager
+    scrollDeltaY=881 scrollY=0
+    fromIndex=16 toIndex=16 itemCount=24
+402753  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=com.google.android.apps.youtube.app.watchwhile.MainActivity
+    scrollDeltaY=-1 scrollY=0
+402754  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-1 scrollY=0
+402756  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-1 scrollY=0
+402830  WindowStateChanged     state=InApp   
+    pkg=com.google.android.youtube
+    class=com.google.android.apps.youtube.app.watchwhile.MainActivity
+    scrollDeltaY=-1 scrollY=0
+403903  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1469 scrollY=0
+403905  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-631 scrollY=-631
+403905  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-631 scrollY=-631
+404013  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=626 scrollY=0
+404013  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=626 scrollY=-5
+404013  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=626 scrollY=-5
+404141  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=5 scrollY=0
+404141  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=5 scrollY=0
+404141  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=5 scrollY=0
+404887  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=776 scrollY=0
+404887  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-1324 scrollY=-1324
+404888  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-1324 scrollY=-1324
+405001  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1138 scrollY=0
+405002  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=1138 scrollY=-186
+405002  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=1138 scrollY=-186
+405101  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=186 scrollY=0
+405101  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=186 scrollY=0
+405101  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=186 scrollY=0
+406492  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1051 scrollY=0
+406492  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-1049 scrollY=-1049
+406492  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-1049 scrollY=-1049
+406595  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1019 scrollY=0
+406595  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=1019 scrollY=-30
+406595  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=1019 scrollY=-30
+406709  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=30 scrollY=0
+406710  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=30 scrollY=0
+406710  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=30 scrollY=0
+411465  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-1029 scrollY=0
+411465  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=1071 scrollY=1071
+411466  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=1071 scrollY=1071
+411575  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-975 scrollY=0
+411575  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-975 scrollY=96
+411576  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-975 scrollY=96
+411676  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-96 scrollY=0
+411677  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-96 scrollY=0
+411677  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-96 scrollY=0
+412332  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=44 scrollY=0
+412333  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=44 scrollY=44
+412333  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=44 scrollY=44
+412566  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-39 scrollY=0
+412567  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-39 scrollY=5
+412567  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-39 scrollY=5
+412682  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-5 scrollY=0
+412683  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-5 scrollY=0
+412683  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-5 scrollY=0
+414560  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1324 scrollY=0
+414561  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-776 scrollY=-776
+414561  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-776 scrollY=-776
+414675  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=755 scrollY=0
+414675  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=755 scrollY=-21
+414675  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=755 scrollY=-21
+414776  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=21 scrollY=0
+414776  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=21 scrollY=0
+414777  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=21 scrollY=0
+416403  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1547 scrollY=0
+416403  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-553 scrollY=-553
+416404  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-553 scrollY=-553
+416518  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=553 scrollY=0
+416518  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=553 scrollY=0
+416519  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=553 scrollY=0
+429211  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1549 scrollY=0
+429211  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-551 scrollY=-551
+429211  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-551 scrollY=-551
+429326  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=551 scrollY=0
+429326  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=551 scrollY=0
+429326  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=551 scrollY=0
+432743  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1290 scrollY=0
+432744  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-810 scrollY=-810
+432745  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-810 scrollY=-810
+432847  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=810 scrollY=0
+432848  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=810 scrollY=0
+432848  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=810 scrollY=0
+433779  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-1508 scrollY=0
+433779  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=592 scrollY=592
+433779  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=592 scrollY=592
+433901  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-592 scrollY=0
+433901  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-592 scrollY=0
+433901  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-592 scrollY=0
+439264  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1549 scrollY=0
+439264  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-551 scrollY=-551
+439264  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-551 scrollY=-551
+439374  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=551 scrollY=0
+439374  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=551 scrollY=0
+439374  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=551 scrollY=0
+440213  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+442493  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=288 scrollY=0
+442494  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=288 scrollY=288
+442495  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=288 scrollY=288
+443889  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-288 scrollY=0
+443889  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-288 scrollY=0
+443890  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-288 scrollY=0
+444803  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=288 scrollY=0
+444803  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=288 scrollY=288
+444803  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=288 scrollY=288
+447066  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=-288 scrollY=0
+447067  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-288 scrollY=0
+447067  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-288 scrollY=0
+455511  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=1498 scrollY=0
+455511  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=-602 scrollY=-602
+455511  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=-602 scrollY=-602
+455637  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.support.v7.widget.RecyclerView
+    scrollDeltaY=602 scrollY=0
+455638  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.view.ViewGroup
+    scrollDeltaY=602 scrollY=0
+455638  ViewScrolled           state=InApp   
+    pkg=com.google.android.youtube
+    class=android.widget.FrameLayout
+    scrollDeltaY=602 scrollY=0

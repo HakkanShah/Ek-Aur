@@ -30,6 +30,8 @@ package com.ekaur.android.detect
  */
 class ReelDetector(
     private val rulesFor: (String) -> AppRules? = DetectorRules::forPackage,
+    /** The display height in pixels, for recognising a first page flip. */
+    private val screenHeightPx: () -> Int = { DEFAULT_SCREEN_HEIGHT_PX },
 ) {
 
     /**
@@ -66,12 +68,25 @@ class ReelDetector(
     /** Last seen adapter position, per scrolling view. Feed and player never mix. */
     private val lastIndexByView = mutableMapOf<String, Int>()
 
+    // Page-flip accumulator, for a pager that reports no positions (Shorts).
+    private var pageOpen = false
+    private var pageNet = 0
+    private var pageEcho = false
+    private var pageLastMs = 0L
+
+    /**
+     * The pager's page height once a flip has shown it, per app. Kept across
+     * leaving the app: it is a property of the phone's layout, not a sitting.
+     */
+    private val pageHeightByPackage = mutableMapOf<String, Int>()
+
     @Synchronized
     fun onSignal(signal: ScrollSignal): DetectionResult {
         val events = mutableListOf<DetectionEvent>()
 
         // A pending burst may have settled while we were waiting for this signal.
         flushBurst(signal.timestampMs, events)
+        flushPage(signal.timestampMs, events)
 
         val signalRules = rulesFor(signal.packageName)
         if (signalRules == null) {
@@ -125,9 +140,12 @@ class ReelDetector(
             }
 
             ScrollShape.Unknown -> {
-                // No positions reported. Only meaningful if we already believe
-                // the player is on screen.
-                if (state == DetectionState.InReels) {
+                // No positions reported. An app whose pager never reports them
+                // is counted by distance instead; for anything else this is
+                // only meaningful if we already believe the player is on screen.
+                if (signalRules.pageFlipClassHints.isNotEmpty()) {
+                    accumulatePage(signal, signalRules)
+                } else if (state == DetectionState.InReels) {
                     lastReelsActivityMs = signal.timestampMs
                     accumulateBurst(signal, signalRules)
                 }
@@ -146,6 +164,7 @@ class ReelDetector(
     fun onTick(nowMs: Long): DetectionResult {
         val events = mutableListOf<DetectionEvent>()
         flushBurst(nowMs, events)
+        flushPage(nowMs, events)
 
         val activeRules = rules ?: return DetectionResult(events, state)
 
@@ -182,6 +201,9 @@ class ReelDetector(
         burstNet = 0
         burstLastMs = 0
         lastIndexByView.clear()
+        pageOpen = false
+        pageNet = 0
+        pageEcho = false
     }
 
     // --- counting ---------------------------------------------------------
@@ -233,6 +255,61 @@ class ReelDetector(
         if (net >= burstMinScroll) emitReel(burstLastMs, events)
     }
 
+    /**
+     * Adds one scroll to the current page burst. The pager's own movement is
+     * summed; any other view scrolling in the same burst is the Shorts
+     * screen's containers moving with it, which only marks where we are.
+     */
+    private fun accumulatePage(signal: ScrollSignal, appRules: AppRules) {
+        val dy = signal.scrollDeltaY
+        if (dy == 0) return
+        if (!pageOpen) {
+            pageOpen = true
+            pageNet = 0
+            pageEcho = false
+        }
+        pageLastMs = signal.timestampMs
+        burstSettleWindow = appRules.settleWindowMs
+        if (appRules.isPageFlipPager(signal)) pageNet += dy else pageEcho = true
+    }
+
+    private fun flushPage(
+        nowMs: Long,
+        events: MutableList<DetectionEvent>,
+        force: Boolean = false,
+    ) {
+        if (!pageOpen) return
+        if (!force && nowMs - pageLastMs < burstSettleWindow) return
+        pageOpen = false
+        val pkg = activePackage ?: return
+        val appRules = rules ?: return
+
+        val verdict = PageFlip.judge(
+            net = pageNet,
+            echo = pageEcho,
+            pageHeight = pageHeightByPackage[pkg],
+            screenHeight = screenHeightPx(),
+        )
+        verdict.learnedPageHeight?.let { pageHeightByPackage[pkg] = it }
+
+        if (verdict.flips > 0 || pageEcho) {
+            // On the Shorts screen: a flip, or a touch that moved its
+            // containers (a drag that snapped back, a panel opening).
+            state = DetectionState.InReels
+            lastPlayerScrollMs = pageLastMs
+            lastReelsActivityMs = pageLastMs
+            repeat(verdict.flips) { emitReel(pageLastMs, events) }
+        } else if (state == DetectionState.InReels &&
+            pageLastMs - lastPlayerScrollMs >= appRules.playerExitGraceMs
+        ) {
+            // A plain list scrolled, well after the last flip: the home feed,
+            // a watch page. Shorts is no longer on screen.
+            state = DetectionState.InApp
+        }
+        pageNet = 0
+        pageEcho = false
+    }
+
     private fun emitReel(timestampMs: Long, events: MutableList<DetectionEvent>) {
         val pkg = activePackage ?: return
         startSessionIfNeeded(timestampMs, events)
@@ -247,6 +324,7 @@ class ReelDetector(
         // Backgrounding is itself a settle: a swipe finished just before the
         // user left still happened, so flush it rather than dropping it.
         flushBurst(nowMs, events, force = true)
+        flushPage(nowMs, events, force = true)
         if (sessionActive) endSession(nowMs, events)
         state = DetectionState.Idle
         activePackage = null
@@ -254,6 +332,9 @@ class ReelDetector(
         lastIndexByView.clear()
         burstOpen = false
         burstNet = 0
+        pageOpen = false
+        pageNet = 0
+        pageEcho = false
     }
 
     private fun startSessionIfNeeded(nowMs: Long, events: MutableList<DetectionEvent>) {
@@ -284,6 +365,9 @@ class ReelDetector(
 
     private companion object {
         const val MAX_ITEMS_PER_SIGNAL = 3
+
+        /** A common phone height, for tests and until the service says otherwise. */
+        const val DEFAULT_SCREEN_HEIGHT_PX = 2400
 
         /**
          * Sitting and watching one reel through is the normal case, not an
