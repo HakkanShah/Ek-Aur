@@ -9,6 +9,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,13 +40,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -74,20 +81,25 @@ import com.ekaur.android.ui.common.SegmentedToggle
 import com.ekaur.android.ui.common.Spinner
 import com.ekaur.android.ui.common.StatusChip
 import com.ekaur.android.ui.common.ToggleRow
+import com.ekaur.android.ui.common.pressScale
 import com.ekaur.android.ui.common.rememberHaptics
 import com.ekaur.android.ui.common.reveal
 import com.ekaur.android.ui.feedback.rememberReporter
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.AppLook
+import com.ekaur.android.ui.theme.Ash
+import com.ekaur.android.ui.theme.Canvas
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Good
 import com.ekaur.android.ui.theme.GoodSoft
 import com.ekaur.android.ui.theme.Heat
 import com.ekaur.android.ui.theme.HeatSoft
 import com.ekaur.android.ui.theme.Ink
+import com.ekaur.android.ui.theme.InkLine
 import com.ekaur.android.ui.theme.Smoke
 import com.ekaur.android.ui.theme.SurfaceBlush
 import com.ekaur.android.ui.theme.SurfaceLav
+import com.ekaur.android.ui.theme.SurfacePeach
 import com.ekaur.android.ui.theme.instaGradient
 import com.ekaur.android.update.UpdateState
 import kotlinx.coroutines.delay
@@ -768,29 +780,91 @@ private fun FeedbackCard(container: AppContainer, modifier: Modifier = Modifier)
             style = MaterialTheme.typography.bodyMedium,
             color = Smoke,
         )
-        Spacer(Modifier.height(6.dp))
-        OptionRow(
-            icon = EkIcons.Bug,
-            title = "Report a bug",
-            body = "Attaches the event log and a status snapshot, so I can see what went wrong.",
-            action = "Report",
-            loading = reporter.busy == BugReport.Kind.Bug,
-            onAction = { reporter.send(BugReport.Kind.Bug) },
-        )
-        OptionRow(
-            icon = EkIcons.Lightbulb,
-            title = "Suggest a feature",
-            body = "What should Ek Aur do next?",
-            action = "Suggest",
-            onAction = { reporter.send(BugReport.Kind.Feature) },
-        )
-        OptionRow(
-            icon = EkIcons.Mail,
-            title = "Send feedback",
-            body = "Love it, hate it, got roasted too hard. Say it.",
-            action = "Write",
-            onAction = { reporter.send(BugReport.Kind.Feedback) },
-        )
+        Spacer(Modifier.height(14.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FeedbackRow(
+                icon = EkIcons.Bug,
+                tint = HeatSoft,
+                iconTint = Heat,
+                title = "Report a bug",
+                body = "Opens Gmail with the event log and a status snapshot attached.",
+                loading = reporter.busy == BugReport.Kind.Bug,
+                onClick = { reporter.send(BugReport.Kind.Bug) },
+            )
+            FeedbackRow(
+                icon = EkIcons.Lightbulb,
+                tint = SurfacePeach,
+                iconTint = Color(0xFFE08600),
+                title = "Suggest a feature",
+                body = "What should Ek Aur do next?",
+                loading = reporter.busy == BugReport.Kind.Feature,
+                onClick = { reporter.send(BugReport.Kind.Feature) },
+            )
+            FeedbackRow(
+                icon = EkIcons.Mail,
+                tint = SurfaceLav,
+                iconTint = Acid,
+                title = "Send feedback",
+                body = "Love it, hate it, got roasted too hard. Say it.",
+                loading = reporter.busy == BugReport.Kind.Feedback,
+                onClick = { reporter.send(BugReport.Kind.Feedback) },
+            )
+        }
+    }
+}
+
+/**
+ * One way to reach the developer: the whole row is the button. A tinted icon
+ * says what kind of message it is; the chevron turns into a spinner while a
+ * bug report gathers its attachments.
+ */
+@Composable
+private fun FeedbackRow(
+    icon: ImageVector,
+    tint: Color,
+    iconTint: Color,
+    title: String,
+    body: String,
+    loading: Boolean,
+    onClick: () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val haptics = rememberHaptics()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .pressScale(interaction, 0.98f)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Canvas)
+            .border(1.dp, InkLine, RoundedCornerShape(18.dp))
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = !loading,
+                role = Role.Button,
+                onClick = {
+                    haptics.tick()
+                    onClick()
+                },
+            )
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconTile(icon, tint = tint, iconTint = iconTint, size = 42.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = Chalk, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(1.dp))
+            Text(body, style = MaterialTheme.typography.bodySmall, color = Smoke)
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+            if (loading) {
+                Spinner(size = 18.dp)
+            } else {
+                EkIcon(EkIcons.ChevronDown, tint = Ash, size = 18.dp, modifier = Modifier.rotate(-90f))
+            }
+        }
     }
 }
 

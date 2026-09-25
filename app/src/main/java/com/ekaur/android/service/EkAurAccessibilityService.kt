@@ -96,6 +96,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         settings = container.settings
 
         instance = this
+        disabling = false
         detector.reset()
         status.onConnected()
         // Seed here so a service enabled but never taken into Instagram still
@@ -177,14 +178,22 @@ class EkAurAccessibilityService : AccessibilityService() {
             msSinceTrackedForeground = nowMs - lastTrackedForegroundMs,
             graceMs = AUTO_OFF_GRACE_MS,
         )
-        if (shouldDisable) {
+        if (shouldDisable && !disabling) {
+            // Once only: the check runs every 1.5s, and a second switch-off
+            // landing after the service has already gone would reach a dead
+            // connection and take the app down with it.
+            disabling = true
             settings.lastAutoOff = "$nowMs|$foreground"
             main.post {
-                // onUnbind announces "band"; disableSelf tears the service down.
-                disableSelf()
+                // onUnbind announces "off"; disableSelf tears the service down.
+                runCatching { disableSelf() }
             }
         }
     }
+
+    /** Set once the service has asked to switch itself off. */
+    @Volatile
+    private var disabling = false
 
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -394,8 +403,7 @@ class EkAurAccessibilityService : AccessibilityService() {
          */
         fun pauseFromUi(): Boolean {
             val live = instance ?: return false
-            live.disableSelf()
-            return true
+            return runCatching { live.disableSelf() }.isSuccess
         }
     }
 }

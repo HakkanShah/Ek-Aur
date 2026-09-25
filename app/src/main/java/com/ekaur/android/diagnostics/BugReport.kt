@@ -11,7 +11,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 /**
  * Bug reports, feature ideas and feedback, sent from inside the app to the
@@ -44,11 +46,11 @@ object BugReport {
     }
 
     /**
-     * Writes the attachments (for a bug) and opens the mail app. Call off the
-     * main thread; it reads the database. Returns false if nothing could open.
+     * Writes the attachments (for a bug) off the main thread, then opens the
+     * mail app on it.
      */
-    suspend fun send(context: Context, container: AppContainer, kind: Kind): Boolean {
-        val files = if (kind.attachLogs) attachments(context, container) else emptyList()
+    suspend fun send(context: Context, container: AppContainer, kind: Kind): ServiceControl.MailOutcome {
+        val files = if (kind.attachLogs) withContext(Dispatchers.IO) { attachments(context, container) } else emptyList()
         val subject = "${kind.subject} · v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · " +
             "${Build.MANUFACTURER} ${Build.MODEL}"
         val body = buildString {
@@ -60,14 +62,25 @@ object BugReport {
                 append("Attached: ").append(files.joinToString { it.name }).append('\n')
             }
         }
-        return ServiceControl.emailWithAttachments(context, subject, body, files)
+        return withContext(Dispatchers.Main) {
+            ServiceControl.emailWithAttachments(context, subject, body, files)
+        }
     }
 
-    /** The files a bug report carries. */
+    /**
+     * The files a bug report carries. Each is written on its own: one that
+     * can't be put together never stops the report, it just says why inside.
+     */
     suspend fun attachments(context: Context, container: AppContainer): List<File> = buildList {
-        add(TextExport.write(context, "ekaur-events.txt", container.eventLog.exportText()))
-        add(TextExport.write(context, "ekaur-status.txt", statusText(context, container)))
-        container.crashReporter.pendingReport()?.let { add(TextExport.write(context, "ekaur-crash.txt", it)) }
+        fun attempt(name: String, content: () -> String) {
+            val text = runCatching(content).getOrElse { "Couldn't collect this: ${it::class.simpleName}: ${it.message}" }
+            runCatching { TextExport.write(context, name, text) }.getOrNull()?.let { add(it) }
+        }
+        attempt("ekaur-events.txt") { container.eventLog.exportText() }
+        val status = runCatching { statusText(context, container) }
+            .getOrElse { "Couldn't collect the status: ${it::class.simpleName}: ${it.message}" }
+        attempt("ekaur-status.txt") { status }
+        container.crashReporter.pendingReport()?.let { crash -> attempt("ekaur-crash.txt") { crash } }
     }
 
     /** Everything the app can read about itself, one fact per line. */

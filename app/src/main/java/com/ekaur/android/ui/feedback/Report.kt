@@ -10,9 +10,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.ekaur.android.diagnostics.BugReport
 import com.ekaur.android.di.AppContainer
-import kotlinx.coroutines.Dispatchers
+import com.ekaur.android.service.ServiceControl
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /** Sends a report of some [BugReport.Kind]; [busy] while the attachments are written. */
 class Reporter internal constructor(
@@ -34,14 +33,20 @@ fun rememberReporter(container: AppContainer): Reporter {
                 if (busy == null) {
                     busy = kind
                     scope.launch {
-                        val opened = withContext(Dispatchers.IO) {
-                            runCatching { BugReport.send(context.applicationContext, container, kind) }.getOrDefault(false)
-                        }
+                        val outcome = runCatching {
+                            BugReport.send(context.applicationContext, container, kind)
+                        }.getOrElse { ServiceControl.MailOutcome.Failed }
                         busy = null
-                        if (!opened) {
-                            Toast.makeText(
+                        when (outcome) {
+                            ServiceControl.MailOutcome.Mail -> Unit
+                            ServiceControl.MailOutcome.ShareSheet -> Toast.makeText(
                                 context,
-                                "No mail app found. Email ${com.ekaur.android.service.ServiceControl.DEVELOPER_EMAIL}",
+                                "No mail app set up. Pick any app to send it, or email ${ServiceControl.DEVELOPER_EMAIL}",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            ServiceControl.MailOutcome.Failed -> Toast.makeText(
+                                context,
+                                "Couldn't open mail. Email ${ServiceControl.DEVELOPER_EMAIL}",
                                 Toast.LENGTH_LONG,
                             ).show()
                         }

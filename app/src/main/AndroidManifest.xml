@@ -34,6 +34,13 @@
     <queries>
         <package android:name="com.instagram.android" />
         <package android:name="com.google.android.youtube" />
+        <!-- Mail apps, so bug reports and feedback open Gmail (or whichever
+             mail app is installed) directly. Without this, Android 11+ hides
+             them and the app can't find one to address. -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
     </queries>
 
     <application

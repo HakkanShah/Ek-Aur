@@ -32,7 +32,10 @@ object TextExport {
         val intent = intentFor(context, file, summaryOf(fileName, content))
         val chooser = Intent.createChooser(intent, chooserTitle)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(chooser)
+        // Never let a share take the app down: say so instead.
+        if (runCatching { context.startActivity(chooser) }.isFailure) {
+            android.widget.Toast.makeText(context, "Couldn't open the share sheet.", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     /** Writes [content] to a fresh, timestamped file in the shared exports folder. */

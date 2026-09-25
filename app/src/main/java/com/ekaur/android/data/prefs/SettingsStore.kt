@@ -101,7 +101,9 @@ class SettingsStore(context: Context) : SessionStore {
         }
 
     var autoOffOnLeave: Boolean
-        get() = prefs.getBoolean(KEY_AUTO_OFF, true)
+        // Off unless chosen: switching the service off on its own surprised
+        // people ("it stopped counting"), so it's opt-in from Setup.
+        get() = prefs.getBoolean(KEY_AUTO_OFF, false)
         set(value) {
             prefs.edit().putBoolean(KEY_AUTO_OFF, value).apply()
         }

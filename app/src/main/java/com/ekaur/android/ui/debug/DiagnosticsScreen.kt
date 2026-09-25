@@ -178,14 +178,20 @@ fun DiagnosticsScreen(
                     fontSize = 10.sp,
                 )
                 Spacer(Modifier.height(14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FlatButton(
-                        text = "Report crash",
-                        emphasised = true,
-                        onClick = { reporter.send(com.ekaur.android.diagnostics.BugReport.Kind.Bug) },
-                    )
+                FlatButton(
+                    text = "Report this crash",
+                    icon = com.ekaur.android.ui.common.EkIcons.Bug,
+                    emphasised = true,
+                    loading = reporter.busy == com.ekaur.android.diagnostics.BugReport.Kind.Bug,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { reporter.send(com.ekaur.android.diagnostics.BugReport.Kind.Bug) },
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FlatButton(
                         text = "Share",
+                        icon = com.ekaur.android.ui.common.EkIcons.Share,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             TextExport.share(
                                 context = context,
@@ -195,7 +201,12 @@ fun DiagnosticsScreen(
                             )
                         },
                     )
-                    FlatButton(text = "Clear", onClick = { crashReporter.clear() })
+                    FlatButton(
+                        text = "Clear",
+                        quiet = true,
+                        modifier = Modifier.weight(1f),
+                        onClick = { crashReporter.clear() },
+                    )
                 }
             }
         } else {
