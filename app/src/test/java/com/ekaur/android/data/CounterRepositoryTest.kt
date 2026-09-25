@@ -51,6 +51,30 @@ class CounterRepositoryTest {
     }
 
     @Test
+    fun `reels and shorts on one day are kept apart and summed for the total`() = runTest {
+        val yt = com.ekaur.android.detect.TrackedApp.YouTube.packageName
+        repeat(4) { i -> repo.onReelScrolled(reel(at(2026, 9, 25, 14, i))) }
+        repeat(3) { i -> repo.onReelScrolled(DetectionEvent.ReelScrolled(yt, at(2026, 9, 25, 15, i))) }
+
+        val rows = db.dailyCounts().forDates(listOf("2026-09-25"))
+        assertEquals(2, rows.size)
+        assertEquals(4, rows.single { it.packageName == IG }.reelCount)
+        assertEquals(3, rows.single { it.packageName == yt }.reelCount)
+
+        val byApp = repo.observeTodayByApp(at(2026, 9, 25, 16)).first()
+        assertEquals(4, byApp[com.ekaur.android.detect.TrackedApp.Instagram])
+        assertEquals(3, byApp[com.ekaur.android.detect.TrackedApp.YouTube])
+        assertEquals(7, repo.observeTodayCount(at(2026, 9, 25, 16)).first())
+    }
+
+    @Test
+    fun `an app with nothing today reads as zero, not missing`() = runTest {
+        repeat(2) { i -> repo.onReelScrolled(reel(at(2026, 9, 25, 14, i))) }
+        val byApp = repo.observeTodayByApp(at(2026, 9, 25, 16)).first()
+        assertEquals(0, byApp[com.ekaur.android.detect.TrackedApp.YouTube])
+    }
+
+    @Test
     fun `reels on one day accumulate into a single row`() = runTest {
         repeat(10) { i -> repo.onReelScrolled(reel(at(2026, 9, 20, 14, i))) }
 

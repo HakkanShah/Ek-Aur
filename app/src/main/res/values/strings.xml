@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ek Aur (One More)</string>
-    <string name="accessibility_service_description">Only for counting Instagram Reels. This service can see nothing but Instagram — no other app, no payment or UPI screen, no password. Everything stays on your phone.</string>
+    <string name="accessibility_service_description">Only for counting Instagram Reels and YouTube Shorts. It hears only the swipe in those two apps and cannot read the screen — no other app, no payment or UPI screen, no password. Everything stays on your phone.</string>
 </resources>

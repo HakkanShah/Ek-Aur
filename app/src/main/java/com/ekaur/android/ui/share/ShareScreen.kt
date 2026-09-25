@@ -1,6 +1,8 @@
 package com.ekaur.android.ui.share
 
 import android.graphics.Bitmap
+import androidx.compose.ui.graphics.toArgb
+import com.ekaur.android.ui.theme.Looks
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.material3.MaterialTheme
@@ -82,12 +84,16 @@ fun ShareScreen(
 
     // Rendered off the main thread: this draws a 1080x1080 bitmap and has no
     // business blocking a frame. Keyed on [attempt] too, so "Try again" works.
-    LaunchedEffect(stats, avatar, attempt) {
+    // The card wears the sharer's look: a Shorts person posts a red card.
+    val palette = Looks.palette
+    val cardPalette = remember(palette) { cardPaletteOf(palette) }
+
+    LaunchedEffect(stats, avatar, attempt, cardPalette) {
         failed = false
         card = null
         val rendered = withContext(Dispatchers.Default) {
             runCatching {
-                StatsCardRenderer.render(stats, CardShape.Square, avatar, heavy, regular)
+                StatsCardRenderer.render(stats, CardShape.Square, avatar, heavy, regular, cardPalette)
             }.getOrNull()
         }
         raw = rendered
@@ -183,3 +189,13 @@ fun ShareScreen(
         Spacer(Modifier.height(24.dp))
     }
 }
+
+/** The live look, as the plain ints the card renderer takes. */
+private fun cardPaletteOf(p: com.ekaur.android.ui.theme.Palette) = com.ekaur.android.share.CardPalette(
+    canvas = p.canvas.toArgb(),
+    chip = p.soft.toArgb(),
+    line = p.hairline.toArgb(),
+    accent = p.stops[2].toArgb(),
+    accentDim = p.accentDim.toArgb(),
+    gradient = p.stops.map { it.toArgb() }.toIntArray(),
+)

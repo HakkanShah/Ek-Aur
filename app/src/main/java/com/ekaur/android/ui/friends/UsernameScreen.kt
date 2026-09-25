@@ -367,7 +367,7 @@ fun UsernameScreen(
     }
 }
 
-private val Wordmark = TextStyle(
+private val Wordmark: TextStyle get() = TextStyle(
     fontFamily = Poppins,
     fontWeight = FontWeight.Bold,
     fontSize = 18.sp,

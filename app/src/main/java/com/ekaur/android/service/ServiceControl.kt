@@ -230,15 +230,15 @@ object ServiceControl {
             .onFailure { openAppInfo(context) }
     }
 
-    /** Brings Instagram to the front. False if it is not installed. */
-    fun openInstagram(context: Context): Boolean {
-        val intent = context.packageManager.getLaunchIntentForPackage(INSTAGRAM)
+    /** Brings a counted app to the front. False if it is not installed. */
+    fun openApp(context: Context, app: com.ekaur.android.detect.TrackedApp): Boolean {
+        val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
             ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) ?: return false
         return runCatching { context.startActivity(intent) }.isSuccess
     }
 
-    fun isInstagramInstalled(context: Context): Boolean =
-        context.packageManager.getLaunchIntentForPackage(INSTAGRAM) != null
+    fun isInstalled(context: Context, app: com.ekaur.android.detect.TrackedApp): Boolean =
+        context.packageManager.getLaunchIntentForPackage(app.packageName) != null
 
     /**
      * How this build got onto the phone, as the platform recorded it.
@@ -309,7 +309,6 @@ object ServiceControl {
     }
 
     const val DEVELOPER_EMAIL = "hakkanparbej@gmail.com"
-    private const val INSTAGRAM = "com.instagram.android"
 
     /** Hands text to the share sheet -- the only way anything leaves this phone. */
     fun shareText(context: android.content.Context, text: String) {

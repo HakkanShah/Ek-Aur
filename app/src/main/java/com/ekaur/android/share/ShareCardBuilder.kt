@@ -41,6 +41,12 @@ object ShareCardBuilder {
                 bestEver = repo.observeBestDay().first()?.total ?: 0,
                 peakHour = hourlySeries(repo.observeTodayHours().first())
                     .let { hours -> peakIndex(hours)?.let(::hourLabel) },
+                // Instagram-only keeps the classic "Reels today" (with its
+                // singular); anyone counting Shorts gets their own words.
+                label = container.settings.countedApps.value
+                    .takeIf { it != setOf(com.ekaur.android.detect.TrackedApp.Instagram) }
+                    ?.let { com.ekaur.android.ui.common.AppWords.today(it) },
+                split = com.ekaur.android.ui.common.AppWords.split(repo.observeTodayByApp().first()),
             )
         }.getOrNull() ?: return null
 

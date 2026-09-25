@@ -46,7 +46,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.di.AppContainer
+import com.ekaur.android.ui.common.SegmentedToggle
+import com.ekaur.android.ui.theme.AppLook
+import com.ekaur.android.ui.theme.ReelsMarkSoft
+import com.ekaur.android.ui.theme.ShortsMarkSoft
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.setup.SetupFlow
@@ -124,6 +129,8 @@ fun SetupScreen(
             onFixRestricted = { onGuidedSetup(true) },
             modifier = Modifier.reveal(2),
         )
+        Spacer(Modifier.height(12.dp))
+        AppsCard(container, Modifier.reveal(3))
         Spacer(Modifier.height(12.dp))
         PaymentsCard(container, permissions, Modifier.reveal(3))
         Spacer(Modifier.height(12.dp))
@@ -295,7 +302,7 @@ private fun PermissionsCard(
         PermRow(
             glyph = "👆",
             title = "Accessibility",
-            why = "Counts your reels. Sees the swipe, nothing else.",
+            why = "Counts your Reels and Shorts. Sees the swipe, nothing else.",
             done = permissions.service,
             required = true,
             actionLabel = "Turn on",
@@ -314,7 +321,7 @@ private fun PermissionsCard(
         PermRow(
             glyph = "🫧",
             title = "Overlay",
-            why = "Floats the counter over Instagram.",
+            why = "Floats the counter while you scroll.",
             done = permissions.overlay,
             required = true,
             actionLabel = "Allow",
@@ -336,7 +343,7 @@ private fun PermissionsCard(
         PermRow(
             glyph = "📊",
             title = "Usage access",
-            why = "Lets it notice you left Instagram, so it can switch off for payments.",
+            why = "Lets it notice you left Instagram and YouTube, so it can switch off for payments.",
             done = permissions.usage,
             required = false,
             primary = primaryRecommended == "usage",
@@ -423,6 +430,79 @@ private fun PermRow(
 }
 
 // ---------------------------------------------------------------------------
+// 2b -- Apps and look
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun AppsCard(container: AppContainer, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val apps by container.settings.countedApps.collectAsState()
+    val override by container.settings.lookOverride.collectAsState()
+
+    Card(modifier) {
+        SectionLabel("Apps")
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "What gets counted. Both go into the same number.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Smoke,
+        )
+        Spacer(Modifier.height(10.dp))
+        TrackedApp.entries.forEach { app ->
+            val on = app in apps
+            val installed = remember(app) { ServiceControl.isInstalled(context, app) }
+            // The last app on can't be switched off: counting nothing is what
+            // the accessibility switch is for.
+            val onlyOne = on && apps.size == 1
+            Row(
+                Modifier.padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconTile(
+                    glyph = if (app == TrackedApp.Instagram) "◎" else "▶",
+                    tint = if (app == TrackedApp.Instagram) ReelsMarkSoft else ShortsMarkSoft,
+                )
+                Spacer(Modifier.width(12.dp))
+                ToggleRow(
+                    title = "${app.appName} ${app.items}",
+                    subtitle = when {
+                        !installed -> "Not installed on this phone"
+                        onlyOne -> "Always on while it's the only one"
+                        on -> "Counting"
+                        else -> "Not counted"
+                    },
+                    checked = on,
+                    onCheckedChange = { want ->
+                        if (!onlyOne || want) {
+                            container.settings.setCounting(app, want)
+                            container.settings.appsChosen = true
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text("Look", style = MaterialTheme.typography.titleMedium, color = Chalk)
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = "Auto matches the apps above. Or pick one you like.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Smoke,
+        )
+        Spacer(Modifier.height(10.dp))
+        val options = listOf(null, AppLook.Instagram.name, AppLook.Shorts.name, AppLook.Both.name)
+        SegmentedToggle(
+            options = listOf("Auto", "Reels", "Shorts", "Both"),
+            selectedIndex = options.indexOf(override).coerceAtLeast(0),
+            onSelect = { container.settings.setLookOverride(options[it]) },
+            segmentWidth = 66.dp,
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
 // 3 -- Payments
 // ---------------------------------------------------------------------------
 
@@ -447,9 +527,9 @@ private fun PaymentsCard(
         )
         Spacer(Modifier.height(14.dp))
         ToggleRow(
-            title = "Turn off when I leave Instagram",
+            title = "Turn off when I stop scrolling",
             subtitle = if (autoOff) {
-                "Payments just work. Tap it back on when you scroll."
+                "Leave Instagram and YouTube and it switches itself off, so payments just work."
             } else {
                 "You'll pause it yourself before paying."
             },

@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.data.repo.CounterRepository
+import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.ChipTone
 import com.ekaur.android.ui.common.EmptyState
@@ -60,8 +61,11 @@ private val RANGES = listOf(7, 14, 30)
 @Composable
 fun StatsScreen(
     repository: CounterRepository,
+    apps: Set<TrackedApp> = setOf(TrackedApp.Instagram),
     modifier: Modifier = Modifier,
 ) {
+    // null = all apps; otherwise one app's package. Saved across rotation.
+    var only by rememberSaveable { mutableStateOf<String?>(null) }
     var range by rememberSaveable { mutableStateOf(RANGES[1]) }
     var pickedHour by remember { mutableStateOf<Int?>(null) }
     var pickedDay by remember { mutableStateOf<Int?>(null) }
@@ -81,9 +85,24 @@ fun StatsScreen(
     val sessions by remember { repository.observeRecentSessions(SESSION_ROWS) }.collectAsState(initial = null)
     val best by remember { repository.observeBestDay() }.collectAsState(initial = null)
 
+    // The app switch shows once more than one app is in play -- counted now,
+    // or present in the history -- and filters everything below it.
+    val hasShorts = TrackedApp.YouTube in apps ||
+        dayRows?.any { it.packageName == TrackedApp.YouTube.packageName } == true
+    val showFilter = hasShorts && (TrackedApp.Instagram in apps ||
+        dayRows?.any { it.packageName == TrackedApp.Instagram.packageName } == true)
+    val pkg = only.takeIf { showFilter }
+
     // Derived once per data change, never per tap.
-    val hours = remember(hourRows) { hourRows?.let(::hourlySeries) }
-    val allDays = remember(dayRows, dates) { dayRows?.let { dailySeries(it, dates) } }
+    val hours = remember(hourRows, pkg) {
+        hourRows?.let { rows -> hourlySeries(if (pkg == null) rows else rows.filter { it.packageName == pkg }) }
+    }
+    val allDays = remember(dayRows, dates, pkg) {
+        dayRows?.let { rows -> dailySeries(if (pkg == null) rows else rows.filter { it.packageName == pkg }, dates) }
+    }
+    val shownSessions = remember(sessions, pkg) {
+        sessions?.let { list -> if (pkg == null) list else list.filter { it.packageName == pkg } }
+    }
     val days = remember(allDays, range) { allDays?.takeLast(range) }
     val dayValues = remember(days) { days?.map { it.reels } }
     val weekTotal = remember(allDays) { allDays?.takeLast(7)?.sumOf { it.reels } }
@@ -101,6 +120,22 @@ fun StatsScreen(
             modifier = Modifier.reveal(0),
         )
 
+        if (showFilter) {
+            val options = listOf(null, TrackedApp.Instagram.packageName, TrackedApp.YouTube.packageName)
+            SegmentedToggle(
+                options = listOf("All", "Reels", "Shorts"),
+                selectedIndex = options.indexOf(only).coerceAtLeast(0),
+                onSelect = {
+                    only = options[it]
+                    pickedDay = null
+                    pickedHour = null
+                },
+                segmentWidth = 76.dp,
+                modifier = Modifier.reveal(0),
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+
         Row(
             Modifier
                 .fillMaxWidth()
@@ -108,7 +143,8 @@ fun StatsScreen(
                 .reveal(1),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            val shownToday = todayCount ?: 0
+            // Filtered, today is the last day of the filtered series.
+            val shownToday = if (pkg == null) todayCount ?: 0 else allDays?.lastOrNull()?.reels ?: 0
             StatTile(
                 label = "Today",
                 value = shownToday.toString(),
@@ -124,11 +160,13 @@ fun StatsScreen(
                 caption = weekTotal?.let { "avg ${it / 7}/day" },
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
+            val filteredBest = if (pkg == null) null else allDays?.maxByOrNull { it.reels }?.takeIf { it.reels > 0 }
             StatTile(
                 label = "Best day",
-                value = best?.total?.toString() ?: "—",
-                count = best?.total,
-                caption = best?.date?.let(::dayLabel) ?: "not yet",
+                value = (if (pkg == null) best?.total else filteredBest?.reels)?.toString() ?: "—",
+                count = if (pkg == null) best?.total else filteredBest?.reels,
+                caption = if (pkg == null) best?.date?.let(::dayLabel) ?: "not yet"
+                else filteredBest?.date?.let { dayLabel(it) + " · 30d" } ?: "not yet",
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
         }
@@ -206,7 +244,7 @@ fun StatsScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        SessionsCard(sessions = sessions, modifier = Modifier.reveal(4))
+        SessionsCard(sessions = shownSessions, modifier = Modifier.reveal(4))
 
         Spacer(Modifier.height(24.dp))
     }

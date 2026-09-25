@@ -108,6 +108,68 @@ class SettingsStore(context: Context) : SessionStore {
             prefs.edit().putBoolean(KEY_WIZARD_SEEN, value).apply()
         }
 
+    private val _countedApps = MutableStateFlow(readCountedApps())
+
+    /**
+     * Which apps are counted. Instagram is on unless switched off; YouTube
+     * Shorts is off until the user turns it on (onboarding asks new users, and
+     * existing users get a one-time prompt), so an update never starts
+     * watching YouTube unannounced. Never empty: the last app cannot be
+     * switched off.
+     */
+    val countedApps: StateFlow<Set<com.ekaur.android.detect.TrackedApp>> = _countedApps.asStateFlow()
+
+    fun setCounting(app: com.ekaur.android.detect.TrackedApp, on: Boolean) {
+        val next = _countedApps.value.toMutableSet().apply { if (on) add(app) else remove(app) }
+        if (next.isEmpty()) return
+        prefs.edit()
+            .putBoolean(KEY_COUNT_PREFIX + app.name, on)
+            .apply()
+        _countedApps.value = next
+    }
+
+    /** Sets exactly which apps are counted, in one step. Ignored if empty. */
+    fun setCountedApps(apps: Set<com.ekaur.android.detect.TrackedApp>) {
+        if (apps.isEmpty()) return
+        prefs.edit().apply {
+            com.ekaur.android.detect.TrackedApp.entries.forEach { putBoolean(KEY_COUNT_PREFIX + it.name, it in apps) }
+        }.apply()
+        _countedApps.value = apps
+    }
+
+    fun isCounting(packageName: String): Boolean =
+        _countedApps.value.any { it.packageName == packageName }
+
+    private val _lookOverride = MutableStateFlow(prefs.getString(KEY_LOOK, null))
+
+    /**
+     * A look the person picked by hand ("Instagram", "Shorts", "Both"), or null
+     * to follow the apps being counted. Stored by name; the UI maps it.
+     */
+    val lookOverride: StateFlow<String?> = _lookOverride.asStateFlow()
+
+    fun setLookOverride(name: String?) {
+        prefs.edit().apply { if (name == null) remove(KEY_LOOK) else putString(KEY_LOOK, name) }.apply()
+        _lookOverride.value = name
+    }
+
+    /** Whether the user has answered "what do you scroll?" (or the Shorts prompt). */
+    var appsChosen: Boolean
+        get() = prefs.getBoolean(KEY_APPS_CHOSEN, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_APPS_CHOSEN, value).apply()
+        }
+
+    private fun readCountedApps(): Set<com.ekaur.android.detect.TrackedApp> {
+        val apps = com.ekaur.android.detect.TrackedApp.entries.filter { app ->
+            prefs.getBoolean(
+                KEY_COUNT_PREFIX + app.name,
+                app == com.ekaur.android.detect.TrackedApp.Instagram,
+            )
+        }.toSet()
+        return apps.ifEmpty { setOf(com.ekaur.android.detect.TrackedApp.Instagram) }
+    }
+
     /**
      * Whether the "all set" confetti has played. It is a one-time moment; a
      * permission switched off and on again later does not earn it twice.
@@ -150,6 +212,9 @@ class SettingsStore(context: Context) : SessionStore {
         const val KEY_AUTO_OFF = "auto_off_on_leave"
         const val KEY_WIZARD_SEEN = "setup_wizard_seen"
         const val KEY_CELEBRATED = "setup_celebrated"
+        const val KEY_COUNT_PREFIX = "count_app_"
+        const val KEY_APPS_CHOSEN = "apps_chosen"
+        const val KEY_LOOK = "look_override"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EXPIRES = "expires_at"

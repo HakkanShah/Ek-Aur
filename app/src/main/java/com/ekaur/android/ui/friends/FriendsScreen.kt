@@ -61,7 +61,13 @@ import com.ekaur.android.ui.common.ChipTone
 import com.ekaur.android.ui.common.InfoBanner
 import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.ScreenHeader
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.ekaur.android.ui.common.SegmentedToggle
 import com.ekaur.android.ui.common.Skeleton
+import com.ekaur.android.ui.theme.ReelsMark
+import com.ekaur.android.ui.theme.ReelsMarkSoft
+import com.ekaur.android.ui.theme.ShortsMark
+import com.ekaur.android.ui.theme.ShortsMarkSoft
 import com.ekaur.android.ui.common.StatusChip
 import com.ekaur.android.ui.common.UserAvatar
 import com.ekaur.android.ui.common.pressScale
@@ -171,7 +177,23 @@ fun FriendsScreen(
         }
     }
 
-    val board = rows
+    // All, Reels or Shorts. The board is re-ranked on the chosen count, shown
+    // in the same reelCount slot so every piece below draws it unchanged; the
+    // split stays on the row for the per-app tags.
+    var only by rememberSaveable { mutableStateOf(0) }
+    val board = remember(rows, only, me) {
+        rows?.let { all ->
+            all.map { row ->
+                when (only) {
+                    1 -> row.copy(reelCount = row.reelsCount)
+                    2 -> row.copy(reelCount = row.shortsCount)
+                    else -> row
+                }
+            }
+                .filter { it.reelCount > 0 || it.username == me || only == 0 }
+                .sortedByDescending { it.reelCount }
+        }
+    }
     val leader = board?.firstOrNull()?.reelCount?.coerceAtLeast(1) ?: 1
     val myIndex = board?.indexOfFirst { it.username == me } ?: -1
 
@@ -191,13 +213,22 @@ fun FriendsScreen(
             item(key = "header") {
                 ScreenHeader(
                     title = "Leaderboard",
-                    subtitle = if (updatedAt == 0L) "Today's race · ranked on reels"
+                    subtitle = if (updatedAt == 0L) "Today's race · Reels and Shorts together"
                     else "Today's race · updated ${agoLabel(now - updatedAt)}",
                     trailing = {
                         RefreshChip(loading = loading) {
                             if (!loading) scope.launch { refresh() }
                         }
                     },
+                )
+            }
+
+            item(key = "filter") {
+                SegmentedToggle(
+                    options = listOf("All", "Reels", "Shorts"),
+                    selectedIndex = only,
+                    onSelect = { only = it },
+                    segmentWidth = 76.dp,
                 )
             }
 
@@ -232,7 +263,7 @@ fun FriendsScreen(
             }
 
             item(key = "podium") {
-                Podium(podium = board.take(3), me = me, avatarUrlOf = ::avatarUrlOf)
+                Podium(podium = board.take(3), me = me, avatarUrlOf = ::avatarUrlOf, showApps = only == 0)
             }
 
             itemsIndexed(board.drop(3), key = { _, row -> row.userId }) { index, row ->
@@ -242,6 +273,7 @@ fun FriendsScreen(
                     leader = leader,
                     isMe = row.username == me,
                     avatarUrl = avatarUrlOf(row),
+                    showApps = only == 0,
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -394,6 +426,7 @@ private fun Podium(
     podium: List<LeaderboardRow>,
     me: String?,
     avatarUrlOf: (LeaderboardRow) -> String?,
+    showApps: Boolean,
 ) {
     // Order the columns 2 · 1 · 3 so the winner stands in the middle.
     val first = podium.getOrNull(0)
@@ -415,15 +448,15 @@ private fun Podium(
             // Pedestals rise third, second, then first -- the winner lands last.
             second?.let {
                 PodiumSpot(it, rank = 2, blockHeight = 62.dp, avatarSize = 54.dp, delayMs = 120,
-                    isMe = it.username == me, avatarUrl = avatarUrlOf(it), modifier = Modifier.weight(1f))
+                    isMe = it.username == me, avatarUrl = avatarUrlOf(it), showApps = showApps, modifier = Modifier.weight(1f))
             }
             first?.let {
                 PodiumSpot(it, rank = 1, blockHeight = 92.dp, avatarSize = 68.dp, delayMs = 260,
-                    isMe = it.username == me, avatarUrl = avatarUrlOf(it), modifier = Modifier.weight(1f))
+                    isMe = it.username == me, avatarUrl = avatarUrlOf(it), showApps = showApps, modifier = Modifier.weight(1f))
             }
             third?.let {
                 PodiumSpot(it, rank = 3, blockHeight = 44.dp, avatarSize = 54.dp, delayMs = 0,
-                    isMe = it.username == me, avatarUrl = avatarUrlOf(it), modifier = Modifier.weight(1f))
+                    isMe = it.username == me, avatarUrl = avatarUrlOf(it), showApps = showApps, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -438,6 +471,7 @@ private fun PodiumSpot(
     delayMs: Long,
     isMe: Boolean,
     avatarUrl: String?,
+    showApps: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val medal = medalFor(rank)
@@ -512,6 +546,10 @@ private fun PodiumSpot(
             Spacer(Modifier.height(2.dp))
             StatusChip("You", ChipTone.Accent)
         }
+        if (showApps) {
+            Spacer(Modifier.height(3.dp))
+            AppDots(row)
+        }
         Text(
             text = "${row.reelCount}",
             style = MaterialTheme.typography.titleLarge,
@@ -553,6 +591,7 @@ private fun RaceRow(
     leader: Int,
     isMe: Boolean,
     avatarUrl: String?,
+    showApps: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val fraction = (row.reelCount.toFloat() / leader).coerceIn(0.04f, 1f)
@@ -595,6 +634,10 @@ private fun RaceRow(
                     Spacer(Modifier.width(6.dp))
                     StatusChip("You", ChipTone.Accent)
                 }
+                if (showApps) {
+                    Spacer(Modifier.width(6.dp))
+                    AppTags(row)
+                }
                 Spacer(Modifier.weight(1f))
                 Spacer(Modifier.width(8.dp))
                 Text(
@@ -622,4 +665,36 @@ private fun RaceRow(
             }
         }
     }
+}
+
+/** Two tiny dots under a podium name: pink for Reels, red for Shorts. */
+@Composable
+private fun AppDots(row: LeaderboardRow) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (row.reelsCount > 0) Box(Modifier.size(7.dp).clip(CircleShape).background(ReelsMark))
+        if (row.shortsCount > 0) Box(Modifier.size(7.dp).clip(CircleShape).background(ShortsMark))
+    }
+}
+
+/** "Reels" / "Shorts" tags on a race row: which apps this person's number came from. */
+@Composable
+private fun AppTags(row: LeaderboardRow) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (row.reelsCount > 0) AppTag("Reels", ReelsMark, ReelsMarkSoft)
+        if (row.shortsCount > 0) AppTag("Shorts", ShortsMark, ShortsMarkSoft)
+    }
+}
+
+@Composable
+private fun AppTag(text: String, fg: Color, bg: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = fg,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .padding(horizontal = 6.dp, vertical = 1.dp),
+    )
 }

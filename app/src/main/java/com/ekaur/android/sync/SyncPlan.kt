@@ -1,6 +1,7 @@
 package com.ekaur.android.sync
 
 import com.ekaur.android.data.local.DailyCountEntity
+import com.ekaur.android.detect.TrackedApp
 
 /**
  * One day's totals, on their way up.
@@ -11,8 +12,13 @@ import com.ekaur.android.data.local.DailyCountEntity
  */
 data class DayUpload(
     val date: String,
+    /** The combined total across every counted app -- what people are ranked on. */
     val reelCount: Int,
     val activeMs: Long,
+    /** Instagram Reels' share of [reelCount]. */
+    val reelsCount: Int = reelCount,
+    /** YouTube Shorts' share of [reelCount]. */
+    val shortsCount: Int = 0,
 )
 
 /**
@@ -34,12 +40,32 @@ object SyncPlan {
      * Oldest first so a partial success leaves the *recent* days dirty, which
      * are the ones a friend is looking at.
      */
-    fun toUpload(dirty: List<DailyCountEntity>, limit: Int = MAX_BATCH): List<DayUpload> =
-        dirty.asSequence()
-            .sortedBy { it.date }
+    fun toUpload(rows: List<DailyCountEntity>, limit: Int = MAX_BATCH): List<DayUpload> =
+        rows.groupBy { it.date }
+            .toSortedMap()
+            .entries
             .take(limit)
-            .map { DayUpload(date = it.date, reelCount = it.reelCount, activeMs = it.activeMs) }
-            .toList()
+            .map { (date, dayRows) -> dayOf(date, dayRows) }
+
+    /**
+     * One date's upload: every app's row summed.
+     *
+     * The server keeps one row per person per day. Sending each app's row on
+     * its own would make the second overwrite the first, and the leaderboard
+     * would show only one app's count -- so the day always goes up whole, with
+     * the per-app split alongside.
+     */
+    private fun dayOf(date: String, dayRows: List<DailyCountEntity>) = DayUpload(
+        date = date,
+        reelCount = dayRows.sumOf { it.reelCount },
+        activeMs = dayRows.sumOf { it.activeMs },
+        reelsCount = dayRows.filter { it.packageName == TrackedApp.Instagram.packageName }.sumOf { it.reelCount },
+        shortsCount = dayRows.filter { it.packageName == TrackedApp.YouTube.packageName }.sumOf { it.reelCount },
+    )
+
+    /** The dates worth uploading, oldest first, from the dirty rows. */
+    fun datesToSend(dirty: List<DailyCountEntity>, limit: Int = MAX_BATCH): List<String> =
+        dirty.map { it.date }.distinct().sorted().take(limit)
 
     /**
      * Which rows may be marked clean after a successful upload.
@@ -53,9 +79,11 @@ object SyncPlan {
         current: List<DailyCountEntity>,
     ): List<DailyCountEntity> {
         val bySent = sent.associateBy { it.date }
-        return current.filter { row ->
-            val uploaded = bySent[row.date] ?: return@filter false
-            uploaded.reelCount == row.reelCount && uploaded.activeMs == row.activeMs
+        // Compared a whole day at a time: the day went up summed, so it is only
+        // settled if the whole day still sums to exactly what was sent.
+        return current.groupBy { it.date }.flatMap { (date, dayRows) ->
+            val uploaded = bySent[date] ?: return@flatMap emptyList()
+            if (dayOf(date, dayRows) == uploaded) dayRows else emptyList()
         }
     }
 }

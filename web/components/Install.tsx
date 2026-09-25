@@ -127,7 +127,7 @@ export function Install() {
                   app.
                 </Step>
                 <Step n={2} title="Then, two switches in the app">
-                  Accessibility (how reels get counted) and Overlay (so the counter can float). The
+                  Accessibility (how Reels and Shorts get counted) and Overlay (so the counter can float). The
                   app's guided setup takes you to each one and notices when it's on.
                 </Step>
                 <Step n={3} title="“App not installed”? It's a downgrade">

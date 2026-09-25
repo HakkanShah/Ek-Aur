@@ -56,8 +56,8 @@ class OverlayController(
      * elsewhere, and holds it up while they are still in Instagram, whatever the
      * detector's timers are doing. It never touches counting.
      */
-    fun onForeground(inInstagram: Boolean) {
-        if (inInstagram) {
+    fun onForeground(inTrackedApp: Boolean) {
+        if (inTrackedApp) {
             if (leftForeground) {
                 // Back in Instagram: cancel the pending leave-hide. The next
                 // scroll shows the pill again through the ordinary InReels path.

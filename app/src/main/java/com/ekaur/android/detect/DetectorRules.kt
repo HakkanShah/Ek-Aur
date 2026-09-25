@@ -61,6 +61,19 @@ data class AppRules(
      * grace window separates the two cleanly.
      */
     val playerExitGraceMs: Long = 1_500,
+
+    /**
+     * Treat a purely sideways scroll as "not the player", whatever its shape.
+     *
+     * Reels and Shorts are vertical feeds. The one-item pagers that only *look*
+     * like them -- Instagram's top-level tabs, a YouTube channel's tab strip --
+     * move horizontally. The service cannot read view ids (it has no
+     * screen-reading capability), so the id denylist above never fires on a
+     * phone; direction is what separates them there. Only an event that reports
+     * sideways movement and no vertical movement is excluded, so a device that
+     * reports no deltas at all (Android 8) falls back to the shape rule.
+     */
+    val verticalOnly: Boolean = true,
 ) {
     fun matchesPackage(pkg: String): Boolean = pkg == packageName
 
@@ -84,6 +97,9 @@ data class AppRules(
             if (nonPlayerViewIdHints.any { id.contains(it.lowercase()) }) return ScrollShape.List
             if (playerViewIdHints.any { id.contains(it.lowercase()) }) return ScrollShape.Player
         }
+
+        // A sideways-only scroll is a tab strip or carousel, never the player.
+        if (verticalOnly && signal.scrollDeltaX != 0 && signal.scrollDeltaY == 0) return ScrollShape.List
 
         val from = signal.fromIndex
         val to = signal.toIndex
@@ -123,7 +139,28 @@ object DetectorRules {
         ),
     )
 
-    val all: List<AppRules> = listOf(Instagram)
+    /**
+     * YouTube Shorts: a vertical, one-video-at-a-time feed, the same shape as
+     * Reels. YouTube's player is a snapping pager (ViewPager2 or a paged
+     * RecyclerView), which reports one visible item once a swipe settles; the
+     * home feed, the comments and the watch-page lists all show several. The
+     * ids are corroboration for a build that can read them; the shape and the
+     * direction guard do the work on a phone.
+     */
+    val YouTube = AppRules(
+        packageName = "com.google.android.youtube",
+        playerViewIdHints = listOf(
+            "reel_recycler",
+            "reel_player",
+            "shorts_player",
+        ),
+        playerClassHints = listOf(
+            "viewpager",
+        ),
+        nonPlayerViewIdHints = emptyList(),
+    )
+
+    val all: List<AppRules> = listOf(Instagram, YouTube)
 
     fun forPackage(pkg: String): AppRules? = all.firstOrNull { it.matchesPackage(pkg) }
 }

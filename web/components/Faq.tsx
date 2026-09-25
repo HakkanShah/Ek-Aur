@@ -8,7 +8,11 @@ import { Reveal } from "./Reveal";
 export const FAQS: { q: string; a: string }[] = [
   {
     q: "What is Ek Aur?",
-    a: "Ek Aur is a free Android app that counts your Instagram Reels with a little floating counter. It cheers you on for one more — while the number quietly turns you in. You get an honest dashboard, a global leaderboard, and a dry roast at every milestone. No lectures.",
+    a: "Ek Aur is a free Android app that counts your Instagram Reels and YouTube Shorts with a little floating counter. It cheers you on for one more — while the number quietly turns you in. You get an honest dashboard, a global leaderboard, and a dry roast at every milestone. No lectures.",
+  },
+  {
+    q: "Does it count YouTube Shorts?",
+    a: "Yes. Ek Aur counts Instagram Reels and YouTube Shorts into the same number, and you choose which ones in Setup. It even changes its look to match: Instagram colours, Shorts red, or a mix of both. It only sees the swipe in those two apps — never the screen, never any other app.",
   },
   {
     q: "Is Ek Aur free?",
@@ -32,7 +36,7 @@ export const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "How does the leaderboard work?",
-    a: "Everyone who installs Ek Aur is on one global leaderboard, ranked on today's reels. There's nothing to join and nobody to add — pick a username and you're racing. You can hide yourself any time.",
+    a: "Everyone who installs Ek Aur is on one global leaderboard, ranked on today's Reels and Shorts together, with a filter to race on just one. There's nothing to join and nobody to add — pick a username and you're racing. You can hide yourself any time.",
   },
   {
     q: "Which Android versions are supported?",

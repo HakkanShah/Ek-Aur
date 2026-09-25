@@ -57,6 +57,19 @@ interface DailyCountDao {
     @Query("SELECT * FROM daily_counts WHERE date = :date")
     suspend fun forDate(date: String): List<DailyCountEntity>
 
+    /** Every app's row for each of [dates], dirty or not. */
+    @Query("SELECT * FROM daily_counts WHERE date IN (:dates)")
+    suspend fun forDates(dates: List<String>): List<DailyCountEntity>
+
+    /** Today's total split by app, for the Reels / Shorts breakdown. */
+    @Query(
+        """
+        SELECT packageName, SUM(reelCount) AS total FROM daily_counts
+        WHERE date = :date GROUP BY packageName
+        """
+    )
+    fun observeDayByApp(date: String): Flow<List<AppTotal>>
+
     @Query("SELECT * FROM daily_counts ORDER BY date DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<DailyCountEntity>>
 

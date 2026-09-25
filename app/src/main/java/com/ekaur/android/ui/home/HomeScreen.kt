@@ -55,7 +55,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.shrinkVertically
+import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.di.AppContainer
+import com.ekaur.android.service.ServiceControl
+import com.ekaur.android.ui.common.AppWords
+import com.ekaur.android.ui.theme.ReelsMark
+import com.ekaur.android.ui.theme.ShortsMark
 import com.ekaur.android.milestone.NextMilestone
 import com.ekaur.android.share.CardStats
 import com.ekaur.android.share.ShareCardBuilder
@@ -121,6 +129,18 @@ fun HomeScreen(
     val connected by container.serviceStatus.connected.collectAsState()
     val state by container.serviceStatus.detectorState.collectAsState()
     val username by container.settings.username.collectAsState()
+    val apps by container.settings.countedApps.collectAsState()
+    val lastPackage by container.serviceStatus.lastEventPackage.collectAsState()
+    val byApp by remember(today) { repo.observeTodayByApp() }.collectAsState(initial = emptyMap())
+    // Existing users are asked once whether to count Shorts too; never
+    // switched on behind their back by an update.
+    var askShorts by remember {
+        mutableStateOf(
+            !container.settings.appsChosen &&
+                TrackedApp.YouTube !in container.settings.countedApps.value &&
+                ServiceControl.isInstalled(context, TrackedApp.YouTube),
+        )
+    }
 
     val series = remember(dayRows, dates) { dailySeries(dayRows, dates) }
     val weekTotal = remember(series) { series.sumOf { it.reels } }
@@ -149,12 +169,34 @@ fun HomeScreen(
             modifier = Modifier.reveal(0),
         )
 
+        AnimatedVisibility(
+            visible = askShorts,
+            exit = shrinkVertically(Motion.standard()) + fadeOut(Motion.quick()),
+        ) {
+            Column {
+                Spacer(Modifier.height(16.dp))
+                ShortsPrompt(
+                    onYes = {
+                        container.settings.setCountedApps(apps + TrackedApp.YouTube)
+                        container.settings.appsChosen = true
+                        askShorts = false
+                    },
+                    onNo = {
+                        container.settings.appsChosen = true
+                        askShorts = false
+                    },
+                )
+            }
+        }
+
         if (needsSetup) {
             Spacer(Modifier.height(16.dp))
             StatusCard(
                 permissions = permissions,
                 connected = connected,
                 state = state,
+                apps = apps,
+                lastPackage = lastPackage,
                 onOpenWizard = onOpenWizard,
                 onOpenSetupTab = onOpenSetupTab,
                 modifier = Modifier.reveal(1),
@@ -166,8 +208,18 @@ fun HomeScreen(
             count = count,
             activeMs = activeMs,
             live = live,
+            label = AppWords.today(apps),
             modifier = Modifier.reveal(2),
         )
+
+        val reelsToday = byApp[TrackedApp.Instagram] ?: 0
+        val shortsToday = byApp[TrackedApp.YouTube] ?: 0
+        AnimatedVisibility(visible = reelsToday > 0 && shortsToday > 0) {
+            Column {
+                Spacer(Modifier.height(12.dp))
+                SplitBar(reels = reelsToday, shorts = shortsToday)
+            }
+        }
 
         Spacer(Modifier.height(14.dp))
         NextRoastChip(count = shown, modifier = Modifier.reveal(3))
@@ -247,6 +299,8 @@ fun HomeScreen(
                 permissions = permissions,
                 connected = connected,
                 state = state,
+                apps = apps,
+                lastPackage = lastPackage,
                 onOpenWizard = onOpenWizard,
                 onOpenSetupTab = onOpenSetupTab,
                 modifier = Modifier.reveal(6),
@@ -315,7 +369,7 @@ private fun Header(
     }
 }
 
-private val WordmarkStyle = TextStyle(
+private val WordmarkStyle: TextStyle get() = TextStyle(
     fontFamily = Poppins,
     fontWeight = FontWeight.Bold,
     fontSize = 26.sp,
@@ -332,6 +386,7 @@ private fun Hero(
     count: Int?,
     activeMs: Long,
     live: Boolean,
+    label: String,
     modifier: Modifier = Modifier,
 ) {
     val breathe = if (live) {
@@ -373,7 +428,7 @@ private fun Hero(
             )
         }
         Text(
-            "Reels today",
+            label,
             style = MaterialTheme.typography.titleLarge,
             color = Smoke,
             fontWeight = FontWeight.Medium,
@@ -434,33 +489,53 @@ private data class StatusLook(
     val live: Boolean,
 )
 
-private fun statusLook(permissions: PermissionState, connected: Boolean, state: String): StatusLook =
-    when {
+private fun statusLook(
+    permissions: PermissionState,
+    connected: Boolean,
+    state: String,
+    apps: Set<TrackedApp>,
+    lastPackage: String?,
+): StatusLook {
+    val names = AppWords.appNames(apps)
+    // The app actually in use right now, for "YouTube's open -- swipe into Shorts".
+    val current = TrackedApp.forPackage(lastPackage)?.takeIf { it in apps }
+    return when {
         !permissions.service ->
             StatusLook(Heat, "Counting is off", "Turn on accessibility to start counting.", false)
         !connected ->
-            StatusLook(Heat, "Not connected yet", "It's on — open Instagram to wake it up.", false)
+            StatusLook(Heat, "Not connected yet", "It's on — open $names to wake it up.", false)
         !permissions.overlay ->
             StatusLook(Heat, "The pill is hidden", "Counting works. Allow overlay to see it float.", true)
         !permissions.battery ->
             StatusLook(Heat, "Battery may stop it", "Counting now, but battery saver can kill it.", true)
         else -> when (state) {
-            "InReels" -> StatusLook(Good, "Counting", "You're watching reels right now.", true)
-            "InApp" -> StatusLook(Good, "Ready", "Instagram's open — swipe into reels.", true)
-            else -> StatusLook(Good, "Standing by", "Waiting for you to open Instagram.", false)
+            "InReels" -> StatusLook(
+                Good, "Counting",
+                "You're watching ${current?.items ?: AppWords.unit(apps)} right now.", true,
+            )
+            "InApp" -> StatusLook(
+                Good, "Ready",
+                if (current != null) "${current.appName}'s open — swipe into ${current.items}."
+                else "Open — swipe into ${AppWords.unit(apps)}.",
+                true,
+            )
+            else -> StatusLook(Good, "Standing by", "Waiting for you to open $names.", false)
         }
     }
+}
 
 @Composable
 private fun StatusCard(
     permissions: PermissionState,
     connected: Boolean,
     state: String,
+    apps: Set<TrackedApp>,
+    lastPackage: String?,
     onOpenWizard: () -> Unit,
     onOpenSetupTab: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val look = statusLook(permissions, connected, state)
+    val look = statusLook(permissions, connected, state, apps, lastPackage)
     Card(modifier) {
         AnimatedContent(
             targetState = look,
@@ -521,5 +596,83 @@ private fun LiveBadge(color: Color, live: Boolean) {
         contentAlignment = Alignment.Center,
     ) {
         PulseDot(color = tint, active = live, size = 10.dp)
+    }
+}
+
+/** "120 Reels · 45 Shorts" as one thin two-colour bar, when both apps were used. */
+@Composable
+private fun SplitBar(reels: Int, shorts: Int, modifier: Modifier = Modifier) {
+    val total = (reels + shorts).coerceAtLeast(1)
+    val share by animateFloatAsState(reels.toFloat() / total, Motion.emphasised(), label = "split")
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Box(
+                Modifier
+                    .weight(share.coerceIn(0.04f, 0.96f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(ReelsMark),
+            )
+            Box(
+                Modifier
+                    .weight((1f - share).coerceIn(0.04f, 0.96f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(ShortsMark),
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(ReelsMark))
+            Spacer(Modifier.width(6.dp))
+            Text("$reels Reels", style = MaterialTheme.typography.titleSmall, color = Chalk)
+            Spacer(Modifier.weight(1f))
+            Text("$shorts Shorts", style = MaterialTheme.typography.titleSmall, color = Chalk)
+            Spacer(Modifier.width(6.dp))
+            Box(Modifier.size(8.dp).clip(CircleShape).background(ShortsMark))
+        }
+    }
+}
+
+/** The one-time question for people who installed before Shorts existed. */
+@Composable
+private fun ShortsPrompt(onYes: () -> Unit, onNo: () -> Unit, modifier: Modifier = Modifier) {
+    Card(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(ShortsMark),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("▶", color = Color.White, fontSize = 16.sp)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("New: YouTube Shorts", style = MaterialTheme.typography.titleMedium, color = Chalk)
+                Text(
+                    "Count your Shorts too, in the same number. You can switch it off in Setup.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Smoke,
+                )
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlatButton("Not now", quiet = true, onClick = onNo, modifier = Modifier.weight(1f))
+            FlatButton("Count Shorts", emphasised = true, onClick = onYes, modifier = Modifier.weight(1f))
+        }
     }
 }

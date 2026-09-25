@@ -1,8 +1,11 @@
 # Ek Aur
 
-Counts how many Instagram Reels you scroll, and cheers you on while doing it.
+Counts how many Instagram Reels and YouTube Shorts you scroll, and cheers you
+on while doing it.
 
-A small floating counter sits over Instagram while you're in Reels. Every ten
+A small floating counter sits over Instagram or YouTube while you're in Reels
+or Shorts. Both go into the same number; Setup chooses which apps count, and the
+app dresses to match: the Instagram gradient, a Shorts red, or a mix of both. Every ten
 reels it widens to congratulate you, and it has more to say at round numbers, on
 a long sitting, and in the small hours. It never suggests stopping — the number
 does that on its own.
@@ -91,6 +94,16 @@ It can't be dragged off any more, but if it ever goes missing there's a
 ---
 
 ## How counting works
+
+The same rule counts both apps. Reels and Shorts are each a vertical pager
+showing one full-screen video at a time; every feed, comment list and carousel
+around them shows several items. Pagers that do show one item but are not the
+player (Instagram's main tabs, a YouTube channel's tab strip) scroll sideways,
+so a scroll that moves only sideways never counts.
+
+A day's upload always carries every app's count for that day summed, with the
+Reels / Shorts split alongside: the server keeps one row per person per day,
+so sending each app separately would let one overwrite the other.
 
 Instagram's Reels player is a pager showing exactly one full-screen item, so a
 scroll event reports the same start and end position. The main feed is an

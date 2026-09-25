@@ -70,6 +70,12 @@ data class DayTotal(
     val total: Int,
 )
 
+/** One app's share of a day. Not a table -- the shape a grouped query returns. */
+data class AppTotal(
+    val packageName: String,
+    val total: Int,
+)
+
 /** Dedupe record so a milestone fires at most once a day. Unused until later. */
 @Entity(tableName = "milestones_fired", primaryKeys = ["date", "milestoneId"])
 data class MilestoneFiredEntity(

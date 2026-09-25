@@ -176,6 +176,50 @@ class SupabaseClientTest {
     }
 
     @Test
+    fun `the leaderboard reads the reels and shorts split, and old rows as all reels`() {
+        settings.userId = "user-1"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """[
+                  {"user_id":"u2","reel_count":165,"reels_count":120,"shorts_count":45,"active_ms":1,
+                   "profiles":{"username":"mixed","hidden":false}},
+                  {"user_id":"u3","reel_count":91,"reels_count":0,"shorts_count":0,"active_ms":1,
+                   "profiles":{"username":"old.app","hidden":false}},
+                  {"user_id":"u4","reel_count":30,"active_ms":1,
+                   "profiles":{"username":"no.columns","hidden":false}}
+                ]"""
+            )
+        )
+
+        val rows = client.leaderboard("2026-09-25")
+
+        assertEquals(listOf(120, 91, 30), rows.map { it.reelsCount })
+        assertEquals(listOf(45, 0, 0), rows.map { it.shortsCount })
+        val asked = server.takeRequest().path.orEmpty()
+        assertTrue(asked, asked.contains("reels_count") && asked.contains("shorts_count"))
+    }
+
+    @Test
+    fun `an upload carries the day's total and its split`() {
+        settings.userId = "user-1"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+        server.enqueue(MockResponse().setResponseCode(201).setBody("[]"))
+
+        client.uploadDays(listOf(DayUpload("2026-09-25", 165, 900_000, reelsCount = 120, shortsCount = 45)))
+
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body, body.contains("\"reel_count\":165"))
+        assertTrue(body, body.contains("\"reels_count\":120"))
+        assertTrue(body, body.contains("\"shorts_count\":45"))
+    }
+
+    @Test
     fun `an account deleted server-side is recovered from, not reported as 409`() {
         // Exactly what happened on the device: the phone held a session for an
         // account that had been deleted. The token was still valid, so nothing

@@ -62,6 +62,7 @@ class SyncException(val error: SyncError) : Exception(error.toString())
 data class LeaderboardRow(
     val userId: String,
     val username: String,
+    /** The combined total across Reels and Shorts -- what everyone is ranked on. */
     val reelCount: Int,
     val activeMs: Long,
     /** Null when this person has never set a picture. */
@@ -72,6 +73,10 @@ data class LeaderboardRow(
      * real people, whose picture is built from [avatarVersion].
      */
     val avatarUrl: String? = null,
+    /** Instagram Reels' share of [reelCount]. */
+    val reelsCount: Int = reelCount,
+    /** YouTube Shorts' share of [reelCount]. */
+    val shortsCount: Int = 0,
 )
 
 /**
@@ -304,7 +309,8 @@ class SupabaseClient(
         val body = get(
             "$baseUrl/rest/v1/daily_counts" +
                 "?date=eq.$date" +
-                "&select=user_id,reel_count,active_ms,profiles!inner(username,hidden,avatar_version)" +
+                "&select=user_id,reel_count,reels_count,shorts_count,active_ms," +
+                "profiles!inner(username,hidden,avatar_version)" +
                 "&order=reel_count.desc" +
                 "&limit=$limit"
         ).asArray("leaderboard")
@@ -312,11 +318,19 @@ class SupabaseClient(
         return body.mapNotNull { element ->
             val row = element as? JsonObject ?: return@mapNotNull null
             val profile = row["profiles"] as? JsonObject ?: return@mapNotNull null
+            val total = row["reel_count"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+            val split = LeaderboardSplit.of(
+                total = total,
+                reels = row["reels_count"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0,
+                shorts = row["shorts_count"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0,
+            )
             LeaderboardRow(
                 userId = row["user_id"]?.jsonPrimitive?.content.orEmpty(),
                 username = profile["username"]?.jsonPrimitive?.content.orEmpty(),
-                reelCount = row["reel_count"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                reelCount = total,
                 activeMs = row["active_ms"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L,
+                reelsCount = split.reels,
+                shortsCount = split.shorts,
                 avatarVersion = profile["avatar_version"]?.jsonPrimitive?.contentOrNull?.toLongOrNull(),
             )
         }
@@ -342,6 +356,8 @@ class SupabaseClient(
                             put("user_id", userId)
                             put("date", day.date)
                             put("reel_count", day.reelCount)
+                            put("reels_count", day.reelsCount)
+                            put("shorts_count", day.shortsCount)
                             put("active_ms", day.activeMs)
                         }
                     )
@@ -485,5 +501,26 @@ class SupabaseClient(
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .build()
+    }
+}
+
+/**
+ * How a leaderboard row's total splits into Reels and Shorts.
+ *
+ * Older versions of the app upload only the total (the split columns stay at
+ * their default 0). Everything they counted was Instagram, so a row with a total
+ * and no split reads as all Reels. A split that doesn't add up to the total --
+ * a half-written row, a hand edit -- is trusted for Shorts and Reels takes the
+ * rest, so the filtered numbers never exceed the total.
+ */
+data class LeaderboardSplit(val reels: Int, val shorts: Int) {
+    companion object {
+        fun of(total: Int, reels: Int, shorts: Int): LeaderboardSplit {
+            val t = total.coerceAtLeast(0)
+            if (reels <= 0 && shorts <= 0) return LeaderboardSplit(reels = t, shorts = 0)
+            if (reels + shorts == t) return LeaderboardSplit(reels, shorts)
+            val s = shorts.coerceIn(0, t)
+            return LeaderboardSplit(reels = t - s, shorts = s)
+        }
     }
 }

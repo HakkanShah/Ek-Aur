@@ -112,3 +112,75 @@ class SyncPlanTest {
         assertEquals(1_000_000L + 3_600_000L, TokenState.expiryFrom(1_000_000L, 3600))
     }
 }
+
+private const val YT = "com.google.android.youtube"
+
+private fun ytRow(date: String, shorts: Int, activeMs: Long = 0, dirty: Boolean = true) =
+    DailyCountEntity(
+        date = date,
+        packageName = YT,
+        reelCount = shorts,
+        activeMs = activeMs,
+        dirty = dirty,
+    )
+
+class SyncPlanTwoAppsTest {
+
+    @Test
+    fun `reels and shorts on one day go up as one summed row with the split`() {
+        val up = SyncPlan.toUpload(
+            listOf(row("2026-09-25", 120, 600_000), ytRow("2026-09-25", 45, 300_000)),
+        ).single()
+
+        assertEquals(165, up.reelCount)
+        assertEquals(900_000L, up.activeMs)
+        assertEquals(120, up.reelsCount)
+        assertEquals(45, up.shortsCount)
+    }
+
+    @Test
+    fun `a day with only shorts reports zero reels`() {
+        val up = SyncPlan.toUpload(listOf(ytRow("2026-09-25", 30))).single()
+        assertEquals(30, up.reelCount)
+        assertEquals(0, up.reelsCount)
+        assertEquals(30, up.shortsCount)
+    }
+
+    @Test
+    fun `the batch limit counts days, not rows`() {
+        val rows = (1..70).flatMap { d ->
+            val date = "2026-%02d-%02d".format((d / 28) + 1, (d % 28) + 1)
+            listOf(row(date, d), ytRow(date, d))
+        }
+        val plan = SyncPlan.toUpload(rows)
+        assertEquals(SyncPlan.MAX_BATCH, plan.size)
+        assertEquals(plan.map { it.date }.distinct().size, plan.size)
+    }
+
+    @Test
+    fun `dates to send are distinct and oldest first`() {
+        val dirty = listOf(row("2026-09-25", 1), ytRow("2026-09-25", 2), row("2026-09-24", 3))
+        assertEquals(listOf("2026-09-24", "2026-09-25"), SyncPlan.datesToSend(dirty))
+    }
+
+    @Test
+    fun `an unchanged day settles both apps' rows`() {
+        val rows = listOf(row("2026-09-25", 120), ytRow("2026-09-25", 45))
+        val sent = SyncPlan.toUpload(rows)
+        assertEquals(2, SyncPlan.syncedRows(sent, rows).size)
+    }
+
+    @Test
+    fun `if either app grew mid-upload the whole day stays dirty`() {
+        val sent = SyncPlan.toUpload(listOf(row("2026-09-25", 120), ytRow("2026-09-25", 45)))
+        val current = listOf(row("2026-09-25", 120), ytRow("2026-09-25", 46))
+        assertTrue(SyncPlan.syncedRows(sent, current).isEmpty())
+    }
+
+    @Test
+    fun `a second app appearing mid-upload keeps the day dirty`() {
+        val sent = SyncPlan.toUpload(listOf(row("2026-09-25", 120)))
+        val current = listOf(row("2026-09-25", 120), ytRow("2026-09-25", 1))
+        assertTrue(SyncPlan.syncedRows(sent, current).isEmpty())
+    }
+}

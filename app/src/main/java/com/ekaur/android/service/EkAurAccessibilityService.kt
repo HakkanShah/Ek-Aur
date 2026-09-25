@@ -33,7 +33,9 @@ import kotlinx.coroutines.launch
  */
 class EkAurAccessibilityService : AccessibilityService() {
 
-    private val detector = ReelDetector()
+    // Rules only for the apps the user counts: an app switched off reads as
+    // untracked, so its events are ignored and leaving to it ends the sitting.
+    private val detector = ReelDetector(rulesFor = { pkg -> trackedRules(pkg) })
     private lateinit var eventLog: EventLog
     private lateinit var status: ServiceStatus
     private lateinit var counters: CounterRepository
@@ -44,9 +46,26 @@ class EkAurAccessibilityService : AccessibilityService() {
     private var announcements: MilestoneAnnouncer? = null
     private lateinit var settings: com.ekaur.android.data.prefs.SettingsStore
 
-    /** When Instagram was last the foreground app, seeded at connect. */
+    /** When a counted app was last in the foreground, seeded at connect. */
     @Volatile
-    private var lastInstagramForegroundMs = 0L
+    private var lastTrackedForegroundMs = 0L
+
+    private fun trackedRules(pkg: String) =
+        DetectorRules.forPackage(pkg)?.takeIf { ::settings.isInitialized && settings.isCounting(pkg) }
+
+    /**
+     * Narrows the system's delivery to the apps being counted, so with Shorts
+     * switched off YouTube's events never even reach this process. The static
+     * config lists both apps; this is only ever a subset of it.
+     */
+    private fun applyScope(apps: Set<com.ekaur.android.detect.TrackedApp>) {
+        val info = serviceInfo ?: return
+        val packages = apps.map { it.packageName }
+            .ifEmpty { listOf(com.ekaur.android.detect.TrackedApp.Instagram.packageName) }
+        if (info.packageNames?.toSet() == packages.toSet()) return
+        info.packageNames = packages.toTypedArray()
+        runCatching { serviceInfo = info }
+    }
 
     /** Throttles the usage-stats read, which need not run every 250ms tick. */
     @Volatile
@@ -65,11 +84,17 @@ class EkAurAccessibilityService : AccessibilityService() {
         status.onConnected()
         // Seed here so a service enabled but never taken into Instagram still
         // switches itself off after the grace rather than staying on for ever.
-        lastInstagramForegroundMs = System.currentTimeMillis()
+        lastTrackedForegroundMs = System.currentTimeMillis()
         toast("Ek Aur is on")
 
         val s = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         scope = s
+
+        // Follow the per-app switches live, so turning Shorts on or off in
+        // the app takes effect at once without restarting the service.
+        s.launch {
+            settings.countedApps.collect { apps -> main.post { applyScope(apps) } }
+        }
 
         // Today's persisted total drives the pill, so it reads the same number
         // as the app rather than a separate session counter.
@@ -113,19 +138,19 @@ class EkAurAccessibilityService : AccessibilityService() {
         val foreground = ForegroundWatch.currentForegroundPackage(this, nowMs)
         // Null means "cannot tell" -- treated as unchanged, never as "left",
         // because a wrong "left" would switch the service off mid-scroll.
-        val inInstagram = when (foreground) {
+        val inTracked = when (foreground) {
             null -> return
-            else -> DetectorRules.forPackage(foreground) != null
+            else -> trackedRules(foreground) != null
         }
-        if (inInstagram) lastInstagramForegroundMs = nowMs
+        if (inTracked) lastTrackedForegroundMs = nowMs
 
-        overlay?.onForeground(inInstagram)
+        overlay?.onForeground(inTracked)
 
         val shouldDisable = AutoOffPolicy.shouldDisable(
             enabled = settings.autoOffOnLeave,
             usageGranted = ServiceControl.hasUsageAccess(this),
-            foregroundIsInstagram = inInstagram,
-            msSinceInstagramForeground = nowMs - lastInstagramForegroundMs,
+            foregroundIsTracked = inTracked,
+            msSinceTrackedForeground = nowMs - lastTrackedForegroundMs,
             graceMs = AUTO_OFF_GRACE_MS,
         )
         if (shouldDisable) {
@@ -153,12 +178,11 @@ class EkAurAccessibilityService : AccessibilityService() {
         val kind = event.eventType.toKind() ?: return
         val now = System.currentTimeMillis()
 
-        // The service is scoped to Instagram in its config, so in practice only
-        // Instagram events ever arrive. This stays as a guard: anything else is
-        // ignored outright, never inspected, never recorded. A sitting is closed
-        // by the detector's own idle timer instead of by watching other apps --
-        // the price of not being able to see them, which is the whole point.
-        if (DetectorRules.forPackage(packageName) == null) return
+        // The service is scoped to the counted apps in its config (and narrowed
+        // at runtime), so in practice only their events ever arrive. This stays
+        // as a guard: anything else -- including an app the user switched off --
+        // is ignored outright, never inspected, never recorded.
+        if (trackedRules(packageName) == null) return
 
         // The service declares no window-content capability, so there is no node
         // to read and no view id to be had -- counting works off the event's own
@@ -166,6 +190,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         // the code says plainly that the screen is never read.
         val viewId: String? = null
         val scrollDeltaY = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) event.scrollDeltaY else 0
+        val scrollDeltaX = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) event.scrollDeltaX else 0
 
         val signal = ScrollSignal(
             packageName = packageName,
@@ -175,6 +200,7 @@ class EkAurAccessibilityService : AccessibilityService() {
             viewId = viewId,
             contentDescription = event.contentDescription?.toString(),
             scrollDeltaY = scrollDeltaY,
+            scrollDeltaX = scrollDeltaX,
             fromIndex = event.indexOrNone(event.fromIndex),
             toIndex = event.indexOrNone(event.toIndex),
         )

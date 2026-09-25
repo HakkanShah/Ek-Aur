@@ -20,22 +20,22 @@ object AutoOffPolicy {
      * @param usageGranted whether usage access is granted -- without it the
      *   foreground cannot be read reliably, and a wrong guess would kill the
      *   service mid-scroll, so auto-off stays off entirely.
-     * @param foregroundIsInstagram whether Instagram is in front right now.
-     * @param msSinceInstagramForeground how long since Instagram was last in
+     * @param foregroundIsTracked whether a counted app (Instagram or YouTube) is in front right now.
+     * @param msSinceTrackedForeground how long since a counted app was last in
      *   front. A grace, so a glance at a notification or a quick reply does not
      *   turn the service off.
-     * @param graceMs how long the user must be away from Instagram first.
+     * @param graceMs how long the user must be away from every counted app first.
      */
     fun shouldDisable(
         enabled: Boolean,
         usageGranted: Boolean,
-        foregroundIsInstagram: Boolean,
-        msSinceInstagramForeground: Long,
+        foregroundIsTracked: Boolean,
+        msSinceTrackedForeground: Long,
         graceMs: Long,
     ): Boolean {
         if (!enabled || !usageGranted) return false
-        if (foregroundIsInstagram) return false
-        return msSinceInstagramForeground >= graceMs
+        if (foregroundIsTracked) return false
+        return msSinceTrackedForeground >= graceMs
     }
 
     /**
@@ -46,11 +46,11 @@ object AutoOffPolicy {
      * before the service itself switches off. Never touches counting.
      */
     fun shouldHidePill(
-        foregroundIsInstagram: Boolean,
-        msSinceInstagramForeground: Long,
+        foregroundIsTracked: Boolean,
+        msSinceTrackedForeground: Long,
         pillGraceMs: Long,
     ): Boolean {
-        if (foregroundIsInstagram) return false
-        return msSinceInstagramForeground >= pillGraceMs
+        if (foregroundIsTracked) return false
+        return msSinceTrackedForeground >= pillGraceMs
     }
 }

@@ -8,6 +8,7 @@ import com.ekaur.android.data.local.MilestoneFiredEntity
 import com.ekaur.android.data.local.ScrollEventEntity
 import com.ekaur.android.data.local.SessionRecordEntity
 import com.ekaur.android.detect.DetectionEvent
+import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.milestone.MilestoneLog
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -67,6 +68,14 @@ class CounterRepository(
 
     fun observeTodayCount(nowMs: Long = System.currentTimeMillis()): Flow<Int> =
         db.dailyCounts().observeDayTotal(clock.today(nowMs))
+
+    /** Today's count per app, e.g. {Instagram=120, YouTube=45}. Missing apps are 0. */
+    fun observeTodayByApp(nowMs: Long = System.currentTimeMillis()): Flow<Map<TrackedApp, Int>> =
+        db.dailyCounts().observeDayByApp(clock.today(nowMs)).map { rows ->
+            TrackedApp.entries.associateWith { app ->
+                rows.filter { it.packageName == app.packageName }.sumOf { it.total }
+            }
+        }
 
     fun observeTodayActiveMs(nowMs: Long = System.currentTimeMillis()): Flow<Long> =
         db.dailyCounts().observeDayActiveMs(clock.today(nowMs))

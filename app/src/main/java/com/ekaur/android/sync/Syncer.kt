@@ -39,15 +39,18 @@ class Syncer(
         val dirty = db.dailyCounts().dirtyRows(SyncPlan.MAX_BATCH)
         if (dirty.isEmpty()) return SyncResult.NothingToDo
 
-        val payload = SyncPlan.toUpload(dirty)
+        // A day goes up whole: every app's row for each dirty date, dirty or
+        // not, so one app changing never erases the other's count on the server.
+        val dates = SyncPlan.datesToSend(dirty)
+        val payload = SyncPlan.toUpload(db.dailyCounts().forDates(dates))
 
         return try {
             client.uploadDays(payload)
 
             // Re-read rather than reusing `dirty`: the row on disk may have
             // moved on since it was sent.
-            val current = db.dailyCounts().dirtyRows(SyncPlan.MAX_BATCH)
-            val settled = SyncPlan.syncedRows(payload, current)
+            val current = db.dailyCounts().forDates(dates)
+            val settled = SyncPlan.syncedRows(payload, current).filter { it.dirty }
             val at = now()
             for (row in settled) {
                 db.dailyCounts().markSynced(

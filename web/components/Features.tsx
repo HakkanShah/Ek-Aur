@@ -126,7 +126,7 @@ export function Features() {
         <Reveal delay={0.1}>
           <Card
             title="One global leaderboard"
-            desc="Everyone who installs it is on one list, ranked on today's reels. No adding friends, no join step."
+            desc="Everyone who installs it is on one list, ranked on today's Reels and Shorts. Filter to just one app. No adding friends, no join step."
           >
             <div className="w-full space-y-1.5">
               <RaceRow r={1} name="rohan" n={402} leader={402} />
@@ -162,7 +162,7 @@ export function Features() {
         <Reveal delay={0.15}>
           <Card
             title="Yours, on your phone"
-            desc="Raw scrolls and which reels you watched never leave the device. It can't read the screen — just the swipe."
+            desc="Raw scrolls and which videos you watched never leave the device. It can't read the screen — just the swipe."
           >
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-lav/60">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#lg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -19,7 +19,7 @@ export function Hero() {
             <span className="inline-flex items-center gap-2 rounded-full border border-hairline bg-white/70 px-3 py-1 text-xs font-semibold text-smoke shadow-sm backdrop-blur">
               <span className="grad-text font-bold">BETA</span>
               <span className="h-1 w-1 rounded-full bg-ash" />
-              Instagram Reels, counted
+              Reels + Shorts, counted
             </span>
           </Reveal>
 
@@ -32,7 +32,7 @@ export function Hero() {
 
           <Reveal delay={0.12}>
             <p className="mt-6 max-w-md text-xl font-medium leading-snug text-ink sm:text-2xl">
-              The reel counter that cheers you on for one more —{" "}
+              The Reels and Shorts counter that cheers you on for one more —{" "}
               <span className="text-smoke">while the number quietly turns you in.</span>
             </p>
           </Reveal>

@@ -23,6 +23,12 @@ data class ScrollSignal(
     /** Net vertical movement reported by the event, when available. */
     val scrollDeltaY: Int = 0,
     /**
+     * Net horizontal movement, when available (Android 9+). A scroll that moves
+     * only sideways is a tab strip or a carousel, never a vertical feed of
+     * short videos, whatever its shape says.
+     */
+    val scrollDeltaX: Int = 0,
+    /**
      * First and last adapter positions visible after the scroll.
      *
      * These are the whole ballgame. A full-screen snapping pager shows exactly
@@ -51,7 +57,7 @@ data class ScrollSignal(
 
 /** What a scroll event's shape says about the surface that produced it. */
 enum class ScrollShape {
-    /** Exactly one full-screen item visible -- a snapping pager, i.e. Reels. */
+    /** Exactly one full-screen item visible -- a snapping pager, i.e. Reels or Shorts. */
     Player,
 
     /** Several items visible -- an ordinary list, i.e. the feed. Never counts. */

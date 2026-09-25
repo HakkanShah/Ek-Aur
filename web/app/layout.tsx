@@ -12,12 +12,12 @@ const poppins = Poppins({
 const SITE = "https://ek-aur.vercel.app";
 
 const description =
-  "Ek Aur counts your Instagram Reels with a floating counter that cheers you on for one more — while the number quietly turns you in. An honest dashboard, a global leaderboard, and a dry roast at every milestone. Free, on-device, Android.";
+  "Ek Aur counts your Instagram Reels and YouTube Shorts with a floating counter that cheers you on for one more — while the number quietly turns you in. An honest dashboard, a global leaderboard, and a dry roast at every milestone. Free, on-device, Android.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
   title: {
-    default: "Ek Aur — the Instagram Reels counter that roasts you",
+    default: "Ek Aur — the Reels and Shorts counter that roasts you",
     template: "%s · Ek Aur",
   },
   description,
@@ -29,6 +29,8 @@ export const metadata: Metadata = {
   keywords: [
     "Ek Aur",
     "Instagram Reels counter",
+    "YouTube Shorts counter",
+    "count shorts watched",
     "reel counter app",
     "doomscrolling tracker",
     "screen time Android",
@@ -43,7 +45,7 @@ export const metadata: Metadata = {
     type: "website",
     url: SITE,
     siteName: "Ek Aur",
-    title: "Ek Aur — the Instagram Reels counter that roasts you",
+    title: "Ek Aur — the Reels and Shorts counter that roasts you",
     description,
     locale: "en_US",
     images: [
@@ -51,13 +53,13 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Ek Aur — a floating counter for Instagram Reels that cheers you on for one more",
+        alt: "Ek Aur — a floating counter for Instagram Reels and YouTube Shorts that cheers you on for one more",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ek Aur — the Instagram Reels counter that roasts you",
+    title: "Ek Aur — the Reels and Shorts counter that roasts you",
     description,
     images: ["/og.png"],
   },
@@ -104,9 +106,9 @@ const jsonLd = {
       author: { "@type": "Person", name: "Hakkan", url: "https://hakkan.is-a.dev" },
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       featureList: [
-        "Floating on-screen counter for Instagram Reels",
+        "Floating on-screen counter for Instagram Reels and YouTube Shorts",
         "Honest daily, weekly and all-time dashboard",
-        "Global leaderboard ranked on today's reels",
+        "Global leaderboard ranked on today's Reels and Shorts, with a per-app filter",
         "Dry sarcastic roasts at each milestone",
         "Auto-off for payments; nothing but your name and daily total ever leaves the phone",
       ],

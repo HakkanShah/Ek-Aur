@@ -21,8 +21,8 @@ class AutoOffPolicyTest {
             AutoOffPolicy.shouldDisable(
                 enabled = true,
                 usageGranted = true,
-                foregroundIsInstagram = false,
-                msSinceInstagramForeground = grace,
+                foregroundIsTracked = false,
+                msSinceTrackedForeground = grace,
                 graceMs = grace,
             )
         )
@@ -35,8 +35,8 @@ class AutoOffPolicyTest {
             AutoOffPolicy.shouldDisable(
                 enabled = true,
                 usageGranted = true,
-                foregroundIsInstagram = true,
-                msSinceInstagramForeground = 10 * grace,
+                foregroundIsTracked = true,
+                msSinceTrackedForeground = 10 * grace,
                 graceMs = grace,
             )
         )
@@ -48,8 +48,8 @@ class AutoOffPolicyTest {
             AutoOffPolicy.shouldDisable(
                 enabled = true,
                 usageGranted = true,
-                foregroundIsInstagram = false,
-                msSinceInstagramForeground = grace - 1,
+                foregroundIsTracked = false,
+                msSinceTrackedForeground = grace - 1,
                 graceMs = grace,
             )
         )
@@ -63,8 +63,8 @@ class AutoOffPolicyTest {
             AutoOffPolicy.shouldDisable(
                 enabled = true,
                 usageGranted = false,
-                foregroundIsInstagram = false,
-                msSinceInstagramForeground = 10 * grace,
+                foregroundIsTracked = false,
+                msSinceTrackedForeground = 10 * grace,
                 graceMs = grace,
             )
         )
@@ -76,8 +76,8 @@ class AutoOffPolicyTest {
             AutoOffPolicy.shouldDisable(
                 enabled = false,
                 usageGranted = true,
-                foregroundIsInstagram = false,
-                msSinceInstagramForeground = 10 * grace,
+                foregroundIsTracked = false,
+                msSinceTrackedForeground = 10 * grace,
                 graceMs = grace,
             )
         )
@@ -89,8 +89,8 @@ class AutoOffPolicyTest {
         // Away long enough for the pill, not yet for the service.
         assertTrue(
             AutoOffPolicy.shouldHidePill(
-                foregroundIsInstagram = false,
-                msSinceInstagramForeground = pillGrace,
+                foregroundIsTracked = false,
+                msSinceTrackedForeground = pillGrace,
                 pillGraceMs = pillGrace,
             )
         )
@@ -98,8 +98,8 @@ class AutoOffPolicyTest {
             AutoOffPolicy.shouldDisable(
                 enabled = true,
                 usageGranted = true,
-                foregroundIsInstagram = false,
-                msSinceInstagramForeground = pillGrace,
+                foregroundIsTracked = false,
+                msSinceTrackedForeground = pillGrace,
                 graceMs = grace,
             )
         )
@@ -109,8 +109,8 @@ class AutoOffPolicyTest {
     fun `the pill stays while instagram is in front`() {
         assertFalse(
             AutoOffPolicy.shouldHidePill(
-                foregroundIsInstagram = true,
-                msSinceInstagramForeground = 10_000L,
+                foregroundIsTracked = true,
+                msSinceTrackedForeground = 10_000L,
                 pillGraceMs = 2_000L,
             )
         )

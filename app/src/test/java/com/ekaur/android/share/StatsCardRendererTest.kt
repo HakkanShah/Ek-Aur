@@ -106,6 +106,37 @@ class StatsCardRendererTest {
     }
 
     @Test
+    fun `the shorts look renders its own red peak and a split line`() {
+        val red = Color.rgb(0xE0, 0x00, 0x1B)
+        val card = StatsCardRenderer.render(
+            stats().copy(label = "Reels + Shorts today", split = "120 Reels · 45 Shorts"),
+            CardShape.Square,
+            palette = CardPalette(
+                canvas = Color.rgb(0xFF, 0xF8, 0xF7),
+                chip = Color.rgb(0xFD, 0xEC, 0xEC),
+                line = Color.rgb(0xF2, 0xE4, 0xE3),
+                accent = red,
+                accentDim = Color.rgb(0xF4, 0xA7, 0xA7),
+                gradient = intArrayOf(
+                    Color.rgb(0xA8, 0x00, 0x18), Color.rgb(0xD0, 0x00, 0x1A), red,
+                    Color.rgb(0xFF, 0x3B, 0x30), Color.rgb(0xFF, 0x7A, 0x45),
+                ),
+            ),
+        )
+        assertEquals(1080, card.width)
+        var found = false
+        loop@ for (x in 0 until card.width step 3) {
+            for (y in 0 until card.height step 3) {
+                if (card.getPixel(x, y) == red) {
+                    found = true
+                    break@loop
+                }
+            }
+        }
+        assertTrue("no Shorts red anywhere", found)
+    }
+
+    @Test
     fun `an empty username is survivable`() {
         val card = StatsCardRenderer.render(
             stats().copy(username = "", peakHour = null),

@@ -29,21 +29,10 @@ import com.ekaur.android.ui.stats.formatDuration
  */
 object StatsCardRenderer {
 
-    private const val CANVAS = 0xFFFBF7FB.toInt()
     private const val SURFACE = 0xFFFFFFFF.toInt()
-    private const val CHIP = 0xFFF3EEFB.toInt()
-    private const val LINE = 0xFFECE7F2.toInt()
-    private const val ACID = 0xFFDD2A7B.toInt()
-    private const val ACID_DIM = 0xFFE7A6CC.toInt()
     private const val INK = 0xFF1C1C1E.toInt()
     private const val SMOKE = 0xFF6F6F80.toInt()
     private const val ASH = 0xFFB4B4C0.toInt()
-
-    // The Instagram gradient, used as a shader on the wordmark and hero number.
-    private val GRADIENT = intArrayOf(
-        0xFF515BD4.toInt(), 0xFF8134AF.toInt(), 0xFFDD2A7B.toInt(),
-        0xFFF58529.toInt(), 0xFFFEDA77.toInt(),
-    )
 
     private val systemHeavy = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
     private val systemRegular = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
@@ -54,14 +43,15 @@ object StatsCardRenderer {
         avatar: Bitmap? = null,
         heavy: Typeface? = null,
         regular: Typeface? = null,
+        palette: CardPalette = CardPalette(),
     ): Bitmap {
         // The faces travel with this one render rather than living in shared
         // state, so two cards rendered at once can never borrow each other's.
-        val frame = Frame(heavy ?: systemHeavy, regular ?: systemRegular)
+        val frame = Frame(heavy ?: systemHeavy, regular ?: systemRegular, palette)
 
         val bitmap = Bitmap.createBitmap(shape.width, shape.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        canvas.drawColor(CANVAS)
+        canvas.drawColor(palette.canvas)
 
         val inset = shape.width * 0.037f
         val unit = shape.width / 1080f
@@ -107,7 +97,7 @@ object StatsCardRenderer {
     }
 
     /** One render's drawing, with the faces that render was asked to use. */
-    private class Frame(val faceHeavy: Typeface, val faceRegular: Typeface) {
+    private class Frame(val faceHeavy: Typeface, val faceRegular: Typeface, val palette: CardPalette) {
 
         /**
          * The person, top-right, sized to sit level with the wordmark: the username
@@ -138,10 +128,10 @@ object StatsCardRenderer {
 
         /** A horizontal Instagram-gradient shader spanning [x]..[x]+[width]. */
         fun gradientShader(x: Float, width: Float): Shader =
-            LinearGradient(x, 0f, x + width, 0f, GRADIENT, null, Shader.TileMode.CLAMP)
+            LinearGradient(x, 0f, x + width, 0f, palette.gradient, null, Shader.TileMode.CLAMP)
 
         fun drawWordmark(canvas: Canvas, x: Float, y: Float, unit: Float): Float {
-            val paint = textPaint(ACID, 40f * unit, faceHeavy).apply { letterSpacing = 0.3f }
+            val paint = textPaint(palette.accent, 40f * unit, faceHeavy).apply { letterSpacing = 0.3f }
             val width = paint.measureText("EK AUR")
             paint.shader = gradientShader(x, width)
             canvas.drawText("EK AUR", x, y, paint)
@@ -180,7 +170,16 @@ object StatsCardRenderer {
             canvas.drawText(text, x, baseline, paint)
 
             val label = textPaint(SMOKE, 42f * unit, faceRegular)
-            canvas.drawText(CardCopy.subtitleFor(stats.reelsToday), x, baseline + 58f * unit, label)
+            canvas.drawText(stats.label ?: CardCopy.subtitleFor(stats.reelsToday), x, baseline + 58f * unit, label)
+
+            // Both apps today: the split takes the second line, where the
+            // watched time would go -- which app the number came from is the
+            // more interesting fact.
+            val split = stats.split
+            if (split != null) {
+                canvas.drawText(split, x, baseline + 106f * unit, textPaint(SMOKE, 34f * unit, faceRegular))
+                return baseline + 106f * unit
+            }
 
             if (stats.activeMsToday > 0) {
                 val time = textPaint(SMOKE, 34f * unit, faceRegular)
@@ -243,12 +242,12 @@ object StatsCardRenderer {
                 val rect = RectF(left, base - barHeight, left + barWidth, base)
                 val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     // The peak wears the solid accent; the rest a soft magenta.
-                    color = if (value == peak) ACID else ACID_DIM
+                    color = if (value == peak) palette.accent else palette.accentDim
                 }
                 canvas.drawRoundRect(rect, 6f * unit, 6f * unit, paint)
             }
 
-            val rule = Paint().apply { color = LINE }
+            val rule = Paint().apply { color = palette.line }
             canvas.drawRect(x, base, x + width, base + 2f * unit, rule)
 
             // Day initials under the columns, today last.
@@ -277,7 +276,7 @@ object StatsCardRenderer {
                 "Best ever" to stats.bestEver.toString(),
                 "Peak hour" to (stats.peakHour ?: "—"),
             )
-            val chip = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = CHIP }
+            val chip = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = palette.chip }
             facts.forEachIndexed { index, (caption, value) ->
                 val boxTop = top + (boxHeight + gap) * index
                 canvas.drawRoundRect(RectF(left, boxTop, left + width, boxTop + boxHeight), 24f * unit, 24f * unit, chip)
@@ -312,7 +311,7 @@ object StatsCardRenderer {
                     rect,
                     24f * unit,
                     24f * unit,
-                    Paint(Paint.ANTI_ALIAS_FLAG).apply { color = CHIP },
+                    Paint(Paint.ANTI_ALIAS_FLAG).apply { color = palette.chip },
                 )
                 canvas.drawText(
                     value,
@@ -348,7 +347,7 @@ object StatsCardRenderer {
             val linkPaint = textPaint(SMOKE, 30f * unit, faceRegular)
             canvas.drawText(CardCopy.LINK, x, bottom, linkPaint)
 
-            val dare = textPaint(ACID, 50f * unit, faceHeavy)
+            val dare = textPaint(palette.accent, 50f * unit, faceHeavy)
             canvas.drawText(CardCopy.challengeFor(stats.reelsToday), x, bottom - 64f * unit, dare)
         }
 
@@ -389,7 +388,7 @@ object StatsCardRenderer {
             // A soft gradient disc with the initial, matching the app's ringed avatars.
             val disc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 shader = LinearGradient(
-                    x, y, x + size, y + size, GRADIENT, null, Shader.TileMode.CLAMP,
+                    x, y, x + size, y + size, palette.gradient, null, Shader.TileMode.CLAMP,
                 )
             }
             canvas.drawOval(rect, disc)

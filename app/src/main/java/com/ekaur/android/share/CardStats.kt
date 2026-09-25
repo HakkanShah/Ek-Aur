@@ -9,7 +9,38 @@ data class CardStats(
     val week: List<Int>,
     val bestEver: Int,
     val peakHour: String?,
+    /**
+     * What the number is called, when it isn't plain Reels: "Shorts today",
+     * "Reels + Shorts today". Null keeps the classic "Reels today".
+     */
+    val label: String? = null,
+    /** "120 Reels · 45 Shorts" when both apps were used today; null otherwise. */
+    val split: String? = null,
 )
+
+/**
+ * The card's colours, as plain ints, so the renderer stays free of Compose.
+ * Defaults are the Instagram look; the share screen passes the live one.
+ */
+data class CardPalette(
+    val canvas: Int = 0xFFFBF7FB.toInt(),
+    val chip: Int = 0xFFF3EEFB.toInt(),
+    val line: Int = 0xFFECE7F2.toInt(),
+    /** The dare line and the peak bar. */
+    val accent: Int = 0xFFDD2A7B.toInt(),
+    val accentDim: Int = 0xFFE7A6CC.toInt(),
+    val gradient: IntArray = intArrayOf(
+        0xFF515BD4.toInt(), 0xFF8134AF.toInt(), 0xFFDD2A7B.toInt(),
+        0xFFF58529.toInt(), 0xFFFEDA77.toInt(),
+    ),
+) {
+    override fun equals(other: Any?): Boolean =
+        other is CardPalette && canvas == other.canvas && chip == other.chip && line == other.line &&
+            accent == other.accent && accentDim == other.accentDim && gradient.contentEquals(other.gradient)
+
+    override fun hashCode(): Int =
+        listOf(canvas, chip, line, accent, accentDim, gradient.contentHashCode()).hashCode()
+}
 
 /** The two shapes a card is ever asked for. */
 enum class CardShape(val width: Int, val height: Int, val label: String) {

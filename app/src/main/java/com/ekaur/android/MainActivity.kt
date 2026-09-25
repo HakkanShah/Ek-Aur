@@ -55,7 +55,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.di.AppContainer
+import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.share.CardStats
 import com.ekaur.android.ui.account.AccountScreen
 import com.ekaur.android.ui.common.pressScale
@@ -70,7 +72,10 @@ import com.ekaur.android.ui.onboarding.SetupScreen
 import com.ekaur.android.ui.onboarding.SetupWizard
 import com.ekaur.android.ui.share.ShareScreen
 import com.ekaur.android.ui.stats.StatsScreen
+import com.ekaur.android.ui.theme.AppLook
 import com.ekaur.android.ui.theme.Ash
+import com.ekaur.android.ui.theme.Looks
+import com.ekaur.android.ui.theme.Palette
 import com.ekaur.android.ui.theme.Canvas
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.EkAurTheme
@@ -104,8 +109,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val container = (application as EkAurApp).container
 
+        // The right look from the very first frame, not a flash of the default.
+        Looks.palette = Palette.of(lookOf(container))
+
         setContent {
-            EkAurTheme {
+            val apps by container.settings.countedApps.collectAsState()
+            val override by container.settings.lookOverride.collectAsState()
+            EkAurTheme(look = Looks.lookFor(apps, override?.let(::lookNamed))) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
@@ -116,6 +126,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+private fun lookNamed(name: String): AppLook? = AppLook.entries.firstOrNull { it.name == name }
+
+private fun lookOf(container: AppContainer): AppLook = Looks.lookFor(
+    container.settings.countedApps.value,
+    container.settings.lookOverride.value?.let(::lookNamed),
+)
 
 @Composable
 private fun AppScaffold(container: AppContainer) {
@@ -147,6 +164,15 @@ private fun AppScaffold(container: AppContainer) {
     var wizardOpen by remember { mutableStateOf(false) }
     var wizardRecovery by remember { mutableStateOf(false) }
     if (wizardOpen || (!permissions.service && !wizardSeen)) {
+        val apps by container.settings.countedApps.collectAsState()
+        // A first run starts with whatever the phone has installed ticked, so
+        // most people just press on.
+        LaunchedEffect(Unit) {
+            if (!container.settings.appsChosen) {
+                val installed = TrackedApp.entries.filter { ServiceControl.isInstalled(context, it) }.toSet()
+                container.settings.setCountedApps(installed.ifEmpty { setOf(TrackedApp.Instagram) })
+            }
+        }
         val close = {
             container.settings.setupWizardSeen = true
             wizardSeen = true
@@ -162,6 +188,11 @@ private fun AppScaffold(container: AppContainer) {
             onDone = close,
             onSkip = close,
             onClose = if (wizardOpen) close else null,
+            apps = apps,
+            onChooseApps = { chosen ->
+                container.settings.setCountedApps(chosen)
+                container.settings.appsChosen = true
+            },
             modifier = Modifier.systemBarsPadding(),
         )
         return
@@ -214,7 +245,10 @@ private fun AppScaffold(container: AppContainer) {
                         onOpenAccount = { overlay = Overlay.Account },
                         onShare = { stats, avatar -> overlay = Overlay.Share(stats, avatar) },
                     )
-                    Tab.Stats -> StatsScreen(container.counterRepository)
+                    Tab.Stats -> {
+                        val apps by container.settings.countedApps.collectAsState()
+                        StatsScreen(container.counterRepository, apps = apps)
+                    }
                     Tab.Ranks -> FriendsScreen(
                         container = container,
                         onOpenAccount = { overlay = Overlay.Account },

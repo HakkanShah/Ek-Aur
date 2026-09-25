@@ -6,7 +6,7 @@ import { Phone, StatusBar } from "./Phone";
 import { Pill } from "./Pill";
 
 const ROWS = [
-  { name: "Accessibility", why: "counts your reels" },
+  { name: "Accessibility", why: "counts reels + shorts" },
   { name: "Overlay", why: "floats the counter" },
   { name: "Usage access", why: "auto-off for payments" },
 ];

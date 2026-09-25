@@ -59,6 +59,16 @@ import com.ekaur.android.setup.RestrictedSetting
 import com.ekaur.android.setup.SetupFlow
 import com.ekaur.android.setup.SetupStep
 import com.ekaur.android.setup.Verdict
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.semantics.Role
+import com.ekaur.android.detect.TrackedApp
+import com.ekaur.android.ui.common.AppWords
+import com.ekaur.android.ui.common.pressScale
+import com.ekaur.android.ui.theme.ReelsMark
+import com.ekaur.android.ui.theme.ReelsMarkSoft
+import com.ekaur.android.ui.theme.ShortsMark
+import com.ekaur.android.ui.theme.ShortsMarkSoft
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Celebration
 import com.ekaur.android.ui.common.Motion
@@ -105,6 +115,8 @@ fun SetupWizard(
     onSkip: () -> Unit,
     startInRecovery: Boolean = false,
     onClose: (() -> Unit)? = null,
+    apps: Set<TrackedApp> = setOf(TrackedApp.Instagram),
+    onChooseApps: (Set<TrackedApp>) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -159,17 +171,26 @@ fun SetupWizard(
         ) { current ->
             when (current) {
                 SetupStep.Welcome -> WelcomeStep(
-                    onStart = { welcomed = true },
+                    apps = apps,
+                    onToggle = { app ->
+                        val next = if (app in apps) apps - app else apps + app
+                        if (next.isNotEmpty()) onChooseApps(next)
+                    },
+                    onStart = {
+                        onChooseApps(apps)
+                        welcomed = true
+                    },
                     onSkip = onSkip,
                 )
                 SetupStep.Accessibility -> AccessibilityStep(
                     hint = hint,
                     verdict = verdict,
                     startInRecovery = startInRecovery,
+                    apps = apps,
                     onSkip = onSkip,
                 )
-                SetupStep.Overlay -> OverlayStep(onSkip = onSkip)
-                SetupStep.Done -> DoneStep(onDone = onDone)
+                SetupStep.Overlay -> OverlayStep(apps = apps, onSkip = onSkip)
+                SetupStep.Done -> DoneStep(apps = apps, onDone = onDone)
             }
         }
 
@@ -182,19 +203,43 @@ fun SetupWizard(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun WelcomeStep(onStart: () -> Unit, onSkip: () -> Unit) {
+private fun WelcomeStep(
+    apps: Set<TrackedApp>,
+    onToggle: (TrackedApp) -> Unit,
+    onStart: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    val context = LocalContext.current
     Column {
-        Headline("Two switches and you're counting.")
+        Headline("What do you scroll?")
+        Spacer(Modifier.height(8.dp))
+        Lead("Pick one or both. The app counts them and dresses to match.")
+        Spacer(Modifier.height(18.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TrackedApp.entries.forEach { app ->
+                AppChoice(
+                    app = app,
+                    selected = app in apps,
+                    installed = remember(app) { ServiceControl.isInstalled(context, app) },
+                    onClick = { onToggle(app) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(22.dp))
+        Headline("Then two switches and you're counting.")
         Spacer(Modifier.height(8.dp))
         Lead("About a minute. Android will send you to Settings twice; this screen tells you exactly what to tap.")
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(18.dp))
 
         Card {
-            PreviewRow(1, "Accessibility", "How reels get counted.")
+            PreviewRow(1, "Accessibility", "How ${AppWords.unit(apps).lowercase()} get counted.")
             Spacer(Modifier.height(14.dp))
-            PreviewRow(2, "Overlay", "So the counter can float over Instagram.")
+            PreviewRow(2, "Overlay", "So the counter can float over ${AppWords.appNames(apps)}.")
             Spacer(Modifier.height(14.dp))
-            PreviewRow(3, "Done", "Open Instagram and scroll.")
+            PreviewRow(3, "Done", "Open ${AppWords.appNames(apps)} and scroll.")
         }
 
         Spacer(Modifier.height(14.dp))
@@ -217,6 +262,7 @@ private fun AccessibilityStep(
     hint: OemHint,
     verdict: Verdict,
     startInRecovery: Boolean,
+    apps: Set<TrackedApp>,
     onSkip: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -242,7 +288,7 @@ private fun AccessibilityStep(
     Column {
         Headline("Turn on Ek Aur in Accessibility")
         Spacer(Modifier.height(8.dp))
-        Lead("Counting works through an accessibility switch. It sees the swipe to the next reel and nothing else.")
+        Lead("Counting works through an accessibility switch. It sees the swipe to the next video in ${AppWords.appNames(apps).replace(" or ", " and ")} and nothing else.")
         Spacer(Modifier.height(22.dp))
 
         if (!showRecovery) {
@@ -421,12 +467,12 @@ private fun RecoveryCard(
 }
 
 @Composable
-private fun OverlayStep(onSkip: () -> Unit) {
+private fun OverlayStep(apps: Set<TrackedApp>, onSkip: () -> Unit) {
     val context = LocalContext.current
     Column {
-        Headline("Let the counter float over Instagram")
+        Headline("Let the counter float over ${AppWords.appNames(apps)}")
         Spacer(Modifier.height(8.dp))
-        Lead("Counting is on. This lets the little pill sit on top of Instagram so you can watch the number climb.")
+        Lead("Counting is on. This lets the little pill sit on top while you scroll, so you can watch the number climb.")
         Spacer(Modifier.height(22.dp))
 
         Card {
@@ -450,9 +496,11 @@ private fun OverlayStep(onSkip: () -> Unit) {
 }
 
 @Composable
-private fun DoneStep(onDone: () -> Unit) {
+private fun DoneStep(apps: Set<TrackedApp>, onDone: () -> Unit) {
     val context = LocalContext.current
-    val hasInstagram = remember { ServiceControl.isInstagramInstalled(context) }
+    val openable = remember(apps) {
+        TrackedApp.entries.filter { it in apps && ServiceControl.isInstalled(context, it) }
+    }
     // A short hold on the check before anything else, so the moment lands.
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(80); shown = true }
@@ -490,24 +538,26 @@ private fun DoneStep(onDone: () -> Unit) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Go scroll. The pill shows up the moment you're in Reels.",
+            text = "Go scroll. The pill shows up the moment you're in ${AppWords.unit(apps).replace(" + ", " or ")}.",
             style = MaterialTheme.typography.bodyLarge,
             color = Smoke,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(28.dp))
-        if (hasInstagram) {
-            FlatButton(
-                text = "Open Instagram",
-                emphasised = true,
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    onDone()
-                    ServiceControl.openInstagram(context)
-                },
-            )
-            Spacer(Modifier.height(10.dp))
-            FlatButton("Go to Home", modifier = Modifier.fillMaxWidth(), onClick = onDone)
+        if (openable.isNotEmpty()) {
+            openable.forEachIndexed { index, app ->
+                FlatButton(
+                    text = "Open ${app.appName}",
+                    emphasised = index == 0,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        onDone()
+                        ServiceControl.openApp(context, app)
+                    },
+                )
+                Spacer(Modifier.height(10.dp))
+            }
+            FlatButton("Go to Home", quiet = true, modifier = Modifier.fillMaxWidth(), onClick = onDone)
         } else {
             FlatButton("Go to Home", emphasised = true, modifier = Modifier.fillMaxWidth(), onClick = onDone)
         }
@@ -524,6 +574,69 @@ private fun DoneStep(onDone: () -> Unit) {
 // ---------------------------------------------------------------------------
 // Pieces
 // ---------------------------------------------------------------------------
+
+/**
+ * One app to pick. Selected cards take the app's own mark (pink for Reels, red
+ * for Shorts), so the choice reads before the words do.
+ */
+@Composable
+private fun AppChoice(
+    app: TrackedApp,
+    selected: Boolean,
+    installed: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val mark = if (app == TrackedApp.Instagram) ReelsMark else ShortsMark
+    val soft = if (app == TrackedApp.Instagram) ReelsMarkSoft else ShortsMarkSoft
+    val border by animateColorAsState(if (selected) mark else InkLine, Motion.quick(), label = "choice")
+    val interaction = remember { MutableInteractionSource() }
+    Column(
+        modifier
+            .pressScale(interaction, 0.96f)
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (selected) soft else Color.White)
+            .border(2.dp, border, RoundedCornerShape(20.dp))
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Checkbox,
+                onClick = onClick,
+            )
+            .padding(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(mark),
+                contentAlignment = Alignment.Center,
+            ) {
+                // A plain play-ish mark drawn here, never either app's logo.
+                Text(if (app == TrackedApp.Instagram) "◎" else "▶", color = Color.White, fontSize = 15.sp)
+            }
+            Spacer(Modifier.weight(1f))
+            Box(
+                Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) mark else Color.Transparent)
+                    .border(2.dp, if (selected) mark else Ash, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(app.items, style = MaterialTheme.typography.titleMedium, color = Chalk)
+        Text(
+            text = if (installed) app.appName else "${app.appName} · not installed",
+            style = MaterialTheme.typography.bodySmall,
+            color = Smoke,
+        )
+    }
+}
 
 @Composable
 private fun Headline(text: String) {
