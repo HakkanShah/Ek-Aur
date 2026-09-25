@@ -1,3 +1,4 @@
+import { PlayProtectGuide } from "./PlayProtectGuide";
 import { Reveal } from "./Reveal";
 
 function Step({
@@ -25,16 +26,27 @@ function Step({
 export function Install() {
   return (
     <section id="install" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 md:py-28">
-      <div className="grid gap-12 md:grid-cols-2 md:gap-16">
+      <Reveal>
+        <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+          Installing it (the honest version)
+        </h2>
+        <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-smoke">
+          Ek Aur isn't on the Play Store. It's a hobby app you sideload, so Android shows a couple of
+          scary-looking warnings on the way in. They're expected, and each one takes seconds.
+        </p>
+      </Reveal>
+
+      <Reveal delay={0.05} className="mt-10">
+        <PlayProtectGuide />
+      </Reveal>
+
+      <div className="mt-14 grid gap-12 md:grid-cols-2 md:gap-16">
         <Reveal>
           <div className="md:sticky md:top-24">
-            <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-              Installing it (the honest version)
-            </h2>
-            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-smoke">
-              Ek Aur isn't on the Play Store — it's a hobby app you sideload. So Android will throw a
-              couple of scary-looking warnings on the way in. They're expected. Here's how to breeze
-              past them.
+            <h3 className="text-2xl font-extrabold tracking-tight text-ink">Then two more things</h3>
+            <p className="mt-3 max-w-md text-[15px] leading-relaxed text-smoke">
+              Once it's installed, the app's guided setup walks you through the rest. Here's what to
+              expect, in case you get stuck.
             </p>
 
             {/* the honest "why" */}
@@ -60,36 +72,10 @@ export function Install() {
 
         <Reveal delay={0.1}>
           <div className="space-y-6">
-            {/* Play Protect — the big one, first */}
-            <div className="rounded-card border-2 border-acid/25 bg-white p-6 shadow-card">
-              <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-blush px-2.5 py-1 text-[11px] font-bold text-acid">
-                Most common
-              </div>
-              <h3 className="mt-2 text-lg font-bold text-ink">
-                “App blocked” by Play Protect
-              </h3>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-smoke">
-                If Play Protect stops the install, don't panic — turn its scan off for a minute:
-              </p>
-              <ol className="mt-4 space-y-2 text-[14px] text-ink">
-                {[
-                  "Open the Play Store, tap your profile picture (top-right)",
-                  "Play Protect → the ⚙ (settings) icon",
-                  "Turn off “Scan apps with Play Protect”",
-                  "Install Ek Aur — then turn scanning back on",
-                ].map((s, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full ig-gradient" />
-                    {s}
-                  </li>
-                ))}
-              </ol>
-            </div>
-
             {/* Restricted setting — the second wall, on the first switch */}
             <div className="rounded-card border-2 border-acid/25 bg-white p-6 shadow-card">
               <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-blush px-2.5 py-1 text-[11px] font-bold text-acid">
-                Second most common
+                Most common after installing
               </div>
               <h3 className="mt-2 text-lg font-bold text-ink">
                 “Restricted setting” on the accessibility switch

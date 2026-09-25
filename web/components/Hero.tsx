@@ -63,6 +63,17 @@ export function Hero() {
                 </span>
               </a>
             </div>
+            <a
+              href="#play-protect"
+              className="group mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#137333] underline-offset-4 hover:underline"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
+                <path d="M12 2.5l8 3.2v5.6c0 5.2-3.4 9-8 10.7-4.6-1.7-8-5.5-8-10.7V5.7z" fill="currentColor" />
+                <path d="M8 12.2l2.7 2.7L16 9.6" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Blocked by Play Protect? See the 30-second fix
+              <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+            </a>
           </Reveal>
         </div>
 

@@ -23,6 +23,12 @@ export function DownloadCTA() {
             <div className="mt-9 flex justify-center">
               <DownloadButton variant="white" subClassName="text-white/80" />
             </div>
+            <a
+              href="#play-protect"
+              className="mt-5 inline-block text-[13px] font-semibold text-white/90 underline decoration-white/40 underline-offset-4 hover:decoration-white"
+            >
+              Install blocked by Play Protect? Here&apos;s the fix
+            </a>
           </div>
         </div>
       </Reveal>
