@@ -71,6 +71,25 @@ object EkIcons {
     val Gift by lazy { line("gift", "M4 11h16v9H4z", "M3 7.5h18V11H3z", "M12 7.5V20", "M12 7.5C11 4.5 7 4.5 7 7.5", "M12 7.5c1-3 5-3 5 0") }
     val Box by lazy { line("box", "M12 3l8 4.5v9L12 21l-8-4.5v-9z", "M4 7.5l8 4.5 8-4.5", "M12 12v9") }
     val CheckCircle by lazy { line("check-circle", CIRCLE_9, "M8 12.5l2.7 2.7L16 9.8") }
+    val Bug by lazy {
+        line(
+            "bug",
+            "M8 10a4 4 0 0 1 8 0v4a4 4 0 0 1-8 0z",
+            "M12 10v8",
+            "M10 6.6L8.8 4.5", "M14 6.6l1.2-2.1",
+            "M8 12H4.5", "M16 12h3.5",
+            "M8.3 16l-3 2", "M15.7 16l3 2",
+            "M8.3 8.6l-3-2", "M15.7 8.6l3-2",
+        )
+    }
+    val Lightbulb by lazy {
+        line(
+            "lightbulb",
+            "M9 18h6", "M10 21h4",
+            "M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z",
+        )
+    }
+    val Mail by lazy { line("mail", "M3.5 6h17v12h-17z", "M3.5 7l8.5 6 8.5-6") }
     val MoreVert by lazy { filled("more-vert", dot(12f, 5.5f), dot(12f, 12f), dot(12f, 18.5f)) }
 
     /** Reels, as a plain film strip. */

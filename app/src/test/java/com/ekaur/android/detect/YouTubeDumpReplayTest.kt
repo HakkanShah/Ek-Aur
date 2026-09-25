@@ -32,9 +32,9 @@ class YouTubeDumpReplayTest {
             .filterIsInstance<DetectionEvent.ReelScrolled>()
             .filter { it.packageName == youtube }
             .map { it.timestampMs }
-        // The last event of each forward swipe, read off the dump.
+        // Each forward swipe's last real movement of the list, read off the dump.
         assertEquals(
-            listOf(100506L, 104498L, 404141L, 405101L, 406710L, 414777L, 416519L, 429326L, 432848L, 439374L, 455638L),
+            listOf(100343L, 104495L, 404141L, 405101L, 406709L, 414776L, 416518L, 429326L, 432847L, 439374L, 455637L),
             times,
         )
     }

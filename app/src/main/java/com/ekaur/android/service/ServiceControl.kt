@@ -308,6 +308,49 @@ object ServiceControl {
         return runCatching { context.startActivity(intent) }.isSuccess
     }
 
+    /**
+     * Opens a mail app addressed to the developer with [files] attached.
+     *
+     * `ACTION_SENDTO` (what [emailDeveloper] uses) can't carry attachments, so
+     * this sends the files the ordinary way and uses a `mailto:` selector to
+     * keep the choice to mail apps. Where no mail app takes it, it falls back
+     * to the normal share sheet with the same files, so the report can still
+     * go out through anything. Returns false only if nothing could open.
+     */
+    fun emailWithAttachments(
+        context: Context,
+        subject: String,
+        body: String,
+        files: List<java.io.File>,
+    ): Boolean {
+        val uris = ArrayList(files.map { com.ekaur.android.diagnostics.TextExport.uriFor(context, it) })
+        val send = Intent(if (uris.size > 1) Intent.ACTION_SEND_MULTIPLE else Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_EMAIL))
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, body)
+            when (uris.size) {
+                0 -> Unit
+                1 -> putExtra(Intent.EXTRA_STREAM, uris.first())
+                else -> putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            }
+            if (uris.isNotEmpty()) {
+                clipData = android.content.ClipData.newUri(context.contentResolver, "report", uris.first()).apply {
+                    uris.drop(1).forEach { addItem(android.content.ClipData.Item(it)) }
+                }
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+        val mailOnly = Intent(send).apply {
+            selector = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        if (runCatching { context.startActivity(mailOnly) }.isSuccess) return true
+        val chooser = Intent.createChooser(send, "Send to the developer")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        return runCatching { context.startActivity(chooser) }.isSuccess
+    }
+
     const val DEVELOPER_EMAIL = "hakkanparbej@gmail.com"
 
     /** Hands text to the share sheet -- the only way anything leaves this phone. */

@@ -29,7 +29,11 @@ object ForegroundWatch {
      * never as "left", because a wrong "left" would switch counting off while
      * the user is still scrolling.
      */
-    fun currentForegroundPackage(context: Context, nowMs: Long): String? {
+    fun currentForegroundPackage(
+        context: Context,
+        nowMs: Long,
+        ignore: (String) -> Boolean = { false },
+    ): String? {
         val manager = context.getSystemService(UsageStatsManager::class.java) ?: return null
 
         val events = runCatching {
@@ -40,7 +44,9 @@ object ForegroundWatch {
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+            // A system screen that popped over the app (see ForegroundPolicy)
+            // is skipped, so the app underneath it is still the answer.
+            if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND && !ignore(event.packageName)) {
                 latest = event.packageName
             }
         }

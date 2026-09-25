@@ -40,7 +40,18 @@ class EkAurAccessibilityService : AccessibilityService() {
         // Read live, so a rotation or split screen is picked up. Only used to
         // recognise the first Shorts page flip before its height is known.
         screenHeightPx = { resources.displayMetrics.heightPixels },
+        // Every judged Shorts burst goes into the event log, so a dump shows
+        // why each swipe did or didn't count.
+        trace = { pkg, line ->
+            if (::eventLog.isInitialized) eventLog.note(pkg, line)
+            if (::status.isInitialized) {
+                PAGE_SIZE.find(line)?.groupValues?.get(1)?.toIntOrNull()?.let { status.onPageSize(pkg, it) }
+            }
+        },
     )
+
+    /** Judges what each usage-stats reading means before anything acts on it. */
+    private val foregroundPolicy = ForegroundPolicy()
     private lateinit var eventLog: EventLog
     private lateinit var status: ServiceStatus
     private lateinit var counters: CounterRepository
@@ -140,12 +151,20 @@ class EkAurAccessibilityService : AccessibilityService() {
         if (nowMs - lastForegroundCheckMs < FOREGROUND_CHECK_INTERVAL_MS) return
         lastForegroundCheckMs = nowMs
 
-        val foreground = ForegroundWatch.currentForegroundPackage(this, nowMs)
-        // Null means "cannot tell" -- treated as unchanged, never as "left",
-        // because a wrong "left" would switch the service off mid-scroll.
-        val inTracked = when (foreground) {
-            null -> return
-            else -> trackedRules(foreground) != null
+        val ime = currentInputMethod()
+        val foreground = ForegroundWatch.currentForegroundPackage(this, nowMs) { pkg ->
+            foregroundPolicy.isTransient(pkg, ime)
+        }
+        status.onForegroundRead(foreground)
+        // Unknown (can't tell, or a first sighting of somewhere else) changes
+        // nothing: a wrong "left" would take the pill down, or switch the
+        // service off, mid-scroll.
+        val inTracked = when (
+            foregroundPolicy.read(foreground, foreground != null && trackedRules(foreground) != null, ime)
+        ) {
+            ForegroundPolicy.Reading.InTracked -> true
+            ForegroundPolicy.Reading.Left -> false
+            ForegroundPolicy.Reading.Unknown -> return
         }
         if (inTracked) lastTrackedForegroundMs = nowMs
 
@@ -159,6 +178,7 @@ class EkAurAccessibilityService : AccessibilityService() {
             graceMs = AUTO_OFF_GRACE_MS,
         )
         if (shouldDisable) {
+            settings.lastAutoOff = "$nowMs|$foreground"
             main.post {
                 // onUnbind announces "band"; disableSelf tears the service down.
                 disableSelf()
@@ -167,6 +187,14 @@ class EkAurAccessibilityService : AccessibilityService() {
     }
 
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** The keyboard's package: it floats over apps and is never a destination. */
+    private fun currentInputMethod(): String? = runCatching {
+        android.provider.Settings.Secure.getString(
+            contentResolver,
+            android.provider.Settings.Secure.DEFAULT_INPUT_METHOD,
+        )?.substringBefore('/')
+    }.getOrNull()
 
     private fun toast(text: String) {
         main.post {
@@ -331,6 +359,9 @@ class EkAurAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TICK_INTERVAL_MS = 250L
+
+        /** Picks the learned page height out of a detector trace line. */
+        private val PAGE_SIZE = Regex("""size=(\d+)""")
 
         /** Usage stats need not be read every tick; ~1.5s is plenty. */
         private const val FOREGROUND_CHECK_INTERVAL_MS = 1_500L

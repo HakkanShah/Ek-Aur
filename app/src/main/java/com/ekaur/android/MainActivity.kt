@@ -299,6 +299,7 @@ private fun AppScaffold(container: AppContainer) {
                                 crashReporter = container.crashReporter,
                                 serviceEnabled = permissions.service,
                                 countedApps = container.settings.countedApps.collectAsState().value,
+                                container = container,
                             )
                         }
                     }

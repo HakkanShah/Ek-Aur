@@ -32,6 +32,11 @@ class ReelDetector(
     private val rulesFor: (String) -> AppRules? = DetectorRules::forPackage,
     /** The display height in pixels, for recognising a first page flip. */
     private val screenHeightPx: () -> Int = { DEFAULT_SCREEN_HEIGHT_PX },
+    /**
+     * Receives one line per judged Shorts burst -- what moved and why it did
+     * or didn't count -- so an event dump explains itself.
+     */
+    private val trace: ((packageName: String, line: String) -> Unit)? = null,
 ) {
 
     /**
@@ -68,17 +73,16 @@ class ReelDetector(
     /** Last seen adapter position, per scrolling view. Feed and player never mix. */
     private val lastIndexByView = mutableMapOf<String, Int>()
 
-    // Page-flip accumulator, for a pager that reports no positions (Shorts).
-    private var pageOpen = false
-    private var pageNet = 0
-    private var pageEcho = false
-    private var pageLastMs = 0L
-
     /**
-     * The pager's page height once a flip has shown it, per app. Kept across
-     * leaving the app: it is a property of the phone's layout, not a sitting.
+     * Page-flip counting, for an app whose pager reports no positions
+     * (Shorts). One per app, kept across leaving it: what it learns about the
+     * page is a property of the phone's layout, not of a sitting.
      */
-    private val pageHeightByPackage = mutableMapOf<String, Int>()
+    private val pageTrackers = mutableMapOf<String, PageTracker>()
+
+    /** The page height learned for [packageName], if any. For diagnostics. */
+    @Synchronized
+    fun pageHeightFor(packageName: String): Int? = pageTrackers[packageName]?.pageHeight
 
     @Synchronized
     fun onSignal(signal: ScrollSignal): DetectionResult {
@@ -171,7 +175,7 @@ class ReelDetector(
         // Leaving Reels without scrolling anything else produces no further
         // signal, so the state is closed out on time instead.
         if (state == DetectionState.InReels &&
-            nowMs - lastPlayerScrollMs >= activeRules.playerExitGraceMs * IDLE_EXIT_FACTOR
+            nowMs - lastPlayerScrollMs >= activeRules.playerIdleExitMs
         ) {
             state = DetectionState.InApp
         }
@@ -201,9 +205,7 @@ class ReelDetector(
         burstNet = 0
         burstLastMs = 0
         lastIndexByView.clear()
-        pageOpen = false
-        pageNet = 0
-        pageEcho = false
+        pageTrackers.values.forEach { it.resetTransient() }
     }
 
     // --- counting ---------------------------------------------------------
@@ -255,22 +257,19 @@ class ReelDetector(
         if (net >= burstMinScroll) emitReel(burstLastMs, events)
     }
 
-    /**
-     * Adds one scroll to the current page burst. The pager's own movement is
-     * summed; any other view scrolling in the same burst is the Shorts
-     * screen's containers moving with it, which only marks where we are.
-     */
-    private fun accumulatePage(signal: ScrollSignal, appRules: AppRules) {
-        val dy = signal.scrollDeltaY
-        if (dy == 0) return
-        if (!pageOpen) {
-            pageOpen = true
-            pageNet = 0
-            pageEcho = false
+    private fun trackerFor(pkg: String, appRules: AppRules): PageTracker =
+        pageTrackers.getOrPut(pkg) {
+            PageTracker(
+                screenHeight = screenHeightPx,
+                preferredClassHints = appRules.pageFlipClassHints,
+                settleWindowMs = appRules.settleWindowMs,
+            )
         }
-        pageLastMs = signal.timestampMs
-        burstSettleWindow = appRules.settleWindowMs
-        if (appRules.isPageFlipPager(signal)) pageNet += dy else pageEcho = true
+
+    /** Adds one scroll to the app's page burst; the tracker keeps it per view. */
+    private fun accumulatePage(signal: ScrollSignal, appRules: AppRules) {
+        trackerFor(signal.packageName, appRules)
+            .onScroll(signal.className ?: "unknown", signal.scrollDeltaY, signal.timestampMs)
     }
 
     private fun flushPage(
@@ -278,36 +277,27 @@ class ReelDetector(
         events: MutableList<DetectionEvent>,
         force: Boolean = false,
     ) {
-        if (!pageOpen) return
-        if (!force && nowMs - pageLastMs < burstSettleWindow) return
-        pageOpen = false
         val pkg = activePackage ?: return
         val appRules = rules ?: return
+        val result = pageTrackers[pkg]?.settleIfDue(nowMs, force) ?: return
+        trace?.invoke(pkg, result.trace)
 
-        val verdict = PageFlip.judge(
-            net = pageNet,
-            echo = pageEcho,
-            pageHeight = pageHeightByPackage[pkg],
-            screenHeight = screenHeightPx(),
-        )
-        verdict.learnedPageHeight?.let { pageHeightByPackage[pkg] = it }
-
-        if (verdict.flips > 0 || pageEcho) {
+        if (result.flips > 0 || result.echo) {
             // On the Shorts screen: a flip, or a touch that moved its
             // containers (a drag that snapped back, a panel opening).
             state = DetectionState.InReels
-            lastPlayerScrollMs = pageLastMs
-            lastReelsActivityMs = pageLastMs
-            repeat(verdict.flips) { emitReel(pageLastMs, events) }
+            lastPlayerScrollMs = result.atMs
+            lastReelsActivityMs = result.atMs
+            repeat(result.flips) { emitReel(result.atMs, events) }
         } else if (state == DetectionState.InReels &&
-            pageLastMs - lastPlayerScrollMs >= appRules.playerExitGraceMs
+            result.moved >= PageTracker.HOLD_MIN_DELTA &&
+            result.atMs - lastPlayerScrollMs >= appRules.playerExitGraceMs
         ) {
             // A plain list scrolled, well after the last flip: the home feed,
-            // a watch page. Shorts is no longer on screen.
+            // a watch page. Shorts is no longer on screen. (A ticker's few
+            // pixels don't count as scrolling anywhere.)
             state = DetectionState.InApp
         }
-        pageNet = 0
-        pageEcho = false
     }
 
     private fun emitReel(timestampMs: Long, events: MutableList<DetectionEvent>) {
@@ -332,9 +322,7 @@ class ReelDetector(
         lastIndexByView.clear()
         burstOpen = false
         burstNet = 0
-        pageOpen = false
-        pageNet = 0
-        pageEcho = false
+        pageTrackers.values.forEach { it.resetTransient() }
     }
 
     private fun startSessionIfNeeded(nowMs: Long, events: MutableList<DetectionEvent>) {
@@ -369,17 +357,5 @@ class ReelDetector(
         /** A common phone height, for tests and until the service says otherwise. */
         const val DEFAULT_SCREEN_HEIGHT_PX = 2400
 
-        /**
-         * Sitting and watching one reel through is the normal case, not an
-         * exception: reels routinely run 15-60s with no scroll at all. At the
-         * old factor of 8 this timed out after 12s, so simply watching a video
-         * looked like leaving the player and took the overlay down with it.
-         *
-         * Leaving the app entirely already produces a package change, so this
-         * only has to cover navigating away inside Instagram without scrolling
-         * anything else. Holding the player too long is harmless -- list
-         * scrolls never count.
-         */
-        const val IDLE_EXIT_FACTOR = 30
     }
 }

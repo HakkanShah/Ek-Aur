@@ -27,7 +27,9 @@ data class CapturedEvent(
     /** Detector state immediately after this event. */
     val state: String = "",
 ) {
-    fun toLine(): String = buildString {
+    fun toLine(): String = if (eventType == VERDICT) {
+        "${timestampMs % 1_000_000}  ${contentDescription.orEmpty()}\n"
+    } else buildString {
         append(timestampMs % 1_000_000)          // relative-ish, keeps lines short
         append("  ").append(eventType.padEnd(22))
         append(" state=").append(state.padEnd(8))
@@ -48,5 +50,10 @@ data class CapturedEvent(
             append(" toIndex=").append(toIndex)
             append(" itemCount=").append(itemCount).append('\n')
         }
+    }
+
+    companion object {
+        /** A detector verdict rather than an accessibility event. */
+        const val VERDICT = "Verdict"
     }
 }

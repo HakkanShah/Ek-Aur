@@ -77,13 +77,14 @@ class OverlayController(
      * second just to re-decide the same thing.
      */
     fun onDetectionState(state: DetectionState) {
+        // Refreshed on every report, not only on entering: the grace below is
+        // "20s after the player was last seen", and a long sitting that only
+        // stamped this once lost the pill the instant it left the player.
+        if (state == DetectionState.InReels) lastInReelsAtMs = System.currentTimeMillis()
         if (state == lastState) return
         lastState = state
         when (state) {
-            DetectionState.InReels -> {
-                lastInReelsAtMs = System.currentTimeMillis()
-                show()
-            }
+            DetectionState.InReels -> show()
 
             // Still inside Instagram. Comments, the feed and tab swipes all land
             // here, and none of them mean the user is done watching reels, so

@@ -18,7 +18,7 @@ class IconsTest {
             Back, Close, Check, ChevronDown, Warning, Alert, Lock, Refresh, WifiOff, EyeOff,
             Crown, Pencil, Image, Folder, Copy, Share, Sparkle, Target, Moon, ArrowUp, ArrowDown, TrendDown, Timer,
             Person, Layers, Battery, Activity, FloatingButton, Tiles, Pause, Download, Gift,
-            Box, CheckCircle, MoreVert, Reels, Shorts,
+            Box, CheckCircle, Bug, Lightbulb, Mail, MoreVert, Reels, Shorts,
         )
     }
 

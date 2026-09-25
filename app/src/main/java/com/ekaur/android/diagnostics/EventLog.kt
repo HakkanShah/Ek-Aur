@@ -65,6 +65,29 @@ class EventLog(private val capacity: Int = 2_000) {
         _revision.update { it + 1 }
     }
 
+    /**
+     * A line from the detector about why a burst did or didn't count. Kept in
+     * the same ring as the events, so a dump reads as one story.
+     */
+    fun note(packageName: String, line: String, atMs: Long = System.currentTimeMillis()) {
+        record(
+            CapturedEvent(
+                timestampMs = atMs,
+                packageName = packageName,
+                eventType = CapturedEvent.VERDICT,
+                className = null,
+                viewId = null,
+                contentDescription = line,
+                scrollDeltaY = 0,
+                scrollY = 0,
+                fromIndex = -1,
+                toIndex = -1,
+                itemCount = -1,
+                counted = line.contains("→ +"),
+            ),
+        )
+    }
+
     fun incrementCount(by: Int = 1) {
         _liveCount.update { it + by }
     }

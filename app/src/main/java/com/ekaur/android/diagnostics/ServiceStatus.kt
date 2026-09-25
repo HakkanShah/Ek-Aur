@@ -28,6 +28,24 @@ class ServiceStatus {
     private val _eventsSeen = MutableStateFlow(0L)
     val eventsSeen: StateFlow<Long> = _eventsSeen.asStateFlow()
 
+    private val _lastForeground = MutableStateFlow<String?>(null)
+
+    /** The foreground app as usage stats last reported it (after filtering). */
+    val lastForeground: StateFlow<String?> = _lastForeground.asStateFlow()
+
+    private val _pageSizes = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    /** The Shorts page height the detector has learned, per app. */
+    val pageSizes: StateFlow<Map<String, Int>> = _pageSizes.asStateFlow()
+
+    fun onPageSize(packageName: String, px: Int) {
+        if (_pageSizes.value[packageName] != px) _pageSizes.value = _pageSizes.value + (packageName to px)
+    }
+
+    fun onForegroundRead(packageName: String?) {
+        if (packageName != null) _lastForeground.value = packageName
+    }
+
     fun onConnected() {
         _connected.value = true
     }

@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.di.AppContainer
+import com.ekaur.android.diagnostics.BugReport
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.setup.SetupFlow
@@ -75,6 +76,7 @@ import com.ekaur.android.ui.common.StatusChip
 import com.ekaur.android.ui.common.ToggleRow
 import com.ekaur.android.ui.common.rememberHaptics
 import com.ekaur.android.ui.common.reveal
+import com.ekaur.android.ui.feedback.rememberReporter
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.AppLook
 import com.ekaur.android.ui.theme.Chalk
@@ -129,8 +131,19 @@ fun SetupScreen(
             modifier = Modifier.reveal(1),
         )
         Spacer(Modifier.height(12.dp))
+        // Switched on in Settings isn't the same as running: after a crash, or
+        // some phones' handling of a self-switch-off, the flag stays on with
+        // nothing behind it. Only said after a moment, since the service can
+        // take a second to connect when the app starts.
+        val connected by container.serviceStatus.connected.collectAsState()
+        var settled by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            delay(3_000)
+            settled = true
+        }
         PermissionsCard(
             permissions = permissions,
+            notRunning = permissions.service && !connected && settled,
             onFixRestricted = { onGuidedSetup(true) },
             modifier = Modifier.reveal(2),
         )
@@ -140,6 +153,8 @@ fun SetupScreen(
         PaymentsCard(container, permissions, Modifier.reveal(3))
         Spacer(Modifier.height(12.dp))
         UpdatesCard(container, Modifier.reveal(4))
+        Spacer(Modifier.height(12.dp))
+        FeedbackCard(container, Modifier.reveal(5))
         Spacer(Modifier.height(12.dp))
         HelpCard(onOpenEvents, onOpenStatus, Modifier.reveal(5))
 
@@ -287,6 +302,7 @@ private fun ProgressRing(
 @Composable
 private fun PermissionsCard(
     permissions: PermissionState,
+    notRunning: Boolean,
     onFixRestricted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -307,13 +323,17 @@ private fun PermissionsCard(
         PermRow(
             icon = EkIcons.Person,
             title = "Accessibility",
-            why = "Counts your Reels and Shorts. Sees the swipe, nothing else.",
-            done = permissions.service,
+            why = if (notRunning) {
+                "Switched on, but not running. Turn it off and on again."
+            } else {
+                "Counts your Reels and Shorts. Sees the swipe, nothing else."
+            },
+            done = permissions.service && !notRunning,
             required = true,
-            actionLabel = "Turn on",
+            actionLabel = if (notRunning) "Restart it" else "Turn on",
             onAction = { ServiceControl.openAccessibilityServiceDetails(context) },
         ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notRunning) {
                 Spacer(Modifier.height(10.dp))
                 InfoBanner(
                     text = "Blocked by \"Restricted setting\"? That's normal.",
@@ -608,6 +628,7 @@ private fun OptionRow(
     body: String,
     action: String?,
     onAction: () -> Unit,
+    loading: Boolean = false,
 ) {
     Row(
         Modifier
@@ -623,7 +644,7 @@ private fun OptionRow(
         }
         if (action != null) {
             Spacer(Modifier.width(10.dp))
-            FlatButton(action, onClick = onAction)
+            FlatButton(action, onClick = onAction, loading = loading)
         }
     }
 }
@@ -727,7 +748,54 @@ private fun UpdatesCard(container: AppContainer, modifier: Modifier = Modifier) 
 }
 
 // ---------------------------------------------------------------------------
-// 5 -- Help
+// 5 -- Feedback
+// ---------------------------------------------------------------------------
+
+/**
+ * The website's contact section, inside the app: each row opens the mail app
+ * addressed to the developer. A bug report attaches the event log and a
+ * status snapshot on its own, so "it stopped counting" arrives with the
+ * evidence to fix it.
+ */
+@Composable
+private fun FeedbackCard(container: AppContainer, modifier: Modifier = Modifier) {
+    val reporter = rememberReporter(container)
+    Card(modifier) {
+        SectionLabel("Feedback")
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Something broken, something missing, or just something to say? It all lands in my inbox.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Smoke,
+        )
+        Spacer(Modifier.height(6.dp))
+        OptionRow(
+            icon = EkIcons.Bug,
+            title = "Report a bug",
+            body = "Attaches the event log and a status snapshot, so I can see what went wrong.",
+            action = "Report",
+            loading = reporter.busy == BugReport.Kind.Bug,
+            onAction = { reporter.send(BugReport.Kind.Bug) },
+        )
+        OptionRow(
+            icon = EkIcons.Lightbulb,
+            title = "Suggest a feature",
+            body = "What should Ek Aur do next?",
+            action = "Suggest",
+            onAction = { reporter.send(BugReport.Kind.Feature) },
+        )
+        OptionRow(
+            icon = EkIcons.Mail,
+            title = "Send feedback",
+            body = "Love it, hate it, got roasted too hard. Say it.",
+            action = "Write",
+            onAction = { reporter.send(BugReport.Kind.Feedback) },
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 6 -- Help
 // ---------------------------------------------------------------------------
 
 @Composable

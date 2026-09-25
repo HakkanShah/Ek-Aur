@@ -90,6 +90,16 @@ class SettingsStore(context: Context) : SessionStore {
      * lives in another process, reads it on its own timer rather than observing
      * a flow.
      */
+    /**
+     * When the service last switched itself off on leaving, and which app was
+     * in front then ("<epoch ms>|<package>"), for bug reports. Null if never.
+     */
+    var lastAutoOff: String?
+        get() = prefs.getString(KEY_LAST_AUTO_OFF, null)
+        set(value) {
+            prefs.edit().putString(KEY_LAST_AUTO_OFF, value).apply()
+        }
+
     var autoOffOnLeave: Boolean
         get() = prefs.getBoolean(KEY_AUTO_OFF, true)
         set(value) {
@@ -226,6 +236,7 @@ class SettingsStore(context: Context) : SessionStore {
         const val KEY_COUNT_PREFIX = "count_app_"
         const val KEY_APPS_CHOSEN = "apps_chosen"
         const val KEY_SHORTS_ASKED = "shorts_prompt_v2_seen"
+        const val KEY_LAST_AUTO_OFF = "last_auto_off"
         const val KEY_LOOK = "look_override"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"

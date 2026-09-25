@@ -76,18 +76,26 @@ data class AppRules(
     val verticalOnly: Boolean = true,
 
     /**
-     * Class-name fragments of a pager that reports no positions and has to be
-     * counted by distance instead (see [PageFlip]). Empty for an app whose
-     * pager reports positions, which is always preferred when present.
+     * How long the player may go without a scroll before the detector stops
+     * believing it is on screen.
+     *
+     * Sitting and watching one video through is the normal case, not an
+     * exception. Too short and simply watching looks like leaving, which takes
+     * the pill down (an early build timed out after 12s). Leaving the app
+     * entirely already shows as a package change, so this only covers moving
+     * elsewhere inside the app without scrolling anything. Holding on too long
+     * is harmless: list scrolls never count.
+     */
+    val playerIdleExitMs: Long = 45_000,
+
+    /**
+     * Set for an app whose pager reports no positions, so it is counted by
+     * distance instead ([PageTracker]). The fragments name the class the pager
+     * usually reports, and only break ties: every view is judged. Empty for an
+     * app whose pager reports positions, which is always preferred.
      */
     val pageFlipClassHints: List<String> = emptyList(),
 ) {
-    /** Whether this scroll came from a pager counted by distance. */
-    fun isPageFlipPager(signal: ScrollSignal): Boolean {
-        val cls = signal.className?.lowercase() ?: return false
-        return pageFlipClassHints.any { cls.contains(it) }
-    }
-
     fun matchesPackage(pkg: String): Boolean = pkg == packageName
 
     /**
@@ -171,7 +179,12 @@ object DetectorRules {
             "viewpager",
         ),
         nonPlayerViewIdHints = emptyList(),
+        // Only a preference now: every view's movement is judged, so a build
+        // whose pager reports another class still counts.
         pageFlipClassHints = listOf("recyclerview"),
+        // Shorts run up to three minutes, and YouTube is silent while one
+        // plays; 45s took the pill down mid-video.
+        playerIdleExitMs = 240_000,
     )
 
     val all: List<AppRules> = listOf(Instagram, YouTube)
