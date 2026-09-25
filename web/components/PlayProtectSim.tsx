@@ -112,7 +112,7 @@ export const SCENES: Scene[] = [
 ];
 
 // Google's own palette for these screens.
-const G = {
+export const G = {
   blue: "#0B57D0",
   tonal: "#D3E3FD",
   green: "#188038",
@@ -123,7 +123,7 @@ const G = {
   line: "#E1E3E1",
 };
 
-const ease = [0.22, 1, 0.36, 1] as const;
+export const ease = [0.22, 1, 0.36, 1] as const;
 
 export function PlayProtectSim({ scene, t }: { scene: number; t: number }) {
   const s = SCENES[scene];
@@ -156,7 +156,7 @@ export function PlayProtectSim({ scene, t }: { scene: number; t: number }) {
 // The finger
 // ---------------------------------------------------------------------------
 
-function Finger({ path, t }: { path: Tap[]; t: number }) {
+export function Finger({ path, t }: { path: Tap[]; t: number }) {
   let current = path[0];
   for (const k of path) if (k.at <= t) current = k;
   const tapping = current.tap && t - current.at < 380;
@@ -196,7 +196,7 @@ function Finger({ path, t }: { path: Tap[]; t: number }) {
 // Shared bits
 // ---------------------------------------------------------------------------
 
-function Bar({ dark = false }: { dark?: boolean }) {
+export function Bar({ dark = false }: { dark?: boolean }) {
   return (
     <div
       className="absolute inset-x-0 top-0 flex items-center justify-between px-[7%] pt-[12px] text-[9.5px] font-medium"
@@ -211,7 +211,7 @@ function Bar({ dark = false }: { dark?: boolean }) {
   );
 }
 
-function Icon({ d, size = 14, color = G.sub, fill = false, sw = 2 }: { d: string | string[]; size?: number; color?: string; fill?: boolean; sw?: number }) {
+export function Icon({ d, size = 14, color = G.sub, fill = false, sw = 2 }: { d: string | string[]; size?: number; color?: string; fill?: boolean; sw?: number }) {
   const paths = Array.isArray(d) ? d : [d];
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
@@ -230,7 +230,7 @@ function Icon({ d, size = 14, color = G.sub, fill = false, sw = 2 }: { d: string
   );
 }
 
-const I = {
+export const I = {
   back: "M19 12H5M11 18l-6-6 6-6",
   close: ["M18 6L6 18", "M6 6l12 12"],
   gear: [
@@ -262,7 +262,7 @@ function Avatar({ size }: { size: number }) {
   );
 }
 
-function Scrim({ on }: { on: boolean }) {
+export function Scrim({ on }: { on: boolean }) {
   return (
     <motion.div
       className="absolute inset-0 z-20 bg-black"
@@ -323,7 +323,7 @@ function ProtectDialog({
   );
 }
 
-function Switch({ on }: { on: boolean }) {
+export function Switch({ on }: { on: boolean }) {
   return (
     <span
       className="relative inline-flex h-[18px] w-[32px] shrink-0 items-center rounded-full transition-colors duration-300"

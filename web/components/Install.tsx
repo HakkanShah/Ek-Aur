@@ -1,4 +1,5 @@
 import { PlayProtectGuide } from "./PlayProtectGuide";
+import { RestrictedGuide } from "./RestrictedGuide";
 import { Reveal } from "./Reveal";
 
 function Step({
@@ -40,10 +41,14 @@ export function Install() {
         <PlayProtectGuide />
       </Reveal>
 
+      <Reveal delay={0.05} className="mt-8">
+        <RestrictedGuide />
+      </Reveal>
+
       <div className="mt-14 grid gap-12 md:grid-cols-2 md:gap-16">
         <Reveal>
           <div className="md:sticky md:top-24">
-            <h3 className="text-2xl font-extrabold tracking-tight text-ink">Then two more things</h3>
+            <h3 className="text-2xl font-extrabold tracking-tight text-ink">Then a few small things</h3>
             <p className="mt-3 max-w-md text-[15px] leading-relaxed text-smoke">
               Once it's installed, the app's guided setup walks you through the rest. Here's what to
               expect, in case you get stuck.
@@ -72,39 +77,6 @@ export function Install() {
 
         <Reveal delay={0.1}>
           <div className="space-y-6">
-            {/* Restricted setting — the second wall, on the first switch */}
-            <div className="rounded-card border-2 border-acid/25 bg-white p-6 shadow-card">
-              <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-blush px-2.5 py-1 text-[11px] font-bold text-acid">
-                Most common after installing
-              </div>
-              <h3 className="mt-2 text-lg font-bold text-ink">
-                “Restricted setting” on the accessibility switch
-              </h3>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-smoke">
-                Android 13+ blocks the accessibility switch for apps not from the Play Store. The app
-                walks you through this on its first screen; here it is in full, in case you're stuck:
-              </p>
-              <ol className="mt-4 space-y-2 text-[14px] text-ink">
-                {[
-                  "Settings → Accessibility → Ek Aur → tap the switch. It won't turn on yet — press OK on the popup.",
-                  "Open the app's App info page (Settings → Apps → Ek Aur) → ⋮ in the top-right → “Allow restricted settings”.",
-                  "Back to Accessibility → Ek Aur → switch on. This time it sticks.",
-                ].map((s, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full ig-gradient" />
-                    {s}
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-4 rounded-2xl bg-lav/60 p-4 text-[13.5px] leading-relaxed text-ink">
-                <span className="font-bold">Can't find the ⋮ menu item?</span> It only appears{" "}
-                <span className="font-bold">after</span> you've tapped the switch once (step 1). Close
-                Settings from Recents, tap the switch, press OK, then open App info fresh. On Xiaomi
-                it's under Settings → Apps → Manage apps; on realme, OPPO, OnePlus and vivo it's
-                under Settings → Apps → App management; on Samsung and Pixel, Settings → Apps.
-              </div>
-            </div>
-
             {/* the rest */}
             <div className="rounded-card border border-hairline bg-white p-6 shadow-card">
               <div className="space-y-6">
