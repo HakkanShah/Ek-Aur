@@ -1,6 +1,7 @@
 import { Nav } from "@/components/Nav";
 import { Hero } from "@/components/Hero";
 import { Pitch } from "@/components/Pitch";
+import { Shorts } from "@/components/Shorts";
 import { Features } from "@/components/Features";
 import { MotionSection } from "@/components/MotionSection";
 import { Install } from "@/components/Install";
@@ -16,6 +17,7 @@ export default function Home() {
       <main>
         <Hero />
         <Pitch />
+        <Shorts />
         <Features />
         <MotionSection />
         <Install />

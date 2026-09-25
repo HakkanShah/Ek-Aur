@@ -12,7 +12,7 @@ export const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Does it count YouTube Shorts?",
-    a: "Yes. Ek Aur counts Instagram Reels and YouTube Shorts into the same number, and you choose which ones in Setup. It even changes its look to match: Instagram colours, Shorts red, or a mix of both. It only sees the swipe in those two apps — never the screen, never any other app.",
+    a: "Yes. Ek Aur counts Instagram Reels and YouTube Shorts into the same number, and you choose which ones in Setup. It even changes its look to match: Instagram colours, Shorts red, or a mix of both. It only sees the swipe in those two apps — never the screen, never any other app. Already installed? Update, then tap Count Shorts on Home or switch it on in Setup → Apps.",
   },
   {
     q: "Is Ek Aur free?",

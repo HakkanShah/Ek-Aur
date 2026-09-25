@@ -1,3 +1,4 @@
+import { AppBadge } from "./AppBadge";
 import { CountSim } from "./CountSim";
 import { DownloadButton } from "./DownloadButton";
 import { Reveal } from "./Reveal";
@@ -16,11 +17,15 @@ export function Hero() {
         {/* copy */}
         <div>
           <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-hairline bg-white/70 px-3 py-1 text-xs font-semibold text-smoke shadow-sm backdrop-blur">
-              <span className="grad-text font-bold">BETA</span>
-              <span className="h-1 w-1 rounded-full bg-ash" />
-              Reels + Shorts, counted
-            </span>
+            <a
+              href="#shorts"
+              className="group inline-flex items-center gap-2 rounded-full border border-hairline bg-white/70 py-1 pl-1 pr-3 text-xs font-semibold text-smoke shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <span className="rounded-full bg-[#FDECEC] px-2 py-0.5 font-bold text-[#C4001A]">NEW</span>
+              <AppBadge app="shorts" size={16} />
+              Now counting YouTube Shorts
+              <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+            </a>
           </Reveal>
 
           <Reveal delay={0.05}>
@@ -40,7 +45,7 @@ export function Hero() {
           <Reveal delay={0.18}>
             <p className="mt-4 max-w-md text-[15px] leading-relaxed text-smoke">
               No lectures, no streaks to protect, no wellness sermon. A floating counter over
-              Instagram, an honest dashboard, a global leaderboard, and a dry roast every
+              Instagram and YouTube, an honest dashboard, a global leaderboard, and a dry roast every
               milestone. The graph does the judging.
             </p>
           </Reveal>
