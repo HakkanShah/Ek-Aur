@@ -113,7 +113,7 @@
         <!-- Shares diagnostic dumps out through the share sheet; with no USB on
              the test device this is the only way to get text off the phone. -->
         <provider
-            android:name="androidx.core.content.FileProvider"
+            android:name=".diagnostics.ExportsProvider"
             android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">

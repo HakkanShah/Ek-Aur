@@ -25,6 +25,22 @@ import org.robolectric.annotation.Config
 class MailRoutingTest {
 
     private val app = RuntimeEnvironment.getApplication()
+
+    /**
+     * FileProvider caches each authority's folders in a static map, and every
+     * Robolectric test gets a fresh data folder: registering the provider again
+     * resets that cache, so a test never sees the previous test's paths.
+     */
+    @org.junit.Before
+    fun freshProvider() {
+        val info = RuntimeEnvironment.getApplication().packageManager.resolveContentProvider(
+            "com.ekaur.android.fileprovider",
+            android.content.pm.PackageManager.GET_META_DATA,
+        )!!
+        org.robolectric.android.controller.ContentProviderController
+            .of(com.ekaur.android.diagnostics.ExportsProvider())
+            .create(info)
+    }
     private val gmail = ComponentName("com.google.android.gm", "com.google.android.gm.ComposeActivityGmailExternal")
     private val otherMail = ComponentName("com.example.mail", "com.example.mail.Compose")
 
@@ -51,7 +67,9 @@ class MailRoutingTest {
         assertEquals(Intent.ACTION_SEND, sent.action)
         assertEquals(ServiceControl.DEVELOPER_EMAIL, sent.getStringArrayExtra(Intent.EXTRA_EMAIL)!!.single())
         assertEquals("Ek Aur bug", sent.getStringExtra(Intent.EXTRA_SUBJECT))
-        assertTrue(sent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java) != null)
+        @Suppress("DEPRECATION") val stream = sent.extras!!.get(Intent.EXTRA_STREAM)
+        assertTrue("attachment: $stream", stream is Uri)
+        assertEquals(1, sent.clipData!!.itemCount)
         assertTrue(sent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
     }
 

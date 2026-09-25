@@ -28,12 +28,15 @@ import java.util.Locale
 object TextExport {
 
     fun share(context: Context, fileName: String, content: String, chooserTitle: String) {
-        val file = write(context, fileName, content)
-        val intent = intentFor(context, file, summaryOf(fileName, content))
-        val chooser = Intent.createChooser(intent, chooserTitle)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
         // Never let a share take the app down: say so instead.
-        if (runCatching { context.startActivity(chooser) }.isFailure) {
+        val opened = runCatching {
+            val file = write(context, fileName, content)
+            val intent = intentFor(context, file, summaryOf(fileName, content))
+            val chooser = Intent.createChooser(intent, chooserTitle)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            context.startActivity(chooser)
+        }
+        if (opened.isFailure) {
             android.widget.Toast.makeText(context, "Couldn't open the share sheet.", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
@@ -62,10 +65,21 @@ object TextExport {
             putExtra(Intent.EXTRA_TEXT, summary)
             // Through the chooser, the read grant only reaches the chosen app
             // when the file is in the ClipData as well.
-            clipData = ClipData.newUri(context.contentResolver, file.name, uri)
+            clipData = clipOf(file.name, listOf(uri))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }
+
+    /**
+     * The ClipData that carries the read grant through a chooser. Built by
+     * hand rather than with `ClipData.newUri`, which asks the provider for the
+     * file's type on the calling thread: one more place a provider fault
+     * could take the app down, for a type we already know.
+     */
+    fun clipOf(label: String, uris: List<Uri>): ClipData =
+        ClipData(label, arrayOf("text/plain"), ClipData.Item(uris.first())).apply {
+            uris.drop(1).forEach { addItem(ClipData.Item(it)) }
+        }
 
     fun copy(context: Context, label: String, content: String) {
         val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return

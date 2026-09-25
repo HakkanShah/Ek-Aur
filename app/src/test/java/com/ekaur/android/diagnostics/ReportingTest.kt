@@ -24,6 +24,22 @@ class ReportingTest {
 
     private val app = RuntimeEnvironment.getApplication() as EkAurApp
 
+    /**
+     * FileProvider caches each authority's folders in a static map, and every
+     * Robolectric test gets a fresh data folder: registering the provider again
+     * resets that cache, so a test never sees the previous test's paths.
+     */
+    @org.junit.Before
+    fun freshProvider() {
+        val info = RuntimeEnvironment.getApplication().packageManager.resolveContentProvider(
+            "com.ekaur.android.fileprovider",
+            android.content.pm.PackageManager.GET_META_DATA,
+        )!!
+        org.robolectric.android.controller.ContentProviderController
+            .of(com.ekaur.android.diagnostics.ExportsProvider())
+            .create(info)
+    }
+
     @Test
     fun `a shared dump travels as a file with one short line, never the whole text`() {
         val dump = "x".repeat(200_000)

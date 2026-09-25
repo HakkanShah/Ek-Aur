@@ -347,7 +347,10 @@ object ServiceControl {
         body: String,
         files: List<java.io.File>,
     ): MailOutcome {
-        val uris = ArrayList(files.map { com.ekaur.android.diagnostics.TextExport.uriFor(context, it) })
+        // A file that can't be shared is dropped rather than failing the whole mail.
+        val uris = ArrayList(
+            files.mapNotNull { runCatching { com.ekaur.android.diagnostics.TextExport.uriFor(context, it) }.getOrNull() }
+        )
         val send = Intent(if (uris.size > 1) Intent.ACTION_SEND_MULTIPLE else Intent.ACTION_SEND).apply {
             type = if (uris.isEmpty()) "message/rfc822" else "text/plain"
             putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_EMAIL))
@@ -359,9 +362,7 @@ object ServiceControl {
                 else -> putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
             }
             if (uris.isNotEmpty()) {
-                clipData = android.content.ClipData.newUri(context.contentResolver, "report", uris.first()).apply {
-                    uris.drop(1).forEach { addItem(android.content.ClipData.Item(it)) }
-                }
+                clipData = com.ekaur.android.diagnostics.TextExport.clipOf("report", uris)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
