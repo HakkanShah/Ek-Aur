@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -113,7 +114,7 @@ fun ScreenHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
-            RoundIconButton(glyph = "←", description = "Back", onClick = onBack)
+            RoundIconButton(icon = EkIcons.Back, description = "Back", onClick = onBack)
             Spacer(Modifier.width(12.dp))
         }
         Column(Modifier.weight(1f)) {
@@ -142,10 +143,10 @@ fun ScreenHeader(
     }
 }
 
-/** A 40dp round soft button holding a single glyph: back, close. */
+/** A 40dp round soft button holding a single icon: back, close. */
 @Composable
 fun RoundIconButton(
-    glyph: String,
+    icon: ImageVector,
     description: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -166,7 +167,7 @@ fun RoundIconButton(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(glyph, style = MaterialTheme.typography.titleLarge, color = Chalk)
+        EkIcon(icon, tint = Chalk, size = 20.dp)
     }
 }
 
@@ -180,7 +181,7 @@ fun RoundIconButton(
  *
  * [loading] swaps the label for a spinner without changing the width, and
  * disables the button; [enabled] false fades it. [icon] is an optional
- * leading glyph. Every tap answers with a quick squish.
+ * leading icon. Every tap answers with a quick squish.
  */
 @Composable
 fun FlatButton(
@@ -191,7 +192,7 @@ fun FlatButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     quiet: Boolean = false,
-    icon: String? = null,
+    icon: ImageVector? = null,
 ) {
     val shape = RoundedCornerShape(percent = 50)
     val interaction = remember { MutableInteractionSource() }
@@ -235,7 +236,7 @@ fun FlatButton(
             horizontalArrangement = Arrangement.Center,
         ) {
             if (icon != null) {
-                Text(icon, style = ButtonTextStyle, color = contentColor)
+                EkIcon(icon, tint = contentColor, size = 18.dp)
                 Spacer(Modifier.width(8.dp))
             }
             Text(
@@ -440,14 +441,7 @@ fun Expandable(
                     .background(SurfaceLav),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    "⌄",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Smoke,
-                    modifier = Modifier
-                        .rotate(turn)
-                        .offset(y = (-3).dp),
-                )
+                EkIcon(EkIcons.ChevronDown, tint = Smoke, size = 16.dp, modifier = Modifier.rotate(turn))
             }
         }
         AnimatedVisibility(
@@ -573,12 +567,13 @@ fun ToggleRow(
     }
 }
 
-/** A tinted rounded square holding an emoji or glyph -- a row's icon. */
+/** A tinted rounded square holding an icon -- a row's marker. */
 @Composable
 fun IconTile(
-    glyph: String,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
     tint: Color = SurfaceLav,
+    iconTint: Color = Acid,
     size: Dp = 40.dp,
 ) {
     Box(
@@ -588,7 +583,7 @@ fun IconTile(
             .background(tint),
         contentAlignment = Alignment.Center,
     ) {
-        Text(glyph, fontSize = (size.value * 0.46f).sp)
+        EkIcon(icon, tint = iconTint, size = size * 0.5f)
     }
 }
 
@@ -626,7 +621,7 @@ fun InfoBanner(
     text: String,
     modifier: Modifier = Modifier,
     tone: BannerTone = BannerTone.Info,
-    glyph: String? = null,
+    icon: ImageVector? = null,
     action: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
@@ -643,8 +638,8 @@ fun InfoBanner(
             .padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (glyph != null) {
-            Text(glyph, fontSize = 16.sp)
+        if (icon != null) {
+            EkIcon(icon, tint = if (tone == BannerTone.Info) Acid else fg, size = 18.dp)
             Spacer(Modifier.width(10.dp))
         }
         Text(
@@ -673,12 +668,12 @@ fun InfoBanner(
 }
 
 /**
- * What a screen shows when there is nothing yet: a big emoji, a line of the
+ * What a screen shows when there is nothing yet: a big icon, a line of the
  * app's humour, and optionally one thing to do about it.
  */
 @Composable
 fun EmptyState(
-    emoji: String,
+    icon: ImageVector,
     title: String,
     modifier: Modifier = Modifier,
     body: String? = null,
@@ -698,7 +693,7 @@ fun EmptyState(
                 .background(instaGradientSoft()),
             contentAlignment = Alignment.Center,
         ) {
-            Text(emoji, fontSize = 28.sp)
+            EkIcon(icon, tint = Acid, size = 28.dp)
         }
         Spacer(Modifier.height(12.dp))
         Text(

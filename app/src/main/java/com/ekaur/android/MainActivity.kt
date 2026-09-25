@@ -192,6 +192,7 @@ private fun AppScaffold(container: AppContainer) {
             onChooseApps = { chosen ->
                 container.settings.setCountedApps(chosen)
                 container.settings.appsChosen = true
+                container.settings.shortsAsked = true
             },
             modifier = Modifier.systemBarsPadding(),
         )
@@ -297,6 +298,7 @@ private fun AppScaffold(container: AppContainer) {
                                 eventLog = container.eventLog,
                                 crashReporter = container.crashReporter,
                                 serviceEnabled = permissions.service,
+                                countedApps = container.settings.countedApps.collectAsState().value,
                             )
                         }
                     }

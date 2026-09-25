@@ -2,15 +2,18 @@ package com.ekaur.android.ui.home
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,28 +58,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.shrinkVertically
 import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.di.AppContainer
-import com.ekaur.android.service.ServiceControl
-import com.ekaur.android.ui.common.AppWords
-import com.ekaur.android.ui.theme.ReelsMark
-import com.ekaur.android.ui.theme.ShortsMark
 import com.ekaur.android.milestone.NextMilestone
+import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.share.CardStats
 import com.ekaur.android.share.ShareCardBuilder
 import com.ekaur.android.sync.Avatar
 import com.ekaur.android.ui.common.AnimatedCount
+import com.ekaur.android.ui.common.AppBadge
+import com.ekaur.android.ui.common.AppBadges
+import com.ekaur.android.ui.common.AppWords
 import com.ekaur.android.ui.common.Card
+import com.ekaur.android.ui.common.ChipTone
+import com.ekaur.android.ui.common.EkIcon
+import com.ekaur.android.ui.common.EkIcons
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.GradientProgress
 import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.PulseDot
 import com.ekaur.android.ui.common.Skeleton
 import com.ekaur.android.ui.common.StatTile
+import com.ekaur.android.ui.common.StatusChip
 import com.ekaur.android.ui.common.UserAvatar
+import com.ekaur.android.ui.common.mark
 import com.ekaur.android.ui.common.pressScale
 import com.ekaur.android.ui.common.rememberToday
 import com.ekaur.android.ui.common.reveal
@@ -92,6 +97,7 @@ import com.ekaur.android.ui.theme.Smoke
 import com.ekaur.android.ui.theme.SurfaceBlush
 import com.ekaur.android.ui.theme.SurfaceLav
 import com.ekaur.android.ui.theme.instaGradient
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -136,7 +142,7 @@ fun HomeScreen(
     // switched on behind their back by an update.
     var askShorts by remember {
         mutableStateOf(
-            !container.settings.appsChosen &&
+            !container.settings.shortsAsked &&
                 TrackedApp.YouTube !in container.settings.countedApps.value &&
                 ServiceControl.isInstalled(context, TrackedApp.YouTube),
         )
@@ -179,10 +185,12 @@ fun HomeScreen(
                     onYes = {
                         container.settings.setCountedApps(apps + TrackedApp.YouTube)
                         container.settings.appsChosen = true
+                        container.settings.shortsAsked = true
                         askShorts = false
                     },
                     onNo = {
                         container.settings.appsChosen = true
+                        container.settings.shortsAsked = true
                         askShorts = false
                     },
                 )
@@ -209,6 +217,7 @@ fun HomeScreen(
             activeMs = activeMs,
             live = live,
             label = AppWords.today(apps),
+            apps = apps,
             modifier = Modifier.reveal(2),
         )
 
@@ -222,7 +231,7 @@ fun HomeScreen(
         }
 
         Spacer(Modifier.height(14.dp))
-        NextRoastChip(count = shown, modifier = Modifier.reveal(3))
+        NextRoastChip(count = shown, apps = apps, modifier = Modifier.reveal(3))
 
         Spacer(Modifier.height(18.dp))
         Row(
@@ -260,7 +269,7 @@ fun HomeScreen(
         Column(Modifier.reveal(5)) {
             FlatButton(
                 text = if (building) "Making your card…" else "Share today's card",
-                icon = "✦",
+                icon = EkIcons.Share,
                 emphasised = !needsSetup && shown > 0,
                 enabled = shown > 0,
                 loading = building,
@@ -284,7 +293,7 @@ fun HomeScreen(
             if (shown == 0 && count != null) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "Scroll a few reels to unlock your card.",
+                    text = "Scroll a few ${AppWords.unit(apps).lowercase()} to unlock your card.",
                     style = MaterialTheme.typography.bodySmall,
                     color = Smoke,
                     textAlign = TextAlign.Center,
@@ -387,6 +396,7 @@ private fun Hero(
     activeMs: Long,
     live: Boolean,
     label: String,
+    apps: Set<TrackedApp>,
     modifier: Modifier = Modifier,
 ) {
     val breathe = if (live) {
@@ -427,12 +437,16 @@ private fun Hero(
                 style = MaterialTheme.typography.displayLarge.copy(brush = instaGradient()),
             )
         }
-        Text(
-            label,
-            style = MaterialTheme.typography.titleLarge,
-            color = Smoke,
-            fontWeight = FontWeight.Medium,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AppBadges(apps, size = 22.dp)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.titleLarge,
+                color = Smoke,
+                fontWeight = FontWeight.Medium,
+            )
+        }
         if (activeMs > 0) {
             Spacer(Modifier.height(10.dp))
             Text(
@@ -450,11 +464,11 @@ private fun Hero(
 
 /** How far to the next roast, on the real milestone ladder. */
 @Composable
-private fun NextRoastChip(count: Int, modifier: Modifier = Modifier) {
+private fun NextRoastChip(count: Int, apps: Set<TrackedApp>, modifier: Modifier = Modifier) {
     val roast = remember(count) { NextMilestone.forCount(count) }
     val line = when {
-        count == 0 -> "Nothing yet. Instagram's waiting."
-        roast.next == null -> "Past every milestone. Legend. 💀"
+        count == 0 -> "Nothing yet. ${AppWords.appNames(apps)} is waiting."
+        roast.next == null -> "Past every milestone. Legend."
         else -> "Next roast at ${roast.next} · ${roast.toGo} to go"
     }
     Column(
@@ -465,7 +479,7 @@ private fun NextRoastChip(count: Int, modifier: Modifier = Modifier) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🎯", fontSize = 15.sp)
+            EkIcon(EkIcons.Target, tint = Acid, size = 18.dp)
             Spacer(Modifier.width(8.dp))
             AnimatedContent(
                 targetState = line,
@@ -599,18 +613,28 @@ private fun LiveBadge(color: Color, live: Boolean) {
     }
 }
 
-/** "120 Reels · 45 Shorts" as one thin two-colour bar, when both apps were used. */
+/**
+ * Today's split when both apps were used: each side's badge, count and share,
+ * over one thin two-colour bar that eases as the numbers move.
+ */
 @Composable
 private fun SplitBar(reels: Int, shorts: Int, modifier: Modifier = Modifier) {
     val total = (reels + shorts).coerceAtLeast(1)
     val share by animateFloatAsState(reels.toFloat() / total, Motion.emphasised(), label = "split")
+    val reelsPct = (reels * 100f / total).roundToInt()
     Column(
         modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(Color.White)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SplitSide(TrackedApp.Instagram, reels, reelsPct, alignEnd = false)
+            Spacer(Modifier.weight(1f))
+            SplitSide(TrackedApp.YouTube, shorts, 100 - reelsPct, alignEnd = true)
+        }
+        Spacer(Modifier.height(12.dp))
         Row(
             Modifier
                 .fillMaxWidth()
@@ -622,25 +646,38 @@ private fun SplitBar(reels: Int, shorts: Int, modifier: Modifier = Modifier) {
                     .weight(share.coerceIn(0.04f, 0.96f))
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(50))
-                    .background(ReelsMark),
+                    .background(TrackedApp.Instagram.mark),
             )
             Box(
                 Modifier
                     .weight((1f - share).coerceIn(0.04f, 0.96f))
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(50))
-                    .background(ShortsMark),
+                    .background(TrackedApp.YouTube.mark),
             )
         }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(ReelsMark))
-            Spacer(Modifier.width(6.dp))
-            Text("$reels Reels", style = MaterialTheme.typography.titleSmall, color = Chalk)
-            Spacer(Modifier.weight(1f))
-            Text("$shorts Shorts", style = MaterialTheme.typography.titleSmall, color = Chalk)
-            Spacer(Modifier.width(6.dp))
-            Box(Modifier.size(8.dp).clip(CircleShape).background(ShortsMark))
+    }
+}
+
+@Composable
+private fun SplitSide(app: TrackedApp, count: Int, percent: Int, alignEnd: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!alignEnd) {
+            AppBadge(app, size = 32.dp)
+            Spacer(Modifier.width(10.dp))
+        }
+        Column(horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
+            Text(count.toString(), style = MaterialTheme.typography.titleMedium, color = Chalk)
+            Text(
+                text = "${if (count == 1) app.item else app.items} · $percent%",
+                style = MaterialTheme.typography.bodySmall,
+                color = Smoke,
+                maxLines = 1,
+            )
+        }
+        if (alignEnd) {
+            Spacer(Modifier.width(10.dp))
+            AppBadge(app, size = 32.dp)
         }
     }
 }
@@ -650,20 +687,17 @@ private fun SplitBar(reels: Int, shorts: Int, modifier: Modifier = Modifier) {
 private fun ShortsPrompt(onYes: () -> Unit, onNo: () -> Unit, modifier: Modifier = Modifier) {
     Card(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(ShortsMark),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("▶", color = Color.White, fontSize = 16.sp)
-            }
+            AppBadge(TrackedApp.YouTube, size = 44.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("New: YouTube Shorts", style = MaterialTheme.typography.titleMedium, color = Chalk)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("YouTube Shorts", style = MaterialTheme.typography.titleMedium, color = Chalk)
+                    Spacer(Modifier.width(8.dp))
+                    StatusChip("New", ChipTone.Accent)
+                }
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    "Count your Shorts too, in the same number. You can switch it off in Setup.",
+                    "Count your Shorts too, in the same number. Switch it off any time in Setup.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Smoke,
                 )

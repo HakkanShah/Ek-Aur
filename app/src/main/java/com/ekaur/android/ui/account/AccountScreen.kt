@@ -3,57 +3,34 @@ package com.ekaur.android.ui.account
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
-import com.ekaur.android.ui.common.BannerTone
-import com.ekaur.android.ui.common.ChipTone
-import com.ekaur.android.ui.common.InfoBanner
-import com.ekaur.android.ui.common.ScreenHeader
-import com.ekaur.android.ui.common.Spinner
-import com.ekaur.android.ui.common.StatusChip
-import com.ekaur.android.ui.common.pressScale
-import com.ekaur.android.ui.common.reveal
-import com.ekaur.android.ui.friends.NameState
-import com.ekaur.android.ui.friends.NameStatusLine
-import com.ekaur.android.ui.friends.rememberNameCheck
-import com.ekaur.android.ui.theme.Ink
-import com.ekaur.android.ui.theme.SurfaceLav
-import com.ekaur.android.ui.theme.buttonGradient
-import com.ekaur.android.ui.theme.instaGradient
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -67,9 +44,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ekaur.android.data.remote.SyncError
 import com.ekaur.android.data.remote.SyncException
 import com.ekaur.android.di.AppContainer
@@ -78,18 +63,35 @@ import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.sync.Avatar
 import com.ekaur.android.sync.Username
 import com.ekaur.android.ui.avatar.AvatarCropScreen
+import com.ekaur.android.ui.common.BannerTone
 import com.ekaur.android.ui.common.Card
+import com.ekaur.android.ui.common.ChipTone
+import com.ekaur.android.ui.common.EkIcon
+import com.ekaur.android.ui.common.EkIcons
 import com.ekaur.android.ui.common.Expandable
 import com.ekaur.android.ui.common.FlatButton
+import com.ekaur.android.ui.common.InfoBanner
+import com.ekaur.android.ui.common.ScreenHeader
 import com.ekaur.android.ui.common.SectionLabel
+import com.ekaur.android.ui.common.Spinner
+import com.ekaur.android.ui.common.StatusChip
 import com.ekaur.android.ui.common.ToggleRow
 import com.ekaur.android.ui.common.UserAvatar
+import com.ekaur.android.ui.common.pressScale
+import com.ekaur.android.ui.common.reveal
+import com.ekaur.android.ui.friends.NameState
+import com.ekaur.android.ui.friends.NameStatusLine
+import com.ekaur.android.ui.friends.rememberNameCheck
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Good
 import com.ekaur.android.ui.theme.Heat
+import com.ekaur.android.ui.theme.Ink
 import com.ekaur.android.ui.theme.Smoke
+import com.ekaur.android.ui.theme.SurfaceLav
+import com.ekaur.android.ui.theme.buttonGradient
+import com.ekaur.android.ui.theme.instaGradient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -280,7 +282,7 @@ fun AccountScreen(
                             .background(brush = buttonGradient()),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("✎", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        EkIcon(EkIcons.Pencil, tint = Ink, size = 13.dp)
                     }
                 }
                 Spacer(Modifier.width(16.dp))
@@ -309,7 +311,7 @@ fun AccountScreen(
                     InfoBanner(
                         text = avatarNote.orEmpty(),
                         tone = if (avatarOk) BannerTone.Good else BannerTone.Warn,
-                        glyph = if (avatarOk) "✓" else "⚠️",
+                        icon = if (avatarOk) EkIcons.Check else EkIcons.Warning,
                     )
                 }
             }
@@ -320,14 +322,14 @@ fun AccountScreen(
             ) {
                 FlatButton(
                     text = if (avatarVersion == null) "Add photo" else "New photo",
-                    icon = "🖼️",
+                    icon = EkIcons.Image,
                     enabled = !uploading,
                     modifier = Modifier.weight(1f),
                     onClick = pickPhoto,
                 )
                 FlatButton(
                     text = "From files",
-                    icon = "📁",
+                    icon = EkIcons.Folder,
                     enabled = !uploading,
                     modifier = Modifier.weight(1f),
                     onClick = { if (!uploading) files.launch("image/*") },
@@ -381,7 +383,7 @@ fun AccountScreen(
                     InfoBanner(
                         text = renameNote.orEmpty(),
                         tone = if (renameOk) BannerTone.Good else BannerTone.Warn,
-                        glyph = if (renameOk) "✓" else "⚠️",
+                        icon = if (renameOk) EkIcons.Check else EkIcons.Warning,
                     )
                 }
             }
@@ -455,7 +457,7 @@ fun AccountScreen(
             AnimatedVisibility(visible = hideError != null) {
                 Column {
                     Spacer(Modifier.height(10.dp))
-                    InfoBanner(text = hideError.orEmpty(), tone = BannerTone.Warn, glyph = "⚠️")
+                    InfoBanner(text = hideError.orEmpty(), tone = BannerTone.Warn, icon = EkIcons.Warning)
                 }
             }
         }
@@ -494,7 +496,7 @@ fun AccountScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FlatButton(
                                 text = "Copy",
-                                icon = "📋",
+                                icon = EkIcons.Copy,
                                 modifier = Modifier.weight(1f),
                                 onClick = {
                                     val clipboard = context.getSystemService(ClipboardManager::class.java)
@@ -507,7 +509,7 @@ fun AccountScreen(
                             )
                             FlatButton(
                                 text = "Share",
-                                icon = "↗",
+                                icon = EkIcons.Share,
                                 modifier = Modifier.weight(1f),
                                 onClick = {
                                     ServiceControl.shareText(
@@ -527,7 +529,7 @@ fun AccountScreen(
                     else -> InfoBanner(
                         text = "Couldn't get your code right now.",
                         tone = BannerTone.Warn,
-                        glyph = "⚠️",
+                        icon = EkIcons.Warning,
                         action = "Retry",
                         onAction = ::fetchCode,
                     )

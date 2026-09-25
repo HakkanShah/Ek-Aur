@@ -34,12 +34,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,18 +50,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.di.AppContainer
-import com.ekaur.android.ui.common.SegmentedToggle
-import com.ekaur.android.ui.theme.AppLook
-import com.ekaur.android.ui.theme.ReelsMarkSoft
-import com.ekaur.android.ui.theme.ShortsMarkSoft
 import com.ekaur.android.overlay.OverlayPrefs
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.setup.SetupFlow
+import com.ekaur.android.ui.common.AppBadge
 import com.ekaur.android.ui.common.BannerTone
 import com.ekaur.android.ui.common.Bullet
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Celebration
 import com.ekaur.android.ui.common.ChipTone
+import com.ekaur.android.ui.common.EkIcon
+import com.ekaur.android.ui.common.EkIcons
 import com.ekaur.android.ui.common.Expandable
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.GradientProgress
@@ -68,15 +69,19 @@ import com.ekaur.android.ui.common.InfoBanner
 import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.ScreenHeader
 import com.ekaur.android.ui.common.SectionLabel
+import com.ekaur.android.ui.common.SegmentedToggle
 import com.ekaur.android.ui.common.Spinner
 import com.ekaur.android.ui.common.StatusChip
 import com.ekaur.android.ui.common.ToggleRow
 import com.ekaur.android.ui.common.rememberHaptics
 import com.ekaur.android.ui.common.reveal
+import com.ekaur.android.ui.theme.Acid
+import com.ekaur.android.ui.theme.AppLook
 import com.ekaur.android.ui.theme.Chalk
 import com.ekaur.android.ui.theme.Good
 import com.ekaur.android.ui.theme.GoodSoft
 import com.ekaur.android.ui.theme.Heat
+import com.ekaur.android.ui.theme.HeatSoft
 import com.ekaur.android.ui.theme.Ink
 import com.ekaur.android.ui.theme.Smoke
 import com.ekaur.android.ui.theme.SurfaceBlush
@@ -211,7 +216,7 @@ private fun StatusHero(
                 Spacer(Modifier.height(16.dp))
                 FlatButton(
                     text = "Guided setup",
-                    icon = "✦",
+                    icon = EkIcons.Sparkle,
                     emphasised = true,
                     modifier = Modifier.fillMaxWidth(),
                     onClick = onGuidedSetup,
@@ -267,7 +272,7 @@ private fun ProgressRing(
                     .background(Good),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("✓", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                EkIcon(EkIcons.Check, tint = Ink, size = 22.dp)
             }
         } else {
             Text(label, style = MaterialTheme.typography.titleMedium, color = Chalk)
@@ -300,7 +305,7 @@ private fun PermissionsCard(
         Spacer(Modifier.height(12.dp))
         GroupLabel("Required")
         PermRow(
-            glyph = "👆",
+            icon = EkIcons.Person,
             title = "Accessibility",
             why = "Counts your Reels and Shorts. Sees the swipe, nothing else.",
             done = permissions.service,
@@ -312,14 +317,14 @@ private fun PermissionsCard(
                 Spacer(Modifier.height(10.dp))
                 InfoBanner(
                     text = "Blocked by \"Restricted setting\"? That's normal.",
-                    glyph = "🔒",
+                    icon = EkIcons.Lock,
                     action = "Fix it",
                     onAction = onFixRestricted,
                 )
             }
         }
         PermRow(
-            glyph = "🫧",
+            icon = EkIcons.FloatingButton,
             title = "Overlay",
             why = "Floats the counter while you scroll.",
             done = permissions.overlay,
@@ -331,7 +336,7 @@ private fun PermissionsCard(
         Spacer(Modifier.height(8.dp))
         GroupLabel("Recommended")
         PermRow(
-            glyph = "🔋",
+            icon = EkIcons.Battery,
             title = "Battery",
             why = "Stops Realme, Xiaomi, Oppo and Vivo killing it in the background.",
             done = permissions.battery,
@@ -341,7 +346,7 @@ private fun PermissionsCard(
             onAction = { ServiceControl.openBatterySettings(context) },
         )
         PermRow(
-            glyph = "📊",
+            icon = EkIcons.Activity,
             title = "Usage access",
             why = "Lets it notice you left Instagram and YouTube, so it can switch off for payments.",
             done = permissions.usage,
@@ -369,7 +374,7 @@ private fun GroupLabel(text: String) {
  */
 @Composable
 private fun PermRow(
-    glyph: String,
+    icon: ImageVector,
     title: String,
     why: String,
     done: Boolean,
@@ -382,7 +387,11 @@ private fun PermRow(
     val check by animateFloatAsState(if (done) 1f else 0f, Motion.bouncy(), label = "perm-check")
     Column(Modifier.padding(vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconTile(glyph, tint = if (done) GoodSoft else if (required) SurfaceBlush else SurfaceLav)
+            IconTile(
+                icon,
+                tint = if (done) GoodSoft else if (required) SurfaceBlush else SurfaceLav,
+                iconTint = if (done) Good else if (required) Acid else Smoke,
+            )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = Chalk)
@@ -399,7 +408,7 @@ private fun PermRow(
                         .background(Good),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("✓", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    EkIcon(EkIcons.Check, tint = Ink, size = 15.dp)
                 }
             } else {
                 StatusChip(
@@ -458,10 +467,7 @@ private fun AppsCard(container: AppContainer, modifier: Modifier = Modifier) {
                 Modifier.padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconTile(
-                    glyph = if (app == TrackedApp.Instagram) "◎" else "▶",
-                    tint = if (app == TrackedApp.Instagram) ReelsMarkSoft else ShortsMarkSoft,
-                )
+                AppBadge(app, modifier = Modifier.alpha(if (installed) 1f else 0.4f))
                 Spacer(Modifier.width(12.dp))
                 ToggleRow(
                     title = "${app.appName} ${app.items}",
@@ -476,6 +482,7 @@ private fun AppsCard(container: AppContainer, modifier: Modifier = Modifier) {
                         if (!onlyOne || want) {
                             container.settings.setCounting(app, want)
                             container.settings.appsChosen = true
+                            container.settings.shortsAsked = true
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -545,7 +552,7 @@ private fun PaymentsCard(
                 InfoBanner(
                     text = "Auto-off needs Usage access.",
                     tone = BannerTone.Warn,
-                    glyph = "⚠️",
+                    icon = EkIcons.Warning,
                     action = "Allow",
                     onAction = { ServiceControl.openUsageAccessSettings(context) },
                 )
@@ -555,14 +562,14 @@ private fun PaymentsCard(
         Spacer(Modifier.height(12.dp))
         Expandable("Pause it yourself") {
             OptionRow(
-                glyph = "🫧",
+                icon = EkIcons.FloatingButton,
                 title = "Floating button",
                 body = "The fastest. A small button on every screen, even the bank app.",
                 action = "Set up",
                 onAction = { ServiceControl.openAccessibilityServiceDetails(context) },
             )
             OptionRow(
-                glyph = "🔲",
+                icon = EkIcons.Tiles,
                 title = "Quick Settings tile",
                 body = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     "Pull down the shade, tap Ek Aur. One tap off, one tap on."
@@ -573,7 +580,7 @@ private fun PaymentsCard(
                 onAction = { ServiceControl.requestAddPauseTile(context) },
             )
             OptionRow(
-                glyph = if (paused) "✅" else "⏸️",
+                icon = if (paused) EkIcons.CheckCircle else EkIcons.Pause,
                 title = if (paused) "Paused" else "Pause now",
                 body = if (paused) {
                     "Counting is off. Turn it back on in Accessibility after paying."
@@ -596,7 +603,7 @@ private fun PaymentsCard(
 
 @Composable
 private fun OptionRow(
-    glyph: String,
+    icon: ImageVector,
     title: String,
     body: String,
     action: String?,
@@ -608,7 +615,7 @@ private fun OptionRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconTile(glyph)
+        IconTile(icon)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = Chalk)
@@ -640,14 +647,23 @@ private fun UpdatesCard(container: AppContainer, modifier: Modifier = Modifier) 
                     Spinner(size = 24.dp)
                 } else {
                     IconTile(
-                        glyph = when (state) {
-                            is UpdateState.UpToDate -> "✅"
-                            is UpdateState.Available, is UpdateState.Ready -> "🎁"
-                            is UpdateState.Downloading -> "⬇️"
-                            is UpdateState.Failed -> "⚠️"
-                            else -> "📦"
+                        icon = when (state) {
+                            is UpdateState.UpToDate -> EkIcons.CheckCircle
+                            is UpdateState.Available, is UpdateState.Ready -> EkIcons.Gift
+                            is UpdateState.Downloading -> EkIcons.Download
+                            is UpdateState.Failed -> EkIcons.Alert
+                            else -> EkIcons.Box
                         },
-                        tint = if (state is UpdateState.UpToDate) GoodSoft else SurfaceLav,
+                        tint = when (state) {
+                            is UpdateState.UpToDate -> GoodSoft
+                            is UpdateState.Failed -> HeatSoft
+                            else -> SurfaceLav
+                        },
+                        iconTint = when (state) {
+                            is UpdateState.UpToDate -> Good
+                            is UpdateState.Failed -> Heat
+                            else -> Acid
+                        },
                     )
                 }
             }
@@ -740,7 +756,8 @@ private fun HelpCard(
             )
             Spacer(Modifier.height(10.dp))
             FlatButton(
-                text = if (reset) "Done ✓" else "Reset counter position",
+                text = if (reset) "Done" else "Reset counter position",
+                icon = if (reset) EkIcons.Check else null,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     OverlayPrefs(context).clearPosition()
@@ -750,7 +767,7 @@ private fun HelpCard(
         }
         Spacer(Modifier.height(6.dp))
         Expandable("Trouble installing?") {
-            Bullet("\"App blocked\" by Play Protect: Play Store → profile → Play Protect → ⚙ → turn off scanning, install, then turn it back on.")
+            Bullet("\"App blocked\" by Play Protect: Play Store → profile → Play Protect → settings (gear) → turn off scanning, install, then turn it back on.")
             Bullet("\"App not installed\" means an older file over a newer one. Install the newest.")
             Bullet("\"Restricted setting\" on the switch: tap the switch once and press OK, then App info → ⋮ → Allow restricted settings, then switch it on. The ⋮ item only appears after that first tap.")
         }

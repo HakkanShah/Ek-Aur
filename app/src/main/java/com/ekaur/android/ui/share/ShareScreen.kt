@@ -1,27 +1,14 @@
 package com.ekaur.android.ui.share
 
 import android.graphics.Bitmap
-import androidx.compose.ui.graphics.toArgb
-import com.ekaur.android.ui.theme.Looks
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.style.TextAlign
-import com.ekaur.android.ui.common.EmptyState
-import com.ekaur.android.ui.common.Motion
-import com.ekaur.android.ui.common.ScreenHeader
-import com.ekaur.android.ui.common.Skeleton
-import com.ekaur.android.ui.theme.Acid
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,19 +16,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
 import com.ekaur.android.R
@@ -49,8 +43,15 @@ import com.ekaur.android.share.CardShape
 import com.ekaur.android.share.CardSharing
 import com.ekaur.android.share.CardStats
 import com.ekaur.android.share.StatsCardRenderer
+import com.ekaur.android.ui.common.EkIcons
+import com.ekaur.android.ui.common.EmptyState
 import com.ekaur.android.ui.common.FlatButton
+import com.ekaur.android.ui.common.Motion
+import com.ekaur.android.ui.common.ScreenHeader
 import com.ekaur.android.ui.common.SectionLabel
+import com.ekaur.android.ui.common.Skeleton
+import com.ekaur.android.ui.theme.Acid
+import com.ekaur.android.ui.theme.Looks
 import com.ekaur.android.ui.theme.Smoke
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -146,7 +147,7 @@ fun ShareScreen(
                         .clip(RoundedCornerShape(22.dp)),
                 )
                 failed -> EmptyState(
-                    emoji = "😵",
+                    icon = EkIcons.Alert,
                     title = "Couldn't build the card.",
                     body = "Happens rarely. One more go usually does it.",
                     action = "Try again",
@@ -160,7 +161,7 @@ fun ShareScreen(
 
         FlatButton(
             text = "Share",
-            icon = "↗",
+            icon = EkIcons.Share,
             emphasised = true,
             enabled = card != null,
             loading = card == null && !failed,

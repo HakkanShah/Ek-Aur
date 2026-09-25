@@ -15,8 +15,22 @@ import kotlinx.coroutines.flow.update
  */
 class EventLog(private val capacity: Int = 2_000) {
 
-    private val _events = MutableStateFlow<List<CapturedEvent>>(emptyList())
-    val events: StateFlow<List<CapturedEvent>> = _events.asStateFlow()
+    /**
+     * A fixed ring, newest last. Recording is O(1): it used to rebuild a
+     * 2,000-item list on every accessibility event, on the main thread --
+     * cheap for Instagram, but YouTube fires far more scroll and window events,
+     * and that copy ran constantly while scrolling. Now a list is only built
+     * when the inspector (or the export) actually asks for one.
+     */
+    private val ring = ArrayDeque<CapturedEvent>(capacity)
+
+    private val _revision = MutableStateFlow(0L)
+
+    /** Bumps whenever the log changes; the inspector re-reads [snapshot] on it. */
+    val revision: StateFlow<Long> = _revision.asStateFlow()
+
+    /** The captured events, newest first. */
+    fun snapshot(): List<CapturedEvent> = synchronized(ring) { ring.asReversed().toList() }
 
     private val _liveCount = MutableStateFlow(0)
     val liveCount: StateFlow<Int> = _liveCount.asStateFlow()
@@ -44,10 +58,11 @@ class EventLog(private val capacity: Int = 2_000) {
 
     fun record(event: CapturedEvent) {
         if (!_capturing.value) return
-        _events.update { current ->
-            // Newest first, so the inspector shows recent activity without scrolling.
-            (listOf(event) + current).take(capacity)
+        synchronized(ring) {
+            if (ring.size >= capacity) ring.removeFirst()
+            ring.addLast(event)
         }
+        _revision.update { it + 1 }
     }
 
     fun incrementCount(by: Int = 1) {
@@ -59,7 +74,8 @@ class EventLog(private val capacity: Int = 2_000) {
     }
 
     fun clear() {
-        _events.value = emptyList()
+        synchronized(ring) { ring.clear() }
+        _revision.update { it + 1 }
     }
 
     fun resetCount() {
@@ -68,7 +84,7 @@ class EventLog(private val capacity: Int = 2_000) {
 
     /** Oldest-first plain text, suitable for pasting into a chat. */
     fun exportText(): String {
-        val ordered = _events.value.asReversed()
+        val ordered = synchronized(ring) { ring.toList() }
         return buildString {
             append("EK AUR event dump\n")
             append("events=").append(ordered.size)

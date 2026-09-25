@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.di.AppContainer
 import com.ekaur.android.sync.Username
+import com.ekaur.android.ui.common.EkIcon
+import com.ekaur.android.ui.common.EkIcons
 import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.Spinner
 import com.ekaur.android.ui.theme.Good
@@ -124,8 +126,8 @@ fun NameStatusLine(state: NameState, modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             when (s) {
                 NameState.Checking -> Spinner(size = 14.dp, stroke = 1.5.dp)
-                NameState.Free -> Text("✓", style = MaterialTheme.typography.labelLarge, color = Good)
-                NameState.Taken, is NameState.Invalid -> Text("✕", style = MaterialTheme.typography.labelLarge, color = Heat)
+                NameState.Free -> EkIcon(EkIcons.Check, tint = Good, size = 16.dp)
+                NameState.Taken, is NameState.Invalid -> EkIcon(EkIcons.Close, tint = Heat, size = 16.dp)
                 else -> {}
             }
             if (s != NameState.Idle && s != NameState.Current && s != NameState.Unreachable) {

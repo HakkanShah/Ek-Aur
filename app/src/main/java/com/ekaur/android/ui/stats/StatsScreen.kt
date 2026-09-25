@@ -28,12 +28,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.data.repo.CounterRepository
 import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.ChipTone
+import com.ekaur.android.ui.common.EkIcons
 import com.ekaur.android.ui.common.EmptyState
 import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.ScreenHeader
@@ -184,7 +186,7 @@ fun StatsScreen(
             },
             loading = hours == null,
             empty = hours != null && hours.all { it == 0 },
-            emptyEmoji = "🌙",
+            emptyIcon = EkIcons.Moon,
             emptyTitle = "Nothing today yet.",
             emptyBody = "The chart fills in hour by hour as you scroll.",
             modifier = Modifier.reveal(2),
@@ -214,7 +216,7 @@ fun StatsScreen(
             },
             loading = days == null,
             empty = dayValues != null && dayValues.all { it == 0 },
-            emptyEmoji = "📉",
+            emptyIcon = EkIcons.TrendDown,
             emptyTitle = "No counts yet.",
             emptyBody = "Come back after a scroll or two. It remembers everything.",
             action = {
@@ -271,7 +273,7 @@ private fun SessionsCard(
                 Spacer(Modifier.height(14.dp))
             }
             sessions.isEmpty() -> EmptyState(
-                emoji = "⏱️",
+                icon = EkIcons.Timer,
                 title = "No sessions yet.",
                 body = "Open Instagram and give it a minute.",
             )
@@ -328,7 +330,7 @@ private fun ChartCard(
     readout: String?,
     loading: Boolean,
     empty: Boolean,
-    emptyEmoji: String,
+    emptyIcon: ImageVector,
     emptyTitle: String,
     emptyBody: String,
     modifier: Modifier = Modifier,
@@ -365,7 +367,7 @@ private fun ChartCard(
 
         when {
             loading -> Skeleton(Modifier.fillMaxWidth().height(132.dp), corner = 16.dp)
-            empty -> EmptyState(emoji = emptyEmoji, title = emptyTitle, body = emptyBody)
+            empty -> EmptyState(icon = emptyIcon, title = emptyTitle, body = emptyBody)
             else -> chart()
         }
     }

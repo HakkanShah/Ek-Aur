@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -42,7 +43,9 @@ import com.ekaur.android.ui.theme.Smoke
 @Composable
 fun EventInspectorScreen(eventLog: EventLog, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val events by eventLog.events.collectAsState()
+    // Only built while this screen is open, and only when the log changed.
+    val revision by eventLog.revision.collectAsState()
+    val events = remember(revision) { eventLog.snapshot() }
     val capturing by eventLog.capturing.collectAsState()
     val counted = events.count { it.counted }
 

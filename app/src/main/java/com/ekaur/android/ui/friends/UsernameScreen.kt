@@ -51,6 +51,7 @@ import com.ekaur.android.di.AppContainer
 import com.ekaur.android.sync.Username
 import com.ekaur.android.ui.common.BannerTone
 import com.ekaur.android.ui.common.Card
+import com.ekaur.android.ui.common.EkIcons
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.InfoBanner
 import com.ekaur.android.ui.common.Motion
@@ -286,7 +287,7 @@ fun UsernameScreen(
         AnimatedVisibility(visible = claimError != null) {
             Column {
                 Spacer(Modifier.height(10.dp))
-                InfoBanner(text = claimError.orEmpty(), tone = BannerTone.Warn, glyph = "⚠️")
+                InfoBanner(text = claimError.orEmpty(), tone = BannerTone.Warn, icon = EkIcons.Warning)
             }
         }
 
@@ -338,7 +339,7 @@ fun UsernameScreen(
                 )
                 if (recoverError != null) {
                     Spacer(Modifier.height(10.dp))
-                    InfoBanner(text = recoverError.orEmpty(), tone = BannerTone.Warn, glyph = "⚠️")
+                    InfoBanner(text = recoverError.orEmpty(), tone = BannerTone.Warn, icon = EkIcons.Warning)
                 }
             }
         }

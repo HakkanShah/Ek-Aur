@@ -39,6 +39,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,20 +55,19 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekaur.android.data.remote.LeaderboardRow
+import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.di.AppContainer
 import com.ekaur.android.sync.Avatar
+import com.ekaur.android.ui.common.AppBadges
 import com.ekaur.android.ui.common.BannerTone
 import com.ekaur.android.ui.common.ChipTone
+import com.ekaur.android.ui.common.EkIcon
+import com.ekaur.android.ui.common.EkIcons
 import com.ekaur.android.ui.common.InfoBanner
 import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.ScreenHeader
-import androidx.compose.runtime.saveable.rememberSaveable
 import com.ekaur.android.ui.common.SegmentedToggle
 import com.ekaur.android.ui.common.Skeleton
-import com.ekaur.android.ui.theme.ReelsMark
-import com.ekaur.android.ui.theme.ReelsMarkSoft
-import com.ekaur.android.ui.theme.ShortsMark
-import com.ekaur.android.ui.theme.ShortsMarkSoft
 import com.ekaur.android.ui.common.StatusChip
 import com.ekaur.android.ui.common.UserAvatar
 import com.ekaur.android.ui.common.pressScale
@@ -236,7 +236,7 @@ fun FriendsScreen(
                 item(key = "offline") {
                     InfoBanner(
                         text = "You're offline. The others are a guess until you reconnect.",
-                        glyph = "📡",
+                        icon = EkIcons.WifiOff,
                         action = "Retry",
                         onAction = { scope.launch { refresh() } },
                         modifier = Modifier.animateItem(),
@@ -282,7 +282,7 @@ fun FriendsScreen(
                 item(key = "hidden") {
                     InfoBanner(
                         text = "You're hidden. Nobody else sees you on their list.",
-                        glyph = "🙈",
+                        icon = EkIcons.EyeOff,
                         action = "Change",
                         onAction = onOpenAccount,
                         modifier = Modifier.animateItem(),
@@ -314,7 +314,7 @@ private fun agoLabel(ms: Long): String {
     }
 }
 
-/** A soft pill with a refresh glyph that spins only while the board loads. */
+/** A soft pill with a refresh icon that spins only while the board loads. */
 @Composable
 private fun RefreshChip(loading: Boolean, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
@@ -347,10 +347,10 @@ private fun RefreshChip(loading: Boolean, onClick: () -> Unit) {
         } else {
             null
         }
-        Text(
-            text = "↻",
-            style = MaterialTheme.typography.titleLarge,
-            color = Chalk,
+        EkIcon(
+            EkIcons.Refresh,
+            tint = Chalk,
+            size = 18.dp,
             modifier = Modifier.graphicsLayer { rotationZ = spin?.value ?: 0f },
         )
         Spacer(Modifier.width(6.dp))
@@ -490,9 +490,10 @@ private fun PodiumSpot(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (rank == 1) {
-            Text(
-                "👑",
-                fontSize = 20.sp,
+            EkIcon(
+                EkIcons.Crown,
+                tint = Gold,
+                size = 24.dp,
                 modifier = Modifier.graphicsLayer {
                     val c = crown.value
                     translationY = (1f - c) * -18.dp.toPx()
@@ -667,34 +668,20 @@ private fun RaceRow(
     }
 }
 
-/** Two tiny dots under a podium name: pink for Reels, red for Shorts. */
+/** Mini app badges under a podium name: which apps the number came from. */
 @Composable
 private fun AppDots(row: LeaderboardRow) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (row.reelsCount > 0) Box(Modifier.size(7.dp).clip(CircleShape).background(ReelsMark))
-        if (row.shortsCount > 0) Box(Modifier.size(7.dp).clip(CircleShape).background(ShortsMark))
-    }
+    AppBadges(row.apps(), size = 16.dp)
 }
 
-/** "Reels" / "Shorts" tags on a race row: which apps this person's number came from. */
+/** The same, beside a name on a race row. */
 @Composable
 private fun AppTags(row: LeaderboardRow) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (row.reelsCount > 0) AppTag("Reels", ReelsMark, ReelsMarkSoft)
-        if (row.shortsCount > 0) AppTag("Shorts", ShortsMark, ShortsMarkSoft)
-    }
+    AppBadges(row.apps(), size = 18.dp)
 }
 
-@Composable
-private fun AppTag(text: String, fg: Color, bg: Color) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = fg,
-        maxLines = 1,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(bg)
-            .padding(horizontal = 6.dp, vertical = 1.dp),
-    )
+private fun LeaderboardRow.apps(): Set<TrackedApp> = buildSet {
+    if (reelsCount > 0) add(TrackedApp.Instagram)
+    if (shortsCount > 0) add(TrackedApp.YouTube)
 }
+

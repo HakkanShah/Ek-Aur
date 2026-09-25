@@ -24,6 +24,18 @@
          GitHub releases. The system still shows its Install confirmation. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Package visibility (Android 11+). Without these two declarations the
+         system hides Instagram and YouTube from this app entirely: "is it
+         installed?" answers no, launch intents come back null. That is what
+         kept Shorts off in build 50: YouTube looked uninstalled, so the
+         one-time "count Shorts?" card never appeared, setup never ticked it,
+         and the service was never told to listen to YouTube. Only these two
+         apps are asked about; no QUERY_ALL_PACKAGES. -->
+    <queries>
+        <package android:name="com.instagram.android" />
+        <package android:name="com.google.android.youtube" />
+    </queries>
+
     <application
         android:name=".EkAurApp"
         android:allowBackup="true"

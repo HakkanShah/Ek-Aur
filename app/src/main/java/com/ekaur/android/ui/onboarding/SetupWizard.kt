@@ -2,13 +2,14 @@ package com.ekaur.android.ui.onboarding
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,6 +19,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,10 +50,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.setup.OemHint
 import com.ekaur.android.setup.OemHints
@@ -59,25 +63,22 @@ import com.ekaur.android.setup.RestrictedSetting
 import com.ekaur.android.setup.SetupFlow
 import com.ekaur.android.setup.SetupStep
 import com.ekaur.android.setup.Verdict
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.semantics.Role
-import com.ekaur.android.detect.TrackedApp
+import com.ekaur.android.ui.common.AppBadge
 import com.ekaur.android.ui.common.AppWords
-import com.ekaur.android.ui.common.pressScale
-import com.ekaur.android.ui.theme.ReelsMark
-import com.ekaur.android.ui.theme.ReelsMarkSoft
-import com.ekaur.android.ui.theme.ShortsMark
-import com.ekaur.android.ui.theme.ShortsMarkSoft
 import com.ekaur.android.ui.common.Card
 import com.ekaur.android.ui.common.Celebration
+import com.ekaur.android.ui.common.EkIcon
+import com.ekaur.android.ui.common.EkIcons
+import com.ekaur.android.ui.common.Expandable
+import com.ekaur.android.ui.common.FlatButton
+import com.ekaur.android.ui.common.IconTile
 import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.PulseDot
 import com.ekaur.android.ui.common.RoundIconButton
+import com.ekaur.android.ui.common.mark
+import com.ekaur.android.ui.common.markSoft
+import com.ekaur.android.ui.common.pressScale
 import com.ekaur.android.ui.common.rememberHaptics
-import com.ekaur.android.ui.theme.buttonGradient
-import com.ekaur.android.ui.common.Expandable
-import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Ash
 import com.ekaur.android.ui.theme.Chalk
@@ -86,6 +87,7 @@ import com.ekaur.android.ui.theme.Ink
 import com.ekaur.android.ui.theme.InkLine
 import com.ekaur.android.ui.theme.Smoke
 import com.ekaur.android.ui.theme.SurfaceLav
+import com.ekaur.android.ui.theme.buttonGradient
 import com.ekaur.android.ui.theme.instaGradient
 import kotlinx.coroutines.delay
 
@@ -153,7 +155,7 @@ fun SetupWizard(
             )
             if (onClose != null) {
                 Spacer(Modifier.width(14.dp))
-                RoundIconButton(glyph = "✕", description = "Close setup", onClick = onClose)
+                RoundIconButton(icon = EkIcons.Close, description = "Close setup", onClick = onClose)
             }
         }
         Spacer(Modifier.height(18.dp))
@@ -349,7 +351,7 @@ private fun RecoveryCard(
 
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🔒", fontSize = 18.sp)
+            IconTile(EkIcons.Lock, size = 32.dp)
             Spacer(Modifier.width(10.dp))
             Text(
                 text = "“Restricted setting”: the way through",
@@ -524,7 +526,7 @@ private fun DoneStep(apps: Set<TrackedApp>, onDone: () -> Unit) {
                     .background(brush = buttonGradient()),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("✓", color = Ink, fontSize = 46.sp, fontWeight = FontWeight.Black)
+                EkIcon(EkIcons.Check, tint = Ink, size = 48.dp)
             }
             Celebration(key = Unit, modifier = Modifier.matchParentSize())
         }
@@ -587,8 +589,8 @@ private fun AppChoice(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val mark = if (app == TrackedApp.Instagram) ReelsMark else ShortsMark
-    val soft = if (app == TrackedApp.Instagram) ReelsMarkSoft else ShortsMarkSoft
+    val mark = app.mark
+    val soft = app.markSoft
     val border by animateColorAsState(if (selected) mark else InkLine, Motion.quick(), label = "choice")
     val interaction = remember { MutableInteractionSource() }
     Column(
@@ -606,16 +608,7 @@ private fun AppChoice(
             .padding(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(mark),
-                contentAlignment = Alignment.Center,
-            ) {
-                // A plain play-ish mark drawn here, never either app's logo.
-                Text(if (app == TrackedApp.Instagram) "◎" else "▶", color = Color.White, fontSize = 15.sp)
-            }
+            AppBadge(app, size = 40.dp)
             Spacer(Modifier.weight(1f))
             Box(
                 Modifier
@@ -625,7 +618,7 @@ private fun AppChoice(
                     .border(2.dp, if (selected) mark else Ash, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                if (selected) Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (selected) EkIcon(EkIcons.Check, tint = Color.White, size = 13.dp)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -747,12 +740,16 @@ private fun NumberBadge(n: Int, done: Boolean) {
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = if (done) "✓" else n.toString(),
-            color = Ink,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        if (done) {
+            EkIcon(EkIcons.Check, tint = Ink, size = 16.dp)
+        } else {
+            Text(
+                text = n.toString(),
+                color = Ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 
@@ -926,7 +923,7 @@ private fun MenuMock() {
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.weight(1f))
-            Text(text = "⋮", style = MaterialTheme.typography.titleLarge, color = Chalk)
+            EkIcon(EkIcons.MoreVert, tint = Chalk, size = 20.dp)
         }
         Spacer(Modifier.height(8.dp))
         Column(
@@ -980,8 +977,13 @@ private fun PillMock() {
                 .padding(horizontal = 13.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("😎", fontSize = 14.sp)
-            Spacer(Modifier.width(7.dp))
+            Box(
+                Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(brush = instaGradient()),
+            )
+            Spacer(Modifier.width(8.dp))
             Text(
                 text = "1",
                 color = Color(0xFFF2F2F2),

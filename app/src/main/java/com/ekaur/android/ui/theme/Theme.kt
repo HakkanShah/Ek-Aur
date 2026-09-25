@@ -8,7 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -51,8 +51,10 @@ fun EkAurTheme(
     }
     val view = LocalView.current
     if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as? Activity)?.window ?: return@SideEffect
+        // Once: the bars never change colour, so there's nothing to redo on
+        // every recomposition.
+        LaunchedEffect(Unit) {
+            val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
             // Dark system-bar icons, because both bars sit on a light canvas.
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = true
@@ -61,8 +63,12 @@ fun EkAurTheme(
         }
     }
 
+    // Built once per palette. During a cross-fade that is once a frame, as it
+    // must be; the rest of the time the same scheme is reused.
+    val palette = Looks.palette
+    val scheme = remember(palette) { colorsFor(palette) }
     MaterialTheme(
-        colorScheme = colorsFor(Looks.palette),
+        colorScheme = scheme,
         typography = Typography,
         content = content,
     )

@@ -160,6 +160,17 @@ class SettingsStore(context: Context) : SessionStore {
             prefs.edit().putBoolean(KEY_APPS_CHOSEN, value).apply()
         }
 
+    /**
+     * Whether the "Count Shorts too?" card has been answered. Separate from
+     * [appsChosen] because build 50 couldn't see YouTube (no package-visibility
+     * query), so people who chose then were never really offered Shorts.
+     */
+    var shortsAsked: Boolean
+        get() = prefs.getBoolean(KEY_SHORTS_ASKED, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_SHORTS_ASKED, value).apply()
+        }
+
     private fun readCountedApps(): Set<com.ekaur.android.detect.TrackedApp> {
         val apps = com.ekaur.android.detect.TrackedApp.entries.filter { app ->
             prefs.getBoolean(
@@ -214,6 +225,7 @@ class SettingsStore(context: Context) : SessionStore {
         const val KEY_CELEBRATED = "setup_celebrated"
         const val KEY_COUNT_PREFIX = "count_app_"
         const val KEY_APPS_CHOSEN = "apps_chosen"
+        const val KEY_SHORTS_ASKED = "shorts_prompt_v2_seen"
         const val KEY_LOOK = "look_override"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"

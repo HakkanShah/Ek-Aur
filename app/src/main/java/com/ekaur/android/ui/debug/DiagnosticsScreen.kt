@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -46,6 +47,7 @@ fun DiagnosticsScreen(
     eventLog: EventLog,
     crashReporter: CrashReporter,
     serviceEnabled: Boolean,
+    countedApps: Set<com.ekaur.android.detect.TrackedApp>,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -83,6 +85,17 @@ fun DiagnosticsScreen(
             StatRow("last event", lastEventAt.asAgo())
             StatRow("last package", lastPackage ?: "--")
             StatRow("live count", liveCount.toString(), Acid)
+            // Which apps are counted, and whether this build can even see each
+            // one installed -- the thing build 50 got wrong for YouTube.
+            com.ekaur.android.detect.TrackedApp.entries.forEach { app ->
+                val seen = remember(app) { ServiceControl.isInstalled(context, app) }
+                val counted = app in countedApps
+                StatRow(
+                    app.items.lowercase(),
+                    (if (seen) "installed" else "not visible") + " · " + (if (counted) "counted" else "off"),
+                    if (seen && counted) Acid else Smoke,
+                )
+            }
             if (writeFailures > 0) {
                 StatRow("db write fail", writeFailures.toString(), Heat)
                 StatRow("last error", lastWriteError ?: "--", Heat)

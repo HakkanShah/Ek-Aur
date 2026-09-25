@@ -2,6 +2,7 @@ package com.ekaur.android.ui.avatar
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Path
@@ -36,21 +41,17 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.ekaur.android.sync.Avatar
 import com.ekaur.android.sync.CropTransform
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.draw.clip
 import com.ekaur.android.ui.common.BannerTone
+import com.ekaur.android.ui.common.EkIcons
 import com.ekaur.android.ui.common.FlatButton
 import com.ekaur.android.ui.common.InfoBanner
 import com.ekaur.android.ui.common.ScreenHeader
-import com.ekaur.android.ui.theme.instaGradient
 import com.ekaur.android.ui.common.SectionLabel
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Heat
 import com.ekaur.android.ui.theme.Ink
 import com.ekaur.android.ui.theme.Smoke
+import com.ekaur.android.ui.theme.instaGradient
 import kotlin.math.roundToInt
 
 /**
@@ -233,7 +234,7 @@ fun AvatarCropScreen(
         // upload leaves this screen open so "Use photo" can be pressed again.
         if (error != null) {
             Spacer(Modifier.height(12.dp))
-            InfoBanner(text = error, tone = BannerTone.Warn, glyph = "⚠️")
+            InfoBanner(text = error, tone = BannerTone.Warn, icon = EkIcons.Warning)
         } else if (!touched) {
             Spacer(Modifier.height(12.dp))
             Text(
