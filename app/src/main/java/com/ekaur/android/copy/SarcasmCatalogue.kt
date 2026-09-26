@@ -86,50 +86,126 @@ object SarcasmCatalogue {
      * small size, and an ellipsis mid-joke kills it.
      */
     private val byKey: Map<String, List<String>> = mapOf(
+        // Joke numbers: each fires only on its own reel, so the pill reads the
+        // same number the line is about.
+        "exact_7" to listOf(
+            "7. Thala for a reason.",
+            "Seven. Thala for a reason. 🦁",
+        ),
+        "exact_18" to listOf(
+            "18. Kohli's jersey. same hunger, different sport.",
+            "Eighteen. that's a King Kohli number. 👑",
+        ),
+        "exact_49" to listOf(
+            "49. RCB all out, 2017. you're still batting.",
+            "49. RCB's lowest. your thumb has better form.",
+        ),
+        "exact_69" to listOf(
+            "69. nice.",
+            "69. nice. 😏",
+            "Sixty-nine. we're not saying it. nice.",
+        ),
+        "exact_99" to listOf(
+            "99. one away from a century. ek aur? 😏",
+            "Nervous nineties. don't get out now.",
+            "99. the next one is literally the app's name.",
+        ),
+        "exact_111" to listOf(
+            "111. Nelson. hop on one leg till 112.",
+            "111. the umpire's hopping. you're scrolling.",
+        ),
+        "exact_143" to listOf(
+            "143. I love you. the algorithm says it back. 💘",
+            "143. it's not love, it's the feed.",
+        ),
+        "exact_175" to listOf(
+            "175. Kapil Dev in '83. you, on a weeknight.",
+            "175*. Kapil saved a World Cup. you saved nothing.",
+        ),
+        "exact_183" to listOf(
+            "183*. Dhoni's best. helicopter shot to the next reel. 🚁",
+            "183. Thala's number. finish it like him.",
+        ),
+        "exact_264" to listOf(
+            "264. Rohit's ODI record. you just matched it.",
+            "264. Hitman numbers. wrong pitch.",
+        ),
+        "exact_404" to listOf(
+            "404. self-control not found.",
+            "404. sleep not found. try again later.",
+        ),
+        "exact_420" to listOf(
+            "420. char sau bees. the feed's been scamming you.",
+            "420. the algorithm is a fraud and you know it.",
+        ),
+        "exact_666" to listOf(
+            "666. even the devil says take a break. 😈",
+            "666. the feed has claimed your soul. 😈",
+        ),
+        "exact_973" to listOf(
+            "973. Kohli's IPL 2016. he needed 16 games. you needed today.",
+            "973. that's King Kohli's best season. in reels. 👑",
+        ),
+        "exact_2011" to listOf(
+            "2011. Dhoni finishes off in style. you… don't. 🏆",
+            "2011. World Cup year. world record thumb.",
+        ),
+
         "reels_25" to listOf(
             "25 in. warmed up. 😎",
             "Twenty-five. thumb's stretching.",
             "25 and locked in already.",
+            "25. warm-up done. the real match starts now.",
         ),
         "reels_50" to listOf(
             "50. warm-up done. 🌚",
             "Fifty deep. thumb's fine, thanks.",
             "50 and counting. of course.",
+            "Half-century. raise the bat. 🏏",
+            "50. the thumb just took guard.",
         ),
         "reels_100" to listOf(
             "Only 100? that was the warm-up.",
             "Triple digits. impressive. concerning.",
             "100 reels. easy. 😈",
+            "Century. helmet off, bat up. 🏏",
+            "100. Sachin would be proud. of the numbers.",
         ),
         "reels_150" to listOf(
             "150. no brakes on this thing. 😵‍💫",
             "One-fifty. the thumb has opinions now.",
             "150 deep and picking up speed.",
+            "150. the thumb is in its prime.",
         ),
         "reels_200" to listOf(
             "200. this stopped being a hobby.",
             "Double century. a legend, technically.",
             "200. scientists are confused.",
+            "200. Sachin needed 147 balls. you needed a thumb.",
         ),
         "reels_250" to listOf(
             "250. quarter of a thousand. 😈",
             "Two-fifty. the feed calls you boss.",
             "250 reels. no witnesses.",
+            "250. the feed has your number now.",
         ),
         "reels_300" to listOf(
             "300. the feed fears you now.",
             "Three hundred. no notes. 💀",
             "300 deep. touch grass? never.",
+            "300. THIS. IS. SPARTA. 🛡️",
         ),
         "reels_400" to listOf(
             "400. this is your Roman Empire. 💀",
             "Four hundred. the thumb ascends.",
             "400 reels. absolutely feral.",
+            "400. Lara's record. in reels. 🏏",
         ),
         "reels_500" to listOf(
             "500. send the thumb to the olympics.",
             "500 reels. history, of a sort.",
             "500. no records left to break. ☠️",
+            "500. half a K. still no sign of stopping.",
         ),
         "reels_600" to listOf(
             "600. the algorithm filed a complaint.",
@@ -150,6 +226,7 @@ object SarcasmCatalogue {
             "1000. a thousand. legendary. ☠️",
             "Four digits. touch grass immediately.",
             "1K reels. they'll study you.",
+            "1000. ek hazaar. Ek Aur, clearly.",
         ),
         "reels_1250" to listOf(
             "1250. a full-time job now. 💀",
@@ -169,27 +246,33 @@ object SarcasmCatalogue {
         "session_30" to listOf(
             "30 minutes straight. locked in.",
             "Half an hour, no breaks. keep going.",
+            "30 minutes. a whole episode of reels.",
         ),
         "session_60" to listOf(
             "One hour straight. respect.",
             "60 minutes, non-stop. machine. 😈",
+            "One hour. could've been a movie. was reels.",
         ),
         "session_120" to listOf(
             "Two hours. a record's breaking somewhere.",
             "2 hours straight. 💀 dedication.",
+            "Two hours. a full IPL innings, but reels.",
         ),
         "night_12am" to listOf(
             "Midnight. the feed's just getting good. 🌚",
             "12am. sleep is for the weak, clearly.",
             "Past midnight and thriving. sort of.",
+            "12am. new day, same thumb.",
         ),
         "night_1am" to listOf(
             "1am and still here. the night is young.",
             "1am? respect. concern, but respect.",
+            "1am. the feed is running out of reels. it isn't.",
         ),
         "night_3am" to listOf(
             "3am. the algorithm's only friend left. 💀",
             "Welcome to the 3am club.",
+            "3am. even the chai is asleep.",
         ),
     )
 
@@ -238,6 +321,23 @@ object SarcasmCatalogue {
             while (recent.size > RECENT_MEMORY) recent.removeFirst()
         }
     }
+
+    /**
+     * The reminder popup's line. The one place the app admits it might be time
+     * to stop -- because the user asked it to -- so it stays dry, never a lecture.
+     */
+    private val reminder = listOf(
+        "You asked me to tap you on the shoulder. Tap tap. 👋",
+        "Reminder, as requested. The feed will survive without you.",
+        "This is your sign. You literally set it.",
+        "Past-you wanted a word. Past-you had a point.",
+        "Checkpoint reached. Save your game, go outside.",
+        "The algorithm won't tell you to stop. So I will. Once.",
+        "Water, stretch, blink. Then decide.",
+        "You set this. I'm just the messenger. Don't shoot. 🫡",
+    )
+
+    fun reminderLine(): String = pick(reminder)
 
     /**
      * The pill's resting face.

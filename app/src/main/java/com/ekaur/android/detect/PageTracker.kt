@@ -68,6 +68,10 @@ class PageTracker(
     // The previous big move, for proving the page size by repetition.
     private var lastCandidate: Pair<String, Int>? = null
 
+    // Pages the user has swiped back from the furthest Short they reached.
+    // Swiping forward again over those is a rewatch, not a new Short.
+    private var behind = 0
+
     val isOpen: Boolean get() = open
 
     /** Adds one scroll. [cls] is the event's class name. */
@@ -101,12 +105,53 @@ class PageTracker(
         carry = 0
         carryClass = null
         lastCandidate = null
+        behind = 0
+    }
+
+    /** The Shorts screen is gone (a list scrolled, or a long gap): a new feed next time. */
+    fun leftPlayer() {
+        behind = 0
+    }
+
+    /**
+     * A settled burst, with rewatches taken out: pages swiped back are
+     * remembered, and forward pages over them count nothing until the user is
+     * past where they had been.
+     */
+    private fun judge(nowMs: Long): Result {
+        val result = judgeMove(nowMs)
+        if (result.flips == 0) {
+            val back = pagesBack(result.echo)
+            if (back == 0) return result
+            behind = minOf(behind + back, MAX_BEHIND)
+            return result.copy(trace = result.trace + " back=$back behind=$behind")
+        }
+        if (behind == 0) return result
+        val rewatched = minOf(behind, result.flips)
+        behind -= rewatched
+        return result.copy(flips = result.flips - rewatched, trace = result.trace + ", rewatch=$rewatched so +${result.flips - rewatched} behind=$behind")
+    }
+
+    /**
+     * Whole pages this burst moved backwards, or 0. Needs the page size and
+     * the Shorts screen's echo: a home feed scrolled up by chance the length
+     * of a page must never stop later Shorts from counting.
+     */
+    private fun pagesBack(echo: Boolean): Int {
+        val page = pageHeight ?: return 0
+        if (!echo) return 0
+        val net = nets.entries
+            .filter { it.value < 0 && (pagerClasses.isEmpty() || it.key in pagerClasses) }
+            .minOfOrNull { it.value } ?: return 0
+        val pages = Math.round(-net.toFloat() / page)
+        val off = abs(-net - pages * page)
+        return if (pages in 1..PageFlip.MAX_FLIPS_PER_BURST && off <= maxOf(24, (pages * page * 0.03f).toInt())) pages else 0
     }
 
     private fun holdsOpen(cls: String, dy: Int): Boolean =
         if (pagerClasses.isNotEmpty()) cls in pagerClasses else abs(dy) >= HOLD_MIN_DELTA
 
-    private fun judge(nowMs: Long): Result {
+    private fun judgeMove(nowMs: Long): Result {
         val echo = nets.size >= 2
         val screen = screenHeight()
         val parts = nets.entries.joinToString(" ") { "${short(it.key)}=${it.value}" }.ifEmpty { "-" }
@@ -251,5 +296,8 @@ class PageTracker(
 
         /** Before the page is known, a move this big is treated as a whole page. */
         const val PAGE_OF_SCREEN_MIN = 0.5f
+
+        /** Nobody swipes back further than this to rewatch; a bound, not a rule. */
+        const val MAX_BEHIND = 50
     }
 }

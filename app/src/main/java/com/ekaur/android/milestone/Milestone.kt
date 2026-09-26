@@ -11,6 +11,15 @@ sealed interface Trigger {
     /** Today's running total reaches [reels]. */
     data class CountReached(val reels: Int) : Trigger
 
+    /**
+     * Today's total lands on exactly [reels] with this very reel.
+     *
+     * For the numbers that are only funny on the dot -- 69, 99, 973. Unlike
+     * [CountReached] it is never caught up later: starting the app at 76 must
+     * not announce "69" a reel afterwards, when the pill no longer says 69.
+     */
+    data class CountExactly(val reels: Int) : Trigger
+
     /** One unbroken sitting reaches [minutes]. */
     data class SessionMinutes(val minutes: Int) : Trigger
 

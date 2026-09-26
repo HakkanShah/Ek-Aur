@@ -74,11 +74,30 @@ class ReelDetector(
     private val lastIndexByView = mutableMapOf<String, Int>()
 
     /**
+     * How many items the user has gone back from the furthest one they reached,
+     * per view. Swiping back to rewatch and then forward again lands on reels
+     * already counted; those only use this up, and counting resumes at a reel
+     * that is actually new.
+     */
+    private val behindByView = mutableMapOf<String, Int>()
+
+    /**
      * Page-flip counting, for an app whose pager reports no positions
      * (Shorts). One per app, kept across leaving it: what it learns about the
      * page is a property of the phone's layout, not of a sitting.
      */
     private val pageTrackers = mutableMapOf<String, PageTracker>()
+
+    /**
+     * Nothing is waiting on time: not in the player, no swipe settling, no
+     * sitting to close. The service then ticks slowly instead of four times a
+     * second, since the next scroll arrives as an event anyway. (The service
+     * only hears from the counted apps, so after leaving them the state often
+     * rests at InApp rather than Idle; both count as resting.)
+     */
+    val isResting: Boolean
+        @Synchronized get() = state != DetectionState.InReels && !burstOpen && !sessionActive &&
+            pageTrackers.values.none { it.isOpen }
 
     /** The page height learned for [packageName], if any. For diagnostics. */
     @Synchronized
@@ -186,6 +205,8 @@ class ReelDetector(
             // A cold session means the user moved on; stale positions would
             // produce a bogus jump if they come back to a different reel.
             lastIndexByView.clear()
+            behindByView.clear()
+            pageTrackers.values.forEach { it.leftPlayer() }
         }
         return DetectionResult(events, state)
     }
@@ -205,6 +226,7 @@ class ReelDetector(
         burstNet = 0
         burstLastMs = 0
         lastIndexByView.clear()
+        behindByView.clear()
         pageTrackers.values.forEach { it.resetTransient() }
     }
 
@@ -223,11 +245,28 @@ class ReelDetector(
         if (previous == null) return
 
         val delta = signal.fromIndex - previous
-        if (delta <= 0) return  // scrolled back up to rewatch, or no movement
+        if (delta == 0) return
+
+        if (delta < 0) {
+            // A swipe back moves one item at a time. A big jump back in a
+            // single event is a fresh list (Reels reopened from the tab bar,
+            // starting again at the top), so there is nothing to rewatch.
+            if (-delta > MAX_ITEMS_PER_SIGNAL) {
+                behindByView.remove(key)
+            } else {
+                behindByView[key] = minOf((behindByView[key] ?: 0) - delta, MAX_BEHIND)
+            }
+            return
+        }
+
+        // Forward again: first over reels already counted, then new ones.
+        val behind = behindByView[key] ?: 0
+        val rewatched = minOf(behind, delta)
+        if (rewatched > 0) behindByView[key] = behind - rewatched
 
         // A snapping pager advances one item per swipe; anything larger is noise
         // or a jump, so cap it rather than inventing counts.
-        repeat(minOf(delta, MAX_ITEMS_PER_SIGNAL)) {
+        repeat(minOf(delta - rewatched, MAX_ITEMS_PER_SIGNAL)) {
             emitReel(signal.timestampMs, events)
         }
     }
@@ -297,6 +336,7 @@ class ReelDetector(
             // a watch page. Shorts is no longer on screen. (A ticker's few
             // pixels don't count as scrolling anywhere.)
             state = DetectionState.InApp
+            pageTrackers[pkg]?.leftPlayer()
         }
     }
 
@@ -320,6 +360,7 @@ class ReelDetector(
         activePackage = null
         rules = null
         lastIndexByView.clear()
+        behindByView.clear()
         burstOpen = false
         burstNet = 0
         pageTrackers.values.forEach { it.resetTransient() }
@@ -353,6 +394,9 @@ class ReelDetector(
 
     private companion object {
         const val MAX_ITEMS_PER_SIGNAL = 3
+
+        /** Nobody swipes back further than this to rewatch; a bound, not a rule. */
+        const val MAX_BEHIND = 50
 
         /** A common phone height, for tests and until the service says otherwise. */
         const val DEFAULT_SCREEN_HEIGHT_PX = 2400

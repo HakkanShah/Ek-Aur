@@ -18,15 +18,17 @@ class YouTubeDumpReplayTest {
     private val youtube = "com.google.android.youtube"
 
     @Test
-    fun `every forward Shorts swipe in the real dump counts once`() {
+    fun `every new Short in the real dump counts once, and rewatches don't`() {
         val detector = ReelDetector()
         val events = replay(detector, load())
         val shorts = events.filterIsInstance<DetectionEvent.ReelScrolled>().filter { it.packageName == youtube }
-        assertEquals(11, shorts.size)
+        // 11 forward swipes, three of them straight after a swipe back to the
+        // previous Short: those land on a Short already counted.
+        assertEquals(8, shorts.size)
     }
 
     @Test
-    fun `the counts land on the forward swipes, not the backward ones`() {
+    fun `the counts land on the forward swipes to new Shorts`() {
         val detector = ReelDetector()
         val times = replay(detector, load())
             .filterIsInstance<DetectionEvent.ReelScrolled>()
@@ -34,7 +36,9 @@ class YouTubeDumpReplayTest {
             .map { it.timestampMs }
         // Each forward swipe's last real movement of the list, read off the dump.
         assertEquals(
-            listOf(100343L, 104495L, 404141L, 405101L, 406709L, 414776L, 416518L, 429326L, 432847L, 439374L, 455637L),
+            // Missing from the 11 forward swipes: 104495, 414776 and 439374,
+            // each the swipe back onto a Short just rewatched.
+            listOf(100343L, 404141L, 405101L, 406709L, 416518L, 429326L, 432847L, 455637L),
             times,
         )
     }

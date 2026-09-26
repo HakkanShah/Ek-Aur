@@ -32,7 +32,7 @@ class MilestoneEngine(
         // clock-based milestones from firing on an idle tick.
         if (now.reels <= before.reels) return null
 
-        val satisfied = milestones.filter { it.id !in firedToday && satisfies(it.trigger, now) }
+        val satisfied = milestones.filter { it.id !in firedToday && satisfies(it.trigger, now, before) }
         if (satisfied.isEmpty()) return null
 
         val superseded = supersededIn(satisfied)
@@ -45,9 +45,11 @@ class MilestoneEngine(
         )
     }
 
-    private fun satisfies(trigger: Trigger, now: Progress): Boolean =
+    private fun satisfies(trigger: Trigger, now: Progress, before: Progress): Boolean =
         when (trigger) {
             is Trigger.CountReached -> now.reels >= trigger.reels
+
+            is Trigger.CountExactly -> now.reels == trigger.reels && before.reels < trigger.reels
 
             is Trigger.SessionMinutes -> now.sessionMinutes >= trigger.minutes
 
@@ -61,7 +63,8 @@ class MilestoneEngine(
      *
      * Reaching 200 reels says everything that reaching 100 would have. The
      * small hours are not cumulative -- their windows do not overlap -- so a
-     * clock milestone never supersedes anything.
+     * clock milestone never supersedes anything, and neither does an exact
+     * number, which is a joke about that number rather than a rung.
      */
     private fun supersededIn(satisfied: List<Milestone>): List<Milestone> {
         val topCount = satisfied.mapNotNull { (it.trigger as? Trigger.CountReached)?.reels }.maxOrNull()
@@ -71,6 +74,8 @@ class MilestoneEngine(
             when (val trigger = milestone.trigger) {
                 is Trigger.CountReached -> topCount != null && trigger.reels < topCount
                 is Trigger.SessionMinutes -> topMinutes != null && trigger.minutes < topMinutes
+                // Only true on its own reel, so there is nothing to catch up on.
+                is Trigger.CountExactly -> false
                 is Trigger.ClockBetween -> false
             }
         }

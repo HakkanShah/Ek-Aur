@@ -24,6 +24,12 @@
          GitHub releases. The system still shows its Install confirmation. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- "Take a break" on the scroll reminder: after going Home, ends the
+         Reels/Shorts app's background process so it is really closed. A normal
+         permission, granted at install. Works up to Android 13; Android 14+
+         only lets an app end its own processes, so there it just goes Home. -->
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+
     <!-- Package visibility (Android 11+). Without these two declarations the
          system hides Instagram and YouTube from this app entirely: "is it
          installed?" answers no, launch intents come back null. That is what

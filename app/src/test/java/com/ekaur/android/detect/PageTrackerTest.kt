@@ -115,7 +115,8 @@ class PageTrackerTest {
         swipe(-1508, -592); idle(1_000)
         swipe(44, -39, -5); idle(1_000)
         swipe(288); idle(1_500); swipe(-288); idle(1_500)
-        swipe(1549, 551); idle(1_000)
+        swipe(1549, 551); idle(1_000)   // forward onto the Short just left: a rewatch
+        swipe(1275, 820, 5); idle(1_000) // a new one
         assertEquals(2, counted.size)
     }
 
@@ -144,5 +145,27 @@ class PageTrackerTest {
         traced.onTick(2_000)
         assertEquals(1, lines.size)
         assert(lines.single().contains("+1")) { lines.single() }
+    }
+
+    @Test
+    fun `swiping back to rewatch a Short and forward again counts nothing extra`() {
+        repeat(3) { swipe(1275, 820, 5); idle(1_000) }   // three new: 3
+        swipe(-1508, -592); idle(1_000)                    // back one
+        swipe(-1400, -700); idle(1_000)                    // back two
+        swipe(1275, 820, 5); idle(1_000)                   // rewatch
+        swipe(776, 1138, 186); idle(1_000)                 // rewatch
+        swipe(1275, 820, 5); idle(1_000)                   // new: 4
+
+        assertEquals(4, counted.size)
+    }
+
+    @Test
+    fun `an up-scroll outside Shorts never blocks later Shorts from counting`() {
+        swipe(1275, 820, 5); idle(1_000)                   // learns the page: 1
+        // A lone list scrolled up exactly a page, with no Shorts echo.
+        swipe(-2100, echo = false); idle(1_000)
+        swipe(1275, 820, 5); idle(1_000)                   // still new: 2
+
+        assertEquals(2, counted.size)
     }
 }

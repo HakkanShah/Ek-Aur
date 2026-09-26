@@ -58,6 +58,46 @@ class MilestoneEngineTest {
     }
 
     @Test
+    fun `a joke number fires on its own reel`() {
+        assertEquals("exact_69", engine.evaluate(at(69), at(68), emptySet())?.announce?.id)
+        assertEquals("exact_973", engine.evaluate(at(973), at(972), emptySet())?.announce?.id)
+    }
+
+    @Test
+    fun `a joke number stepped over is not caught up later`() {
+        // Starting the service at 76 must not say "69" on reel 77.
+        val outcome = engine.evaluate(at(77), at(76), setOf("reels_25", "reels_50"))
+
+        assertTrue(outcome == null || !outcome.announce.id.startsWith("exact_"))
+    }
+
+    @Test
+    fun `a joke number only fires on the step that lands on it`() {
+        // Already at 69 before this reel: the moment has passed.
+        assertNull(engine.evaluate(at(69), at(69), emptySet()))
+    }
+
+    @Test
+    fun `a joke number beats a round number waiting its turn, which then follows`() {
+        // 50 was never shown (a quiet day log), and 69 lands: 69 now, 50 later.
+        val first = engine.evaluate(at(69), at(68), setOf("reels_25"))!!
+        assertEquals("exact_69", first.announce.id)
+        assertTrue("reels_50" !in first.spent)
+
+        val next = engine.evaluate(at(70), at(69), setOf("reels_25") + first.spent)
+        assertEquals("reels_50", next?.announce?.id)
+    }
+
+    @Test
+    fun `99 is a joke, 100 is a milestone, and both get their line`() {
+        assertEquals("exact_99", engine.evaluate(at(99), at(98), setOf("reels_25", "reels_50"))?.announce?.id)
+        assertEquals(
+            "reels_100",
+            engine.evaluate(at(100), at(99), setOf("reels_25", "reels_50", "exact_99"))?.announce?.id,
+        )
+    }
+
+    @Test
     fun `nothing fires when the count has not moved`() {
         // Idle ticks must never produce a line, or the small-hours milestones
         // would fire while the phone sits on a table.

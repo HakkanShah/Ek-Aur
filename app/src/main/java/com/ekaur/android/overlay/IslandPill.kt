@@ -1,8 +1,18 @@
 package com.ekaur.android.overlay
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -62,6 +72,15 @@ fun IslandPill(
     }
     val paddingPx = with(density) { (H_PADDING * 2).roundToPx() }
 
+    // A gradient ring that glows while a milestone line is up: drawn over the
+    // pill, never measured, so it cannot move or resize anything.
+    val glow by animateFloatAsState(
+        targetValue = if (message != null) 1f else 0f,
+        animationSpec = tween(if (message != null) GLOW_IN_MS else GLOW_OUT_MS),
+        label = "pill-glow",
+    )
+    val ring = com.ekaur.android.ui.theme.instaGradient()
+
     // While a message shows, the host widens the window to make room; this box
     // fills that width and centres the pill in it, so the pill grows evenly to
     // both sides (dynamic-island style) and the line is never clipped. Collapsed,
@@ -77,6 +96,20 @@ fun IslandPill(
             // "damage" now lives entirely in the emoji ladder, which reads cool
             // rather than loud.
             .border(1.dp, PillEdge, RoundedCornerShape(50))
+            .drawWithContent {
+                drawContent()
+                if (glow > 0f) {
+                    val w = 1.6.dp.toPx()
+                    drawRoundRect(
+                        brush = ring,
+                        alpha = glow,
+                        topLeft = androidx.compose.ui.geometry.Offset(w / 2, w / 2),
+                        size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
+                        cornerRadius = CornerRadius((size.height - w) / 2),
+                        style = Stroke(width = w),
+                    )
+                }
+            }
             // Clips the message's slide, so it cannot be drawn past the pill's
             // rounded edge on the frames before it has settled.
             .clip(RoundedCornerShape(50))
@@ -106,13 +139,20 @@ fun IslandPill(
 
             Spacer(Modifier.width(7.dp))
 
-            // A soft fade rather than a scale kick. Snapping the whole pill to
-            // 1.14x on every single reel was the popping; Crossfade takes the
-            // larger of the two sizes instead of animating between them, so
-            // 9 -> 10 cannot start a width animation either.
-            Crossfade(
+            // The number rolls up, odometer-style: the old one slides out the
+            // top as the new one comes in from below. The size snaps rather
+            // than animating, so 9 -> 10 can never start a width animation
+            // (the old typing glitch); the slide is clipped to the digits.
+            AnimatedContent(
                 targetState = count,
-                animationSpec = tween(COUNT_FADE_MS),
+                transitionSpec = {
+                    val up = targetState > initialState
+                    (slideInVertically(tween(COUNT_ROLL_MS)) { if (up) it else -it } +
+                        fadeIn(tween(COUNT_ROLL_MS))) togetherWith
+                        (slideOutVertically(tween(COUNT_ROLL_MS)) { if (up) -it else it } +
+                            fadeOut(tween(COUNT_ROLL_MS / 2))) using
+                        SizeTransform(clip = true) { _, _ -> snap() }
+                },
                 label = "pill-count",
             ) { value ->
                 Text(
@@ -168,7 +208,9 @@ fun IslandPill(
 /** Counted into the collapsed width, since the core is measured inside it. */
 private val H_PADDING = 13.dp
 
-private const val COUNT_FADE_MS = 120
+private const val COUNT_ROLL_MS = 220
+private const val GLOW_IN_MS = 260
+private const val GLOW_OUT_MS = 600
 private const val ENTER_MS = 180
 private const val EXIT_MS = 140
 

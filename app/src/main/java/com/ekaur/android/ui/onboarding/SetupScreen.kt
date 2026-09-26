@@ -328,8 +328,44 @@ private fun PermissionsCard(
         else -> null
     }
 
+    // Once everything is on, the four rows are just a wall of green ticks: fold
+    // them into one line that opens on a tap, so Setup starts with what can
+    // still be changed. Anything switching off opens it again by itself.
+    val allOn = permissions.allGranted && permissions.recommendedDone && !notRunning
+    var showAll by remember { mutableStateOf(false) }
+
     Card(modifier) {
-        SectionLabel("Permissions")
+        if (allOn) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable(role = Role.Button) { showAll = !showAll },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SectionLabel("Permissions", Modifier.weight(1f))
+                Text(
+                    text = if (showAll) "Hide" else "All on · Show",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Smoke,
+                )
+                Spacer(Modifier.width(6.dp))
+                EkIcon(
+                    EkIcons.ChevronDown,
+                    tint = Smoke,
+                    size = 18.dp,
+                    modifier = Modifier.rotate(if (showAll) 180f else 0f),
+                )
+            }
+        } else {
+            SectionLabel("Permissions")
+        }
+        AnimatedVisibility(
+            visible = !allOn || showAll,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            Column {
         Spacer(Modifier.height(12.dp))
         GroupLabel("Required")
         PermRow(
@@ -387,6 +423,8 @@ private fun PermissionsCard(
             actionLabel = "Allow",
             onAction = { ServiceControl.openUsageAccessSettings(context) },
         )
+            }
+        }
     }
 }
 

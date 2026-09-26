@@ -11,6 +11,12 @@ package com.ekaur.android.milestone
 object MilestoneRules {
 
     val DEFAULT: List<Milestone> = listOf(
+        // The joke numbers come first: each is only true on its own reel, so
+        // on a tie it goes now and the round number waits for the next one.
+        exactly(7), exactly(18), exactly(49), exactly(69), exactly(99),
+        exactly(111), exactly(143), exactly(175), exactly(183), exactly(264),
+        exactly(404), exactly(420), exactly(666), exactly(973), exactly(2011),
+
         // The count ladder is dense on purpose, so a heavy day earns a fresh
         // line often rather than going quiet for hundreds of reels between the
         // round hundreds.
@@ -40,4 +46,6 @@ object MilestoneRules {
         Milestone("reels_50", Trigger.CountReached(50), "reels_50"),
         Milestone("reels_25", Trigger.CountReached(25), "reels_25"),
     )
+
+    private fun exactly(n: Int) = Milestone("exact_$n", Trigger.CountExactly(n), "exact_$n")
 }

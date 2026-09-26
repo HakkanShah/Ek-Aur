@@ -233,6 +233,15 @@ fun HomeScreen(
         Spacer(Modifier.height(14.dp))
         NextRoastChip(count = shown, apps = apps, modifier = Modifier.reveal(3))
 
+        Spacer(Modifier.height(12.dp))
+        ReminderCard(
+            container = container,
+            count = shown,
+            today = today,
+            overlayAllowed = permissions.overlay,
+            modifier = Modifier.reveal(3),
+        )
+
         Spacer(Modifier.height(18.dp))
         Row(
             Modifier

@@ -346,6 +346,44 @@ class ReelDetectorTest {
     }
 
     @Test
+    fun `going back to rewatch and forward again does not count twice`() {
+        val h = Harness()
+        h.send(playerScroll(0, 10))
+        h.send(playerScroll(500, 11))    // new: counts
+        h.send(playerScroll(1_000, 12))  // new: counts
+        h.send(playerScroll(1_500, 11))  // back to rewatch
+        h.send(playerScroll(2_000, 10))  // further back
+        h.send(playerScroll(2_500, 11))  // seen already
+        h.send(playerScroll(3_000, 12))  // seen already
+        h.send(playerScroll(3_500, 13))  // new again: counts
+
+        assertEquals(3, h.reelCount())
+    }
+
+    @Test
+    fun `a fresh reels list after a big jump back counts from the start`() {
+        // Reels reopened from the tab bar: the pager starts again near 0.
+        val h = Harness()
+        h.send(playerScroll(0, 20))
+        h.send(playerScroll(500, 21))   // counts
+        h.send(playerScroll(1_000, 0))  // new list, not 21 swipes back
+        h.send(playerScroll(1_500, 1))  // counts
+        h.send(playerScroll(2_000, 2))  // counts
+
+        assertEquals(3, h.reelCount())
+    }
+
+    @Test
+    fun `the detector rests only when nothing is waiting on time`() {
+        val d = ReelDetector()
+        assertTrue(d.isResting)
+        d.onSignal(playerScroll(0, 5))
+        assertTrue("in the player it needs the fast tick", !d.isResting)
+        d.onTick(10 * 60_000L)  // the player idles out and the sitting goes cold
+        assertTrue(d.isResting)
+    }
+
+    @Test
     fun `a wild jump in position is capped`() {
         val h = Harness()
         h.send(playerScroll(0, 0))

@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Everyone who uses the app is on one list, so there is no joining step -- the
  * username is what gates the app, and [hidden] is the only way off the list.
  */
-class SettingsStore(context: Context) : SessionStore {
+class SettingsStore(context: Context) : SessionStore, com.ekaur.android.reminder.ReminderStore {
 
     private val prefs =
         context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
@@ -203,6 +203,55 @@ class SettingsStore(context: Context) : SessionStore {
             prefs.edit().putBoolean(KEY_CELEBRATED, value).apply()
         }
 
+    // --- scroll reminder --------------------------------------------------
+
+    private val _reminder = MutableStateFlow(readReminder())
+
+    /** The scroll reminder as set on Home. Off until the user switches it on. */
+    val reminder: StateFlow<com.ekaur.android.reminder.ReminderSettings> = _reminder.asStateFlow()
+
+    override val reminderSettings: com.ekaur.android.reminder.ReminderSettings get() = _reminder.value
+
+    private val _reminderDay = MutableStateFlow(readReminderDay())
+
+    /** Today's reminder state, written by the service; Home reads it back live. */
+    val reminderDayFlow: StateFlow<com.ekaur.android.reminder.ReminderDay?> = _reminderDay.asStateFlow()
+
+    override var reminderDay: com.ekaur.android.reminder.ReminderDay?
+        get() = _reminderDay.value
+        set(value) {
+            _reminderDay.value = value
+            prefs.edit().putString(
+                KEY_REMINDER_DAY,
+                value?.let { "${it.date}|${it.nextAt ?: -1}" },
+            ).apply()
+        }
+
+    /** New settings; today starts again from the new number. */
+    fun updateReminder(settings: com.ekaur.android.reminder.ReminderSettings, today: String) {
+        val clean = settings.copy(at = com.ekaur.android.reminder.ReminderPlan.clampAt(settings.at))
+        prefs.edit()
+            .putBoolean(KEY_REMINDER_ON, clean.enabled)
+            .putInt(KEY_REMINDER_AT, clean.at)
+            .putInt(KEY_REMINDER_SNOOZE, clean.snooze)
+            .apply()
+        _reminder.value = clean
+        reminderDay = com.ekaur.android.reminder.ReminderPlan.onSettingsChanged(clean, today)
+    }
+
+    private fun readReminder() = com.ekaur.android.reminder.ReminderSettings(
+        enabled = prefs.getBoolean(KEY_REMINDER_ON, false),
+        at = prefs.getInt(KEY_REMINDER_AT, com.ekaur.android.reminder.ReminderSettings.DEFAULT_AT),
+        snooze = prefs.getInt(KEY_REMINDER_SNOOZE, com.ekaur.android.reminder.ReminderSettings.DEFAULT_SNOOZE),
+    )
+
+    private fun readReminderDay(): com.ekaur.android.reminder.ReminderDay? {
+        val raw = prefs.getString(KEY_REMINDER_DAY, null) ?: return null
+        val date = raw.substringBefore('|')
+        val next = raw.substringAfter('|', "").toIntOrNull() ?: return null
+        return com.ekaur.android.reminder.ReminderDay(date, next.takeIf { it >= 0 })
+    }
+
     /**
      * Forgets everything about the account.
      *
@@ -240,6 +289,10 @@ class SettingsStore(context: Context) : SessionStore {
         const val KEY_SHORTS_ASKED = "shorts_prompt_v2_seen"
         const val KEY_LAST_AUTO_OFF = "last_auto_off"
         const val KEY_LOOK = "look_override"
+        const val KEY_REMINDER_ON = "reminder_on"
+        const val KEY_REMINDER_AT = "reminder_at"
+        const val KEY_REMINDER_SNOOZE = "reminder_snooze"
+        const val KEY_REMINDER_DAY = "reminder_day"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EXPIRES = "expires_at"

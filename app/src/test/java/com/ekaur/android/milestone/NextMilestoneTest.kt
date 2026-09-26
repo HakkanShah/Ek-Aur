@@ -59,9 +59,11 @@ class NextMilestoneTest {
     }
 
     @Test
-    fun `the real ladder is non-empty and starts small`() {
+    fun `the real ladder is non-empty, starts small and includes the joke numbers`() {
         val rungs = NextMilestone.ladder()
         assertTrue(rungs.isNotEmpty())
-        assertEquals(25, rungs.first())
+        assertEquals(7, rungs.first())
+        assertTrue(69 in rungs && 99 in rungs && 973 in rungs)
+        assertEquals(rungs.sorted(), rungs)
     }
 }

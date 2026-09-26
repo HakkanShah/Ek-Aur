@@ -60,6 +60,11 @@ class EkAurAccessibilityService : AccessibilityService() {
     private var tickJob: Job? = null
     private var overlay: OverlayController? = null
     private var announcements: MilestoneAnnouncer? = null
+    private var reminders: com.ekaur.android.reminder.ReminderWatcher? = null
+    private var reminderPopup: com.ekaur.android.overlay.ReminderPopup? = null
+
+    /** Minutes watched today, for the reminder card. */
+    private var todayActiveMs: kotlinx.coroutines.flow.StateFlow<Long>? = null
     private lateinit var settings: com.ekaur.android.data.prefs.SettingsStore
 
     /** When a counted app was last in the foreground, seeded at connect. */
@@ -124,11 +129,26 @@ class EkAurAccessibilityService : AccessibilityService() {
         announcements = announcer
         overlay = OverlayController(this, todayCount, s, announcer)
 
+        // The scroll reminder: a popup when today's count reaches the user's number.
+        todayActiveMs = counters.observeTodayActiveMs().stateIn(s, SharingStarted.Eagerly, 0L)
+        val popup = com.ekaur.android.overlay.ReminderPopup(this)
+        reminderPopup = popup
+        val dayClock = com.ekaur.android.data.repo.DayClock()
+        reminders = com.ekaur.android.reminder.ReminderWatcher(
+            scope = s,
+            counts = todayCount,
+            store = settings,
+            today = { dayClock.dateOf(System.currentTimeMillis()) },
+            onRemind = { count -> main.post { showReminder(count, dayClock) } },
+        )
+
         tickJob = s.launch {
             // Drives time-based transitions no incoming event would trigger:
             // a scroll burst settling, and a session going cold.
             while (isActive) {
-                delay(TICK_INTERVAL_MS)
+                // Four times a second while something is settling; once a
+                // second when nothing is (outside Instagram and YouTube).
+                delay(if (detector.isResting) RESTING_TICK_INTERVAL_MS else TICK_INTERVAL_MS)
                 val nowMs = System.currentTimeMillis()
                 val result = detector.onTick(nowMs)
                 handle(result.events)
@@ -170,6 +190,9 @@ class EkAurAccessibilityService : AccessibilityService() {
         if (inTracked) lastTrackedForegroundMs = nowMs
 
         overlay?.onForeground(inTracked)
+        // Left Instagram/YouTube with the reminder up (Home, Recents): it has
+        // done its job, and must not sit over some other app.
+        if (!inTracked) main.post { reminderPopup?.dismiss() }
 
         val shouldDisable = AutoOffPolicy.shouldDisable(
             enabled = settings.autoOffOnLeave,
@@ -188,6 +211,57 @@ class EkAurAccessibilityService : AccessibilityService() {
                 // onUnbind announces "off"; disableSelf tears the service down.
                 runCatching { disableSelf() }
             }
+        }
+    }
+
+    private fun showReminder(count: Int, dayClock: com.ekaur.android.data.repo.DayClock) {
+        val popup = reminderPopup ?: return
+        val reminder = settings.reminderSettings
+        // The app the reminder fired in: the one "Take a break" closes.
+        val scrollingIn = status.lastEventPackage.value?.takeIf { trackedRules(it) != null }
+        popup.show(
+            count = count,
+            unit = com.ekaur.android.ui.common.AppWords.unit(settings.countedApps.value),
+            minutesToday = ((todayActiveMs?.value ?: 0L) / 60_000L).toInt(),
+            snooze = reminder.snooze,
+            line = com.ekaur.android.copy.SarcasmCatalogue.reminderLine(),
+        ) { choice ->
+            val today = dayClock.dateOf(System.currentTimeMillis())
+            when (choice) {
+                // The next reminder is already N more away (set when shown).
+                com.ekaur.android.overlay.ReminderPopup.Choice.Later -> Unit
+                com.ekaur.android.overlay.ReminderPopup.Choice.Break -> takeABreak(scrollingIn)
+                com.ekaur.android.overlay.ReminderPopup.Choice.NotToday -> {
+                    val day = com.ekaur.android.reminder.ReminderPlan.dayFor(reminder, settings.reminderDay, today)
+                    settings.reminderDay = com.ekaur.android.reminder.ReminderPlan.onNotToday(day)
+                }
+                com.ekaur.android.overlay.ReminderPopup.Choice.TurnOff -> {
+                    settings.updateReminder(settings.reminderSettings.copy(enabled = false), today)
+                    toast("Reminders off. Back on from Home any time.")
+                }
+            }
+        }
+    }
+
+    /**
+     * "Take a break": leave the app, then close it.
+     *
+     * No ordinary app may force-close another, accessibility or not. Going
+     * Home pauses the video at once; ending the app's process once it is in
+     * the background then closes it for real, so it starts fresh next time.
+     * That second step works up to Android 13 -- from 14 Android only lets an
+     * app end its own processes, and the break is just the Home screen.
+     */
+    private fun takeABreak(pkg: String?) {
+        runCatching { performGlobalAction(GLOBAL_ACTION_HOME) }
+        val name = pkg?.let { com.ekaur.android.detect.TrackedApp.entries.firstOrNull { app -> app.packageName == it }?.appName }
+        toast(if (name != null) "Closed $name. Go touch grass. 🌱" else "Break time. Go touch grass. 🌱")
+        if (pkg == null) return
+        val activity = getSystemService(android.app.ActivityManager::class.java) ?: return
+        // Twice: the app has to have actually reached the background, which
+        // on a slow phone can take a moment after Home.
+        for (delayMs in longArrayOf(800L, 2_500L)) {
+            main.postDelayed({ runCatching { activity.killBackgroundProcesses(pkg) } }, delayMs)
         }
     }
 
@@ -295,6 +369,11 @@ class EkAurAccessibilityService : AccessibilityService() {
         overlay?.destroy()
         overlay = null
         announcements = null
+        // Called on the main thread (onUnbind/onDestroy), as the window needs.
+        reminderPopup?.dismiss()
+        reminderPopup = null
+        reminders = null
+        todayActiveMs = null
         tickJob?.cancel()
         tickJob = null
         scope?.cancel()
@@ -321,6 +400,7 @@ class EkAurAccessibilityService : AccessibilityService() {
             // announcer can tell a real reel from today's stored total
             // arriving after a restart.
             announcements?.onReelCounted()
+            reminders?.onReelCounted()
         }
 
         // How long this sitting has run is only knowable here, and it has to be
@@ -368,6 +448,9 @@ class EkAurAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TICK_INTERVAL_MS = 250L
+
+        /** The tick while the detector has nothing pending: fewer wake-ups, same behaviour. */
+        private const val RESTING_TICK_INTERVAL_MS = 1_000L
 
         /** Picks the learned page height out of a detector trace line. */
         private val PAGE_SIZE = Regex("""size=(\d+)""")

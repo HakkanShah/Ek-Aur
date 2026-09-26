@@ -125,6 +125,10 @@ object BugReport {
                 )
             }
             line("look", settings.lookOverride.value ?: "auto")
+            settings.reminderSettings.let { r ->
+                line("reminder", if (r.enabled) "at ${r.at}, +${r.snooze} later" else "off")
+                line("reminder today", settings.reminderDay?.let { "${it.date} next=${it.nextAt ?: "not today"}" })
+            }
             line("shorts page size", status.pageSizes.value.entries.joinToString { "${it.key.substringAfterLast('.')}=${it.value}" }.ifEmpty { "not learned" })
             append('\n')
 

@@ -24,9 +24,15 @@ data class NextRoast(
 
 object NextMilestone {
 
-    /** The count rungs from [rules], ascending and de-duplicated. */
+    /** The count rungs from [rules] -- round numbers and joke numbers alike -- ascending and de-duplicated. */
     fun ladder(rules: List<Milestone> = MilestoneRules.DEFAULT): List<Int> =
-        rules.mapNotNull { (it.trigger as? Trigger.CountReached)?.reels }
+        rules.mapNotNull {
+            when (val t = it.trigger) {
+                is Trigger.CountReached -> t.reels
+                is Trigger.CountExactly -> t.reels
+                else -> null
+            }
+        }
             .filter { it > 0 }
             .distinct()
             .sorted()
