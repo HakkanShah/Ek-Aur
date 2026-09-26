@@ -15,7 +15,7 @@ const STEPS = [
   },
   {
     title: "Hit it, get memed",
-    body: "A meme lands in the middle of the screen: your number up top, a punchline at the bottom, a fresh GIF every time.",
+    body: "A “Doomscroll reminder” lands in the middle of the screen with your count and a fresh meme GIF every time.",
   },
   {
     title: "“10 More.” Fine.",

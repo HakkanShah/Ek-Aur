@@ -8,8 +8,8 @@ import { Bar, Finger, Switch, ease, type Scene } from "./PlayProtectSim";
 /**
  * The scroll reminder, drawn after the app: set a number on Home, scroll, the
  * meme popup lands at the number, "10 More" pushes it back, "Take a break"
- * closes the app. The memes here are dancing emoji stickers with classic meme
- * text -- the app fills the same panel with a GIF.
+ * closes the app. The meme here is a dancing emoji sticker under the
+ * "Doomscroll reminder" header -- the app fills the same panel with a GIF.
  */
 
 const SET_ON = 900;
@@ -317,8 +317,7 @@ function MemeScene({ t }: { t: number }) {
         {up && (
           <MemeCard
             key="m1"
-            top="100 reels deep"
-            bottom="Touch grass. It's free."
+            count={100}
             sticker="🌱"
             minutes="1 h 12 min"
             pressed={t >= 2800 ? "more" : null}
@@ -343,8 +342,7 @@ function MoreScene({ t }: { t: number }) {
         {up && (
           <MemeCard
             key="m2"
-            top="110 reels deep"
-            bottom="Your thumb is filing a complaint"
+            count={110}
             sticker="🥱"
             minutes="1 h 16 min"
             pressed={null}
@@ -364,8 +362,7 @@ function BreakScene({ t }: { t: number }) {
           <motion.div key="feed" className="absolute inset-0" exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.35, ease }}>
             <Feed swipes={8} count={110} dim />
             <MemeCard
-              top="110 reels deep"
-              bottom="Your thumb is filing a complaint"
+              count={110}
               sticker="🥱"
               minutes="1 h 16 min"
               pressed={t >= 1150 ? "break" : null}
@@ -393,15 +390,13 @@ function BreakScene({ t }: { t: number }) {
 // ---------------------------------------------------------------------------
 
 function MemeCard({
-  top,
-  bottom,
+  count,
   sticker,
   minutes,
   pressed,
   still = false,
 }: {
-  top: string;
-  bottom: string;
+  count: number;
   sticker: string;
   minutes: string;
   pressed: "more" | "break" | null;
@@ -417,9 +412,19 @@ function MemeCard({
       transition={{ type: "spring", stiffness: 260, damping: 20 }}
     >
       <div className="rounded-[16.5px] bg-[#111114] p-[4%]">
-        {/* the meme */}
-        <div className="relative h-[132px] overflow-hidden rounded-[12px]" style={{ background: "radial-gradient(circle at 50% 55%, #3A2150, #1E1E24 70%)" }}>
-          <div className="absolute inset-0 grid place-items-center pb-3">
+        {/* the meme, under a gradient header strip */}
+        <div className="overflow-hidden rounded-[12px] bg-[#1E1E24]">
+          <div className="ig-gradient flex items-center gap-[6px] px-[7px] py-[6px]">
+            <span className="grid h-[18px] w-[18px] place-items-center rounded-full bg-white/20">
+              <svg viewBox="0 0 24 24" className="h-[10px] w-[10px]" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16z" />
+                <path d="M10 21h4" />
+              </svg>
+            </span>
+            <span className="flex-1 truncate text-[10px] font-bold text-white">Doomscroll reminder</span>
+            <span className="rounded-full bg-black/30 px-[7px] py-[2px] text-[8.5px] font-bold text-white">{count}</span>
+          </div>
+          <div className="relative grid h-[112px] place-items-center" style={{ background: "radial-gradient(circle at 50% 50%, #3A2150, #1E1E24 70%)" }}>
             <motion.span
               className="text-[46px] leading-none"
               animate={{ rotate: [-10, 10, -10], y: [0, -7, 0] }}
@@ -428,27 +433,22 @@ function MemeCard({
               {sticker}
             </motion.span>
           </div>
-          <MemeText className="top-[7%]">{top}</MemeText>
-          <MemeText className="bottom-[7%]">{bottom}</MemeText>
         </div>
         <div className="mt-[3%] flex items-center justify-between px-[2%] text-[7.5px] font-semibold text-white/55">
           <span>⏱ {minutes} today</span>
         </div>
         <div className="mt-[3%] flex gap-[3%]">
           <motion.span
-            className="ig-gradient grid h-[30px] flex-1 place-items-center rounded-full text-[10px] font-bold text-white"
+            className="ig-gradient grid h-[30px] flex-1 place-items-center rounded-full text-[10px] font-semibold text-white"
             animate={{ scale: pressed === "break" ? 0.94 : 1 }}
           >
             Take a break
           </motion.span>
           <motion.span
-            className="grid h-[30px] place-items-center rounded-full px-[5%] text-[10px] font-bold"
-            style={{ background: "linear-gradient(#1b1b20,#1b1b20) padding-box, linear-gradient(135deg,#515BD4,#DD2A7B,#F58529) border-box", border: "1.5px solid transparent" }}
+            className="grid h-[30px] flex-1 place-items-center rounded-full border border-white/[0.12] bg-white/10 text-[10px] font-semibold text-white"
             animate={{ scale: pressed === "more" ? 0.94 : 1 }}
           >
-            <span>
-              <span className="grad-text">10</span> <span className="text-white">More</span>
-            </span>
+            10 More
           </motion.span>
         </div>
         <div className="mt-[3%] flex items-center justify-center gap-2 pb-[1%] text-[8px] font-semibold text-white/45">
@@ -458,21 +458,6 @@ function MemeCard({
         </div>
       </div>
     </motion.div>
-  );
-}
-
-/** Classic meme text: heavy white capitals with a black outline. */
-function MemeText({ children, className }: { children: string; className: string }) {
-  return (
-    <div
-      className={"absolute inset-x-[4%] text-center text-[11.5px] font-black uppercase leading-[1.15] tracking-wide text-white " + className}
-      style={{
-        textShadow:
-          "1.5px 0 0 #000, -1.5px 0 0 #000, 0 1.5px 0 #000, 0 -1.5px 0 #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000",
-      }}
-    >
-      {children}
-    </div>
   );
 }
 
