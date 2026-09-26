@@ -30,10 +30,13 @@ class UpdateInstallReceiver : BroadcastReceiver() {
             }
 
             PackageInstaller.STATUS_FAILURE_ABORTED -> {
-                // The user backed out of the confirm dialog; say nothing.
+                // The user backed out of the confirm dialog; say nothing, but
+                // offer the Install button again.
+                installEnded(context)
             }
 
             else -> {
+                installEnded(context)
                 val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
                 Toast.makeText(
                     context,
@@ -42,6 +45,10 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                 ).show()
             }
         }
+    }
+
+    private fun installEnded(context: Context) {
+        (context.applicationContext as? com.ekaur.android.EkAurApp)?.container?.updateManager?.onInstallEnded()
     }
 
     private fun confirmIntent(intent: Intent): Intent? =

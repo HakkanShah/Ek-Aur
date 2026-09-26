@@ -21,7 +21,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -78,7 +77,6 @@ import com.ekaur.android.ui.common.GradientProgress
 import com.ekaur.android.ui.common.Motion
 import com.ekaur.android.ui.common.PulseDot
 import com.ekaur.android.ui.common.Skeleton
-import com.ekaur.android.ui.common.StatTile
 import com.ekaur.android.ui.common.StatusChip
 import com.ekaur.android.ui.common.UserAvatar
 import com.ekaur.android.ui.common.mark
@@ -86,7 +84,6 @@ import com.ekaur.android.ui.common.pressScale
 import com.ekaur.android.ui.common.rememberToday
 import com.ekaur.android.ui.common.reveal
 import com.ekaur.android.ui.onboarding.PermissionState
-import com.ekaur.android.ui.stats.dailySeries
 import com.ekaur.android.ui.stats.formatDuration
 import com.ekaur.android.ui.theme.Acid
 import com.ekaur.android.ui.theme.Chalk
@@ -128,10 +125,6 @@ fun HomeScreen(
     // a recomposition never rebuilds a Room flow.
     val count by remember(today) { repo.observeTodayCount() }.collectAsState(initial = null)
     val activeMs by remember(today) { repo.observeTodayActiveMs() }.collectAsState(initial = 0L)
-    val dates = remember(today) { repo.lastDays(7) }
-    val dayRows by remember(dates) { repo.observeDaysSince(dates.first()) }
-        .collectAsState(initial = emptyList())
-    val best by remember { repo.observeBestDay() }.collectAsState(initial = null)
     val connected by container.serviceStatus.connected.collectAsState()
     val state by container.serviceStatus.detectorState.collectAsState()
     val username by container.settings.username.collectAsState()
@@ -148,9 +141,6 @@ fun HomeScreen(
         )
     }
 
-    val series = remember(dayRows, dates) { dailySeries(dayRows, dates) }
-    val weekTotal = remember(series) { series.sumOf { it.reels } }
-    val yesterday = series.getOrNull(series.size - 2)?.reels
     val shown = count ?: 0
     val live = state == "InReels" && permissions.service
 
@@ -241,38 +231,6 @@ fun HomeScreen(
             overlayAllowed = permissions.overlay,
             modifier = Modifier.reveal(3),
         )
-
-        Spacer(Modifier.height(18.dp))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .reveal(4),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            StatTile(
-                label = "Today",
-                value = shown.toString(),
-                count = shown,
-                delta = if (count != null && yesterday != null && yesterday > 0) shown - yesterday else null,
-                caption = "vs yesterday",
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-            )
-            StatTile(
-                label = "7 days",
-                value = weekTotal.toString(),
-                count = weekTotal,
-                caption = "this week",
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-            )
-            StatTile(
-                label = "Best day",
-                value = best?.total?.toString() ?: "—",
-                count = best?.total,
-                caption = if (best == null) "not yet" else "all time",
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-            )
-        }
 
         Spacer(Modifier.height(18.dp))
         Column(Modifier.reveal(5)) {

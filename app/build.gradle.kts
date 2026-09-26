@@ -15,11 +15,19 @@ android {
         applicationId = "com.ekaur.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 57
-        versionName = "0.23.1"
+        versionCode = 58
+        versionName = "0.24.0"
 
         // The GitHub repo the in-app updater reads releases from.
         buildConfigField("String", "UPDATE_REPO", "\"HakkanShah/Ek-Aur\"")
+        // Memes for the scroll reminder popup. A client key: it ships inside
+        // the APK like the Supabase one. Empty until set (gradle.properties
+        // giphyApiKey=...), and the popup then shows its emoji fallback.
+        buildConfigField(
+            "String",
+            "GIPHY_API_KEY",
+            "\"${providers.gradleProperty("giphyApiKey").getOrElse("")}\"",
+        )
 
         // The project's public address and its publishable key. Both are meant
         // to ship inside the app -- they identify the project, they are not

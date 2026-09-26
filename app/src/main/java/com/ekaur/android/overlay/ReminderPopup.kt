@@ -1,6 +1,9 @@
 package com.ekaur.android.overlay
 
 import android.content.Context
+import android.graphics.drawable.Animatable2
+import android.graphics.drawable.Drawable
+import android.widget.ImageView
 import android.graphics.PixelFormat
 import android.os.Build
 import android.provider.Settings
@@ -14,6 +17,15 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,7 +35,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import com.ekaur.android.ui.common.EkIcon
 import com.ekaur.android.ui.common.EkIcons
 import androidx.compose.foundation.clickable
@@ -76,7 +87,11 @@ import com.ekaur.android.ui.theme.instaGradient
  * also closes itself after [AUTO_CLOSE_MS], so nobody can ever be stuck
  * behind it.
  */
-class ReminderPopup(private val context: Context) {
+class ReminderPopup(
+    private val context: Context,
+    /** It closes itself after this long, so nobody is ever stuck behind it. */
+    private val autoCloseMs: Long = AUTO_CLOSE_MS,
+) {
 
     /** What the user chose. */
     enum class Choice { Break, Later, NotToday, TurnOff }
@@ -87,6 +102,9 @@ class ReminderPopup(private val context: Context) {
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
     private val autoClose = Runnable { dismiss() }
 
+    /** The GIF playing in the card, stopped when it closes. */
+    private var playing: Animatable2? = null
+
     val isShowing: Boolean get() = root != null
 
     /**
@@ -94,11 +112,12 @@ class ReminderPopup(private val context: Context) {
      * Back, the timeout and [dismiss] close it without calling it.
      */
     fun show(
-        count: Int,
-        unit: String,
+        top: String,
+        punchline: String,
         minutesToday: Int,
         snooze: Int,
-        line: String,
+        meme: Drawable?,
+        sticker: String,
         onChoice: (Choice) -> Unit,
     ) {
         if (isShowing) return
@@ -125,11 +144,12 @@ class ReminderPopup(private val context: Context) {
         val compose = ComposeView(context).apply {
             setContent {
                 ReminderCard(
-                    count = count,
-                    unit = unit,
+                    top = top,
+                    punchline = punchline,
                     minutesToday = minutesToday,
                     snooze = snooze,
-                    line = line,
+                    meme = meme,
+                    sticker = sticker,
                     // Closed on the next frame, not from inside the tap that is
                     // still being handled by the view being removed.
                     onChoice = { choice ->
@@ -164,15 +184,18 @@ class ReminderPopup(private val context: Context) {
                 return
             }
         lifecycle.start()
+        playing = meme as? Animatable2
         root = frame
         owner = lifecycle
         frame.performHapticFeedback(HapticFeedbackConstants.CONFIRM.takeIf { Build.VERSION.SDK_INT >= 30 } ?: HapticFeedbackConstants.LONG_PRESS)
-        main.postDelayed(autoClose, AUTO_CLOSE_MS)
+        main.postDelayed(autoClose, autoCloseMs)
     }
 
     /** Closes the card if it is up. **Main thread.** Safe to call any time. */
     fun dismiss() {
         main.removeCallbacks(autoClose)
+        runCatching { playing?.stop() }
+        playing = null
         val view = root ?: return
         runCatching { windowManager.removeView(view) }
         (view.getChildAt(0) as? ComposeView)?.disposeComposition()
@@ -196,163 +219,111 @@ private val Night = Color(0xFF111114)
 private val White = Color.White
 
 /**
- * Dark glass, like the pill it pops up from: over a busy video a white sheet
- * shouts, and this should feel like part of the same overlay. The count sits
- * in a gradient ring that sweeps to full as the card lands -- "you hit it".
+ * A meme, not a lecture: the GIF (or a dancing emoji before one has been
+ * fetched) with classic top and bottom text over it, then two buttons. Short
+ * on purpose -- it sits over the video, and should read in one glance.
  */
 @Composable
 internal fun ReminderCard(
-    count: Int,
-    unit: String,
+    top: String,
+    punchline: String,
     minutesToday: Int,
     snooze: Int,
-    line: String,
+    meme: Drawable?,
+    sticker: String,
     onChoice: (ReminderPopup.Choice) -> Unit,
 ) {
     val shown = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { shown.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) }
+    LaunchedEffect(Unit) { shown.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) }
     val scrim = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { scrim.animateTo(1f, tween(220)) }
-    val sweep = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { sweep.animateTo(1f, tween(900, delayMillis = 150, easing = FastOutSlowInEasing)) }
+    LaunchedEffect(Unit) { scrim.animateTo(1f, tween(200)) }
 
     val gradient = instaGradient()
-    val shape = RoundedCornerShape(32.dp)
+    val shape = RoundedCornerShape(28.dp)
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.62f * scrim.value))
+            .background(Color.Black.copy(alpha = 0.6f * scrim.value))
             // Swallows touches, so the feed cannot scroll on behind the card.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
         contentAlignment = Alignment.Center,
     ) {
         Column(
             Modifier
-                .padding(horizontal = 22.dp)
-                .widthIn(max = 380.dp)
+                .padding(horizontal = 24.dp)
+                .widthIn(max = 360.dp)
                 .fillMaxWidth()
                 .graphicsLayer {
-                    alpha = shown.value.coerceIn(0f, 1f)
-                    translationY = (1f - shown.value) * 80f
-                    scaleX = 0.92f + 0.08f * shown.value
-                    scaleY = 0.92f + 0.08f * shown.value
+                    // Drops in with a little tilt that settles: a sticker slapped on.
+                    val v = shown.value
+                    alpha = v.coerceIn(0f, 1f)
+                    translationY = (1f - v) * 90f
+                    rotationZ = (1f - v) * -4f
+                    scaleX = 0.9f + 0.1f * v
+                    scaleY = 0.9f + 0.1f * v
                 }
-                .shadow(40.dp, shape, ambientColor = Color(0xFFDD2A7B), spotColor = Color(0xFFDD2A7B))
+                .shadow(32.dp, shape, ambientColor = Color(0xFFDD2A7B), spotColor = Color(0xFFDD2A7B))
                 .clip(shape)
                 .background(Night)
                 .border(1.5.dp, gradient, shape)
-                .padding(horizontal = 22.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(12.dp),
         ) {
-            // A small badge: what this is, at a glance.
+            MemePanel(top = top, punchline = punchline, meme = meme, sticker = sticker)
+
             Row(
                 Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(White.copy(alpha = 0.08f))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                EkIcon(EkIcons.Bell, tint = White.copy(alpha = 0.85f), size = 14.dp)
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = "Scroll reminder",
-                    fontFamily = Poppins,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
-                    color = White.copy(alpha = 0.85f),
-                )
-            }
-
-            Spacer(Modifier.height(18.dp))
-
-            // The count, in a ring that fills as the card lands.
-            Box(Modifier.size(168.dp), contentAlignment = Alignment.Center) {
-                Canvas(Modifier.matchParentSize()) {
-                    val stroke = 9.dp.toPx()
-                    val inset = stroke / 2f
-                    val arc = Size(size.width - stroke, size.height - stroke)
-                    drawArc(
-                        color = White.copy(alpha = 0.08f),
-                        startAngle = -90f, sweepAngle = 360f, useCenter = false,
-                        topLeft = Offset(inset, inset), size = arc, style = Stroke(stroke),
-                    )
-                    drawArc(
-                        brush = gradient,
-                        startAngle = -90f, sweepAngle = 360f * sweep.value, useCenter = false,
-                        topLeft = Offset(inset, inset), size = arc,
-                        style = Stroke(stroke, cap = StrokeCap.Round),
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = count.toString(),
-                        style = TextStyle(brush = gradient),
-                        fontFamily = Poppins,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = if (count >= 1000) 42.sp else 52.sp,
-                        lineHeight = 56.sp,
-                    )
-                    Text(
-                        text = unit.lowercase(),
-                        fontFamily = Poppins,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        color = White.copy(alpha = 0.6f),
-                    )
-                }
-            }
-
-            if (minutesToday > 0) {
-                Spacer(Modifier.height(14.dp))
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(White.copy(alpha = 0.08f))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    EkIcon(EkIcons.Timer, tint = White.copy(alpha = 0.7f), size = 14.dp)
-                    Spacer(Modifier.width(6.dp))
+                if (minutesToday > 0) {
+                    EkIcon(EkIcons.Timer, tint = White.copy(alpha = 0.55f), size = 13.dp)
+                    Spacer(Modifier.width(5.dp))
                     Text(
                         text = "${minutesLabel(minutesToday)} today",
                         fontFamily = Poppins,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 12.sp,
-                        color = White.copy(alpha = 0.7f),
+                        color = White.copy(alpha = 0.55f),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                if (meme != null) {
+                    // GIPHY's terms ask for this wherever their GIFs appear.
+                    Text(
+                        text = "Powered by GIPHY",
+                        fontFamily = Poppins,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 10.sp,
+                        color = White.copy(alpha = 0.4f),
                     )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = line,
-                fontFamily = Poppins,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 17.sp,
-                lineHeight = 24.sp,
-                color = White,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(22.dp))
-
-            PopupButton(
-                text = "Take a break",
-                primary = true,
-                onClick = { onChoice(ReminderPopup.Choice.Break) },
-            )
-            Spacer(Modifier.height(10.dp))
-            PopupButton(
-                text = "Remind me in $snooze more",
-                primary = false,
-                onClick = { onChoice(ReminderPopup.Choice.Later) },
-            )
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PopupButton(
+                    text = "Take a break",
+                    primary = true,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onChoice(ReminderPopup.Choice.Break) },
+                )
+                PopupButton(
+                    // The snooze, in the app's own words.
+                    text = "Ek aur $snooze 😏",
+                    primary = false,
+                    onClick = { onChoice(ReminderPopup.Choice.Later) },
+                )
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(top = 2.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 QuietButton("Not today") { onChoice(ReminderPopup.Choice.NotToday) }
                 Box(
                     Modifier
-                        .padding(horizontal = 6.dp)
+                        .padding(horizontal = 4.dp)
                         .size(3.dp)
                         .clip(CircleShape)
                         .background(White.copy(alpha = 0.3f)),
@@ -363,17 +334,120 @@ internal fun ReminderCard(
     }
 }
 
+/** The meme: the picture, with outlined meme text across the top and bottom. */
+@Composable
+private fun MemePanel(top: String, punchline: String, meme: Drawable?, sticker: String) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xFF1E1E24)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (meme != null) {
+            AndroidView(
+                factory = { ctx ->
+                    ImageView(ctx).apply {
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        setImageDrawable(meme)
+                        (meme as? Animatable2)?.start()
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Sticker(sticker)
+        }
+        // A soft shade top and bottom, so the text reads on any frame.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.45f),
+                        0.3f to Color.Transparent,
+                        0.7f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.55f),
+                    ),
+                ),
+        )
+        MemeText(top, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+        MemeText(punchline, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 12.dp, end = 12.dp))
+    }
+}
+
+/** Classic meme text: heavy white capitals with a black outline. */
+@Composable
+private fun MemeText(text: String, modifier: Modifier = Modifier) {
+    val caps = text.uppercase()
+    val style = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Bold,
+        fontSize = 19.sp,
+        lineHeight = 22.sp,
+        letterSpacing = 0.3.sp,
+        textAlign = TextAlign.Center,
+    )
+    Box(modifier) {
+        Text(
+            text = caps,
+            style = style.copy(
+                color = Color.Black,
+                drawStyle = Stroke(width = 7f, join = StrokeJoin.Round),
+            ),
+            maxLines = 2,
+        )
+        Text(text = caps, style = style.copy(color = White), maxLines = 2)
+    }
+}
+
+/** Before any GIF has been fetched: a big emoji doing a little dance. */
+@Composable
+private fun Sticker(emoji: String) {
+    val dance = rememberInfiniteTransition(label = "sticker")
+    val tilt by dance.animateFloat(
+        initialValue = -10f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(tween(650, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "tilt",
+    )
+    val bob by dance.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(420, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "bob",
+    )
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Brush.radialGradient(listOf(Color(0xFF3A2150), Color(0xFF1E1E24)))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = emoji,
+            fontSize = 76.sp,
+            // Sits a little high, clear of a two-line punchline below it.
+            modifier = Modifier.padding(bottom = 16.dp).graphicsLayer {
+                rotationZ = tilt
+                translationY = -bob * 14f
+                scaleX = 1f + bob * 0.06f
+                scaleY = 1f - bob * 0.04f
+            },
+        )
+    }
+}
+
 /** "42 min", "1 h 5 min". */
 private fun minutesLabel(minutes: Int): String =
     if (minutes < 60) "$minutes min" else "${minutes / 60} h ${minutes % 60} min"
 
 @Composable
-private fun PopupButton(text: String, primary: Boolean, onClick: () -> Unit) {
+private fun PopupButton(text: String, primary: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(50)
     Box(
-        Modifier
-            .fillMaxWidth()
-            .height(52.dp)
+        modifier
+            .height(50.dp)
             .clip(shape)
             .then(
                 if (primary) {
@@ -384,7 +458,8 @@ private fun PopupButton(text: String, primary: Boolean, onClick: () -> Unit) {
                         .border(1.dp, White.copy(alpha = 0.12f), shape)
                 },
             )
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -393,6 +468,7 @@ private fun PopupButton(text: String, primary: Boolean, onClick: () -> Unit) {
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
             color = White,
+            maxLines = 1,
         )
     }
 }
@@ -403,11 +479,11 @@ private fun QuietButton(text: String, onClick: () -> Unit) {
         text = text,
         fontFamily = Poppins,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp,
-        color = White.copy(alpha = 0.55f),
+        fontSize = 12.sp,
+        color = White.copy(alpha = 0.5f),
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
     )
 }

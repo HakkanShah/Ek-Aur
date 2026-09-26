@@ -26,6 +26,14 @@ sealed interface UpdateState {
     /** An APK for a newer version is on disk and ready to install. */
     data class Ready(val release: Release, val apk: File) : UpdateState
 
+    /**
+     * Install tapped: Android's installer is on screen or working. Without
+     * this the popup still offered "Install now" the whole time, as if
+     * nothing had happened. Ends when the app is replaced (the process is
+     * restarted), or goes back to [Ready] if the user backs out or it fails.
+     */
+    data class Installing(val release: Release, val apk: File) : UpdateState
+
     data class Failed(val reason: String) : UpdateState
 }
 
@@ -150,16 +158,37 @@ class UpdateManager(
     fun install() {
         val ready = _state.value as? UpdateState.Ready ?: return
         if (UpdateInstaller.canInstall(appContext)) {
+            _state.value = UpdateState.Installing(ready.release, ready.apk)
+            installTimeout?.cancel()
+            // A safety net: if Android never reports back (some skins don't when
+            // the confirm screen is swiped away), offer the button again.
+            installTimeout = scope.launch {
+                kotlinx.coroutines.delay(INSTALL_TIMEOUT_MS)
+                onInstallEnded()
+            }
             UpdateInstaller.install(appContext, ready.apk)
         } else {
             UpdateInstaller.promptUnknownSources(appContext)
         }
     }
 
+    private var installTimeout: kotlinx.coroutines.Job? = null
+
+    /**
+     * Android's installer finished without replacing the app: the user backed
+     * out, or it failed. The popup offers Install again.
+     */
+    fun onInstallEnded() {
+        installTimeout?.cancel()
+        val installing = _state.value as? UpdateState.Installing ?: return
+        _state.value = UpdateState.Ready(installing.release, installing.apk)
+    }
+
     /** The release page, for the manual "open on GitHub" escape hatch. */
     fun pageUrl(): String = when (val s = _state.value) {
         is UpdateState.Available -> s.release.pageUrl
         is UpdateState.Ready -> s.release.pageUrl
+        is UpdateState.Installing -> s.release.pageUrl
         else -> "https://github.com/${BuildConfig.UPDATE_REPO}/releases"
     }
 
@@ -179,6 +208,8 @@ class UpdateManager(
     }
 
     private companion object {
+        const val INSTALL_TIMEOUT_MS = 3 * 60_000L
+
         const val THROTTLE_MS = 6 * 60 * 60 * 1000L
     }
 }

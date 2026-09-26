@@ -73,17 +73,25 @@ fun UpdatePopup(manager: UpdateManager) {
     val visible = current is UpdateState.Available ||
         (current is UpdateState.Downloading && !hiddenDownload) ||
         current is UpdateState.Ready ||
+        current is UpdateState.Installing ||
         current is UpdateState.Failed
     if (!visible) return
 
     val downloading = current is UpdateState.Downloading
+    val installing = current is UpdateState.Installing
     val enter = remember { Animatable(0f) }
     LaunchedEffect(Unit) { enter.animateTo(1f, Motion.bouncy()) }
 
     Dialog(
-        onDismissRequest = { if (downloading) hiddenDownload = true else manager.dismiss() },
+        onDismissRequest = {
+            when {
+                downloading -> hiddenDownload = true
+                installing -> Unit
+                else -> manager.dismiss()
+            }
+        },
         // A stray tap outside must not look like it cancelled a download.
-        properties = DialogProperties(dismissOnClickOutside = !downloading),
+        properties = DialogProperties(dismissOnClickOutside = !downloading && !installing),
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
@@ -151,6 +159,25 @@ fun UpdatePopup(manager: UpdateManager) {
                         )
                         Spacer(Modifier.height(8.dp))
                         SecondaryRow(onLater = { manager.dismiss() }, onPage = ::openPage)
+                    }
+
+                    is UpdateState.Installing -> {
+                        SectionLabel("Installing update")
+                        Version(current.release.versionName)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Confirm on the system screen if it asks. The app closes and updates itself when it's done.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Smoke,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        FlatButton(
+                            text = "Installing…",
+                            emphasised = true,
+                            loading = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {},
+                        )
                     }
 
                     is UpdateState.Failed -> {

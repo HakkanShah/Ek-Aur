@@ -720,7 +720,7 @@ private fun UpdatesCard(container: AppContainer, modifier: Modifier = Modifier) 
                     IconTile(
                         icon = when (state) {
                             is UpdateState.UpToDate -> EkIcons.CheckCircle
-                            is UpdateState.Available, is UpdateState.Ready -> EkIcons.Gift
+                            is UpdateState.Available, is UpdateState.Ready, is UpdateState.Installing -> EkIcons.Gift
                             is UpdateState.Downloading -> EkIcons.Download
                             is UpdateState.Failed -> EkIcons.Alert
                             else -> EkIcons.Box
@@ -751,6 +751,7 @@ private fun UpdatesCard(container: AppContainer, modifier: Modifier = Modifier) 
                     is UpdateState.Available -> "Version ${s.release.versionName} is out." to Chalk
                     is UpdateState.Downloading -> "Downloading ${s.release.versionName}… ${(s.progress * 100).toInt()}%" to Smoke
                     is UpdateState.Ready -> "Version ${s.release.versionName} is ready to install." to Chalk
+                    is UpdateState.Installing -> "Installing ${s.release.versionName}…" to Smoke
                     is UpdateState.Failed -> s.reason to Heat
                     is UpdateState.Idle -> "Checks on its own every few hours." to Smoke
                 }
@@ -769,6 +770,13 @@ private fun UpdatesCard(container: AppContainer, modifier: Modifier = Modifier) 
                 emphasised = true,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { manager.install() },
+            )
+            is UpdateState.Installing -> FlatButton(
+                text = "Installing…",
+                emphasised = true,
+                loading = true,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {},
             )
             is UpdateState.Available -> FlatButton(
                 text = "Download ${s.release.versionName}",

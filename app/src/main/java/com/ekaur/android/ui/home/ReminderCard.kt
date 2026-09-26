@@ -213,6 +213,15 @@ fun ReminderCard(
                     )
                 }
 
+                if (com.ekaur.android.BuildConfig.GIPHY_API_KEY.isNotBlank()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "The popup brings a meme, fetched ahead of time from GIPHY.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Ash,
+                    )
+                }
+
                 if (!overlayAllowed) {
                     Spacer(Modifier.height(14.dp))
                     Row(

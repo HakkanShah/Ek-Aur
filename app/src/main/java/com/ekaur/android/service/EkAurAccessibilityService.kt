@@ -62,6 +62,7 @@ class EkAurAccessibilityService : AccessibilityService() {
     private var announcements: MilestoneAnnouncer? = null
     private var reminders: com.ekaur.android.reminder.ReminderWatcher? = null
     private var reminderPopup: com.ekaur.android.overlay.ReminderPopup? = null
+    private var memes: com.ekaur.android.meme.MemeSource? = null
 
     /** Minutes watched today, for the reminder card. */
     private var todayActiveMs: kotlinx.coroutines.flow.StateFlow<Long>? = null
@@ -139,8 +140,23 @@ class EkAurAccessibilityService : AccessibilityService() {
             counts = todayCount,
             store = settings,
             today = { dayClock.dateOf(System.currentTimeMillis()) },
-            onRemind = { count -> main.post { showReminder(count, dayClock) } },
+            // The meme is decoded off the main thread, then the card goes up
+            // with it; a replacement is fetched afterwards, never while it waits.
+            onRemind = { count ->
+                s.launch(Dispatchers.IO) {
+                    val meme = runCatching { memes?.next() }.getOrNull()
+                    main.post { showReminder(count, dayClock, meme) }
+                    memes?.refill()
+                }
+            },
         )
+        val memeSource = com.ekaur.android.meme.MemeSource(this)
+        memes = memeSource
+        // Keep a few memes on the phone while the reminder is on, so the popup
+        // never waits on the network.
+        s.launch {
+            settings.reminder.collect { r -> if (r.enabled) launch(Dispatchers.IO) { memeSource.refill() } }
+        }
 
         tickJob = s.launch {
             // Drives time-based transitions no incoming event would trigger:
@@ -214,17 +230,29 @@ class EkAurAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun showReminder(count: Int, dayClock: com.ekaur.android.data.repo.DayClock) {
+    private fun showReminder(
+        count: Int,
+        dayClock: com.ekaur.android.data.repo.DayClock,
+        meme: android.graphics.drawable.Drawable?,
+    ) {
         val popup = reminderPopup ?: return
         val reminder = settings.reminderSettings
         // The app the reminder fired in: the one "Take a break" closes.
         val scrollingIn = status.lastEventPackage.value?.takeIf { trackedRules(it) != null }
+        val apps = settings.countedApps.value
+        val unitWord = when {
+            com.ekaur.android.detect.TrackedApp.Instagram in apps &&
+                com.ekaur.android.detect.TrackedApp.YouTube in apps -> "scrolls"
+            com.ekaur.android.detect.TrackedApp.YouTube in apps -> "shorts"
+            else -> "reels"
+        }
         popup.show(
-            count = count,
-            unit = com.ekaur.android.ui.common.AppWords.unit(settings.countedApps.value),
+            top = com.ekaur.android.copy.SarcasmCatalogue.reminderTop(count, unitWord),
+            punchline = com.ekaur.android.copy.SarcasmCatalogue.reminderLine(),
             minutesToday = ((todayActiveMs?.value ?: 0L) / 60_000L).toInt(),
             snooze = reminder.snooze,
-            line = com.ekaur.android.copy.SarcasmCatalogue.reminderLine(),
+            meme = meme,
+            sticker = com.ekaur.android.copy.SarcasmCatalogue.reminderSticker(),
         ) { choice ->
             val today = dayClock.dateOf(System.currentTimeMillis())
             when (choice) {
@@ -373,6 +401,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         reminderPopup?.dismiss()
         reminderPopup = null
         reminders = null
+        memes = null
         todayActiveMs = null
         tickJob?.cancel()
         tickJob = null

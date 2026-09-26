@@ -29,15 +29,19 @@ class ReminderPopupTest {
         val popup = ReminderPopup(context)
 
         popup.show(
-            count = 100,
-            unit = "Reels + Shorts",
+            top = "100 reels deep",
+            punchline = "Touch grass. It's free.",
             minutesToday = 42,
             snooze = 20,
-            line = "Tap tap.",
+            // A still picture rather than the dancing sticker: under Robolectric
+            // an endless animation fast-forwards the clock to the one-minute
+            // auto-close. (It only runs on a real clock on a phone.)
+            meme = android.graphics.drawable.ColorDrawable(android.graphics.Color.GRAY),
+            sticker = "🌱",
             onChoice = {},
         )
         // Attaching the window and composing happen on the next frames.
-        shadowOf(Looper.getMainLooper()).idle()
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(500))
         assertTrue(popup.isShowing)
 
         popup.dismiss()
@@ -49,7 +53,7 @@ class ReminderPopupTest {
     fun `without the overlay permission nothing is shown and nothing breaks`() {
         ShadowSettings.setCanDrawOverlays(false)
         val popup = ReminderPopup(context)
-        popup.show(100, "Reels", 0, 20, "Tap tap.") {}
+        popup.show("100 reels deep", "Touch grass.", 0, 20, null, "🌱") {}
         shadowOf(Looper.getMainLooper()).idle()
         assertFalse(popup.isShowing)
     }
