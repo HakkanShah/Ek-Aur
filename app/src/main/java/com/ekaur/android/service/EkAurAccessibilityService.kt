@@ -247,16 +247,8 @@ class EkAurAccessibilityService : AccessibilityService() {
         val reminder = settings.reminderSettings
         // The app the reminder fired in: the one "Take a break" closes.
         val scrollingIn = status.lastEventPackage.value?.takeIf { trackedRules(it) != null }
-        val apps = settings.countedApps.value
-        val unitWord = when {
-            com.ekaur.android.detect.TrackedApp.Instagram in apps &&
-                com.ekaur.android.detect.TrackedApp.YouTube in apps -> "scrolls"
-            com.ekaur.android.detect.TrackedApp.YouTube in apps -> "shorts"
-            else -> "reels"
-        }
         popup.show(
-            top = com.ekaur.android.copy.SarcasmCatalogue.reminderTop(count, unitWord),
-            punchline = com.ekaur.android.copy.SarcasmCatalogue.reminderLine(),
+            count = count,
             minutesToday = ((todayActiveMs?.value ?: 0L) / 60_000L).toInt(),
             snooze = reminder.snooze,
             meme = meme,

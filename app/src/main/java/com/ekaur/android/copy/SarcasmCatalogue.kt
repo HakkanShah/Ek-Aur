@@ -326,33 +326,6 @@ object SarcasmCatalogue {
     }
 
     /**
-     * The reminder popup's meme punchline, set in classic top/bottom meme text.
-     * The one place the app admits it might be time to stop -- because the
-     * user asked it to -- so it's a meme, never a lecture.
-     */
-    private val reminder = listOf(
-        "Touch grass. It's free.",
-        "The reels will still be here tomorrow",
-        "Your thumb is filing a complaint",
-        "Go outside. The graphics are insane",
-        "Screen time says hi",
-        "Brain.exe has stopped working",
-        "Even the algorithm needs a nap",
-        "Put. The. Phone. Down.",
-        "Hydrate or diedrate",
-        "Your bed misses you",
-        "Blink twice if you need help",
-        "Plot twist: there is no last reel",
-    )
-
-    fun reminderLine(): String = pick(reminder)
-
-    /** The top text: "1488 reels deep", "Short #212", ... */
-    fun reminderTop(count: Int, unitWord: String): String = pick(
-        listOf("$count $unitWord deep", "$count $unitWord and counting", "$count $unitWord later…"),
-    )
-
-    /**
      * The sticker shown when there is no GIF yet (no key, or offline before the
      * first one arrived): an emoji that does a little dance.
      */

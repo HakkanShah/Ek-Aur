@@ -66,7 +66,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -112,8 +111,7 @@ class ReminderPopup(
      * Back, the timeout and [dismiss] close it without calling it.
      */
     fun show(
-        top: String,
-        punchline: String,
+        count: Int,
         minutesToday: Int,
         snooze: Int,
         meme: Drawable?,
@@ -144,8 +142,7 @@ class ReminderPopup(
         val compose = ComposeView(context).apply {
             setContent {
                 ReminderCard(
-                    top = top,
-                    punchline = punchline,
+                    count = count,
                     minutesToday = minutesToday,
                     snooze = snooze,
                     meme = meme,
@@ -225,8 +222,7 @@ private val White = Color.White
  */
 @Composable
 internal fun ReminderCard(
-    top: String,
-    punchline: String,
+    count: Int,
     minutesToday: Int,
     snooze: Int,
     meme: Drawable?,
@@ -269,7 +265,7 @@ internal fun ReminderCard(
                 .border(1.5.dp, gradient, shape)
                 .padding(12.dp),
         ) {
-            MemePanel(top = top, punchline = punchline, meme = meme, sticker = sticker)
+            MemePanel(count = count, meme = meme, sticker = sticker)
 
             Row(
                 Modifier
@@ -337,35 +333,57 @@ internal fun ReminderCard(
 }
 
 /**
- * The meme, in the caption format: a white bar with the line in bold black
- * above the GIF, and the GIF itself untouched below. Many GIFs carry their own
- * text, and writing over them made both unreadable; above it, any GIF works.
+ * A title bar, then the GIF: "Doomscroll reminder" and today's count on the
+ * brand gradient, with the GIF clean underneath. No text is written on or
+ * around the GIF -- most carry their own, and that is the joke.
  */
 @Composable
-private fun MemePanel(top: String, punchline: String, meme: Drawable?, sticker: String) {
+private fun MemePanel(count: Int, meme: Drawable?, sticker: String) {
     Column(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(Color(0xFF1E1E24)),
     ) {
-        Text(
-            text = if (top.endsWith("…")) "$top $punchline" else "$top. $punchline",
-            fontFamily = Poppins,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            lineHeight = 21.sp,
-            color = Color(0xFF111114),
-            textAlign = TextAlign.Center,
-            maxLines = 3,
-            modifier = Modifier
+        Row(
+            Modifier
                 .fillMaxWidth()
-                .background(White)
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-        )
-        // A dark rule under the caption, so a white-background GIF doesn't run
-        // into it.
-        Box(Modifier.fillMaxWidth().height(2.dp).background(Night))
+                .background(instaGradient())
+                .padding(start = 10.dp, end = 10.dp, top = 9.dp, bottom = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(White.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                EkIcon(EkIcons.Bell, tint = White, size = 15.dp)
+            }
+            Spacer(Modifier.width(9.dp))
+            Text(
+                text = "Doomscroll reminder",
+                fontFamily = Poppins,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = White,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = count.toString(),
+                fontFamily = Poppins,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = White,
+                maxLines = 1,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.Black.copy(alpha = 0.28f))
+                    .padding(horizontal = 10.dp, vertical = 3.dp),
+            )
+        }
         Box(
             Modifier
                 .fillMaxWidth()
@@ -420,8 +438,7 @@ private fun Sticker(emoji: String) {
         Text(
             text = emoji,
             fontSize = 76.sp,
-            // Sits a little high, clear of a two-line punchline below it.
-            modifier = Modifier.padding(bottom = 16.dp).graphicsLayer {
+            modifier = Modifier.graphicsLayer {
                 rotationZ = tilt
                 translationY = -bob * 14f
                 scaleX = 1f + bob * 0.06f

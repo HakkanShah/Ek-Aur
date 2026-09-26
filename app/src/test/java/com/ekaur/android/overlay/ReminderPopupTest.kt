@@ -29,8 +29,7 @@ class ReminderPopupTest {
         val popup = ReminderPopup(context)
 
         popup.show(
-            top = "100 reels deep",
-            punchline = "Touch grass. It's free.",
+            count = 100,
             minutesToday = 42,
             snooze = 20,
             // A still picture rather than the dancing sticker: under Robolectric
@@ -53,7 +52,7 @@ class ReminderPopupTest {
     fun `without the overlay permission nothing is shown and nothing breaks`() {
         ShadowSettings.setCanDrawOverlays(false)
         val popup = ReminderPopup(context)
-        popup.show("100 reels deep", "Touch grass.", 0, 20, null, "🌱") {}
+        popup.show(100, 0, 20, null, "🌱") {}
         shadowOf(Looper.getMainLooper()).idle()
         assertFalse(popup.isShowing)
     }
