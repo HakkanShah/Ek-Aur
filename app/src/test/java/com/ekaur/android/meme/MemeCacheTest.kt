@@ -84,4 +84,16 @@ class MemeCacheTest {
         assertNotEquals(before, after)
         assertTrue(after.any { it !in before })
     }
+
+    @Test
+    fun `memes taken off the list are dropped`() = runTest {
+        val c = cache()
+        c.refill()
+        val names = tmp.root.list()!!.filter { it.endsWith(".webp") }.map { it.removeSuffix(".webp") }
+        c.pick() // one has a sidecar too
+        c.prune(setOf(names.first()))
+        val left = tmp.root.list()!!.toList()
+        assertEquals(listOf(names.first() + ".webp"), left.filter { it.endsWith(".webp") })
+        assertTrue("no stray sidecars", left.filter { it.endsWith(".seen") }.all { it.startsWith(names.first()) })
+    }
 }

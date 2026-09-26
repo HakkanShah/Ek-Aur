@@ -15,7 +15,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 /**
  * Memes for the reminder popup, fetched from GIPHY ahead of time.
@@ -56,10 +55,48 @@ class MemeSource(context: Context) {
     suspend fun refill(): Boolean {
         if (!hasKey) return true
         val full = withContext(Dispatchers.IO) {
-            lock.withLock { runCatching { cache.refill() }.getOrDefault(false) }
+            lock.withLock {
+                runCatching {
+                    allowed = currentList()
+                    // Anything taken off the list (or saved by an older build's
+                    // search) goes, so a vetoed GIF never shows again.
+                    cache.prune(allowed.toSet())
+                    cache.refill()
+                }.getOrDefault(false)
+            }
         }
         prepare()
         return full
+    }
+
+    /** The ids a meme may be fetched from: the curated list. */
+    @Volatile
+    private var allowed: List<String> = CuratedMemes.BUILT_IN
+
+    private val listFile = File(context.applicationContext.filesDir, "memes-list.txt")
+
+    /**
+     * The curated list: from the website at most once a day, then kept on the
+     * phone; the built-in copy if neither has one. A list that looks broken
+     * (too short, or no valid ids) is ignored.
+     */
+    private fun currentList(): List<String> {
+        val saved = runCatching { listFile.readText() }.getOrNull()
+        val savedAt = saved?.substringBefore('|')?.toLongOrNull() ?: 0L
+        val savedIds = saved?.substringAfter('|', "")?.split(',')?.filter(CuratedMemes::isValidId).orEmpty()
+        val fresh = System.currentTimeMillis() - savedAt < LIST_MAX_AGE_MS
+        if (fresh && savedIds.size >= MIN_LIST) return savedIds
+
+        val remote = runCatching {
+            http.newCall(Request.Builder().url(CuratedMemes.REMOTE_URL).build()).execute().use { res ->
+                if (res.isSuccessful) Giphy.parseIds(res.body?.string().orEmpty()) else emptyList()
+            }
+        }.getOrDefault(emptyList())
+        if (remote.size >= MIN_LIST) {
+            runCatching { listFile.writeText("${System.currentTimeMillis()}|${remote.joinToString(",")}") }
+            return remote
+        }
+        return savedIds.takeIf { it.size >= MIN_LIST } ?: CuratedMemes.BUILT_IN
     }
 
     /** Decodes the next meme into memory, if one isn't waiting already. Off the main thread. */
@@ -96,17 +133,14 @@ class MemeSource(context: Context) {
     private suspend fun fetchOne(exclude: Set<String>): Pair<String, ByteArray>? = withContext(Dispatchers.IO) {
         if (!hasKey) return@withContext null
         runCatching {
-            val url = Giphy.searchUrl(
-                apiKey = BuildConfig.GIPHY_API_KEY,
-                query = Giphy.QUERIES.random(),
-                // A random page, so two phones (or two days) don't get the same few.
-                offset = Random.nextInt(0, 40),
-            )
-            val body = http.newCall(Request.Builder().url(url).build()).execute().use { res ->
-                if (!res.isSuccessful) return@runCatching null
-                res.body?.string()
-            } ?: return@runCatching null
-            val pick = Giphy.parse(body).filter { it.id !in exclude }.randomOrNull() ?: return@runCatching null
+            // A random GIF from the curated list, not one already on the phone.
+            val id = (allowed - exclude).randomOrNull() ?: return@runCatching null
+            val body = http.newCall(Request.Builder().url(Giphy.byIdUrl(BuildConfig.GIPHY_API_KEY, id)).build())
+                .execute().use { res ->
+                    if (!res.isSuccessful) return@runCatching null
+                    res.body?.string()
+                } ?: return@runCatching null
+            val pick = Giphy.parse(body).firstOrNull() ?: return@runCatching null
             val bytes = http.newCall(Request.Builder().url(pick.url).build()).execute().use { res ->
                 if (!res.isSuccessful) return@runCatching null
                 val data = res.body?.bytes() ?: return@runCatching null
@@ -115,5 +149,10 @@ class MemeSource(context: Context) {
             }
             pick.id to bytes
         }.getOrNull()
+    }
+
+    private companion object {
+        const val LIST_MAX_AGE_MS = 24 * 60 * 60 * 1000L
+        const val MIN_LIST = 5
     }
 }

@@ -55,6 +55,17 @@ class MemeCache(
         return size >= SIZE
     }
 
+    /** Drops saved memes whose id is no longer allowed (taken off the list). */
+    @Synchronized
+    fun prune(allowed: Set<String>) {
+        for (f in files()) {
+            if (f.name.removeSuffix(EXT) !in allowed) {
+                f.delete()
+                shownFile(f).delete()
+            }
+        }
+    }
+
     private suspend fun add(): Boolean {
         val have = files().map { it.name.removeSuffix(EXT) }.toSet()
         val (id, bytes) = fetchOne(have) ?: return false

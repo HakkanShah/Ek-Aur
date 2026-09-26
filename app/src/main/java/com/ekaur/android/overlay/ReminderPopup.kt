@@ -301,6 +301,8 @@ internal fun ReminderCard(
                 }
             }
 
+            // Two equal halves, so neither looks like an afterthought: the
+            // break filled with the brand gradient, the snooze a quiet frost.
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PopupButton(
                     text = "Take a break",
@@ -308,7 +310,12 @@ internal fun ReminderCard(
                     modifier = Modifier.weight(1f),
                     onClick = { onChoice(ReminderPopup.Choice.Break) },
                 )
-                MoreButton(snooze = snooze, onClick = { onChoice(ReminderPopup.Choice.Later) })
+                PopupButton(
+                    text = "$snooze More",
+                    primary = false,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onChoice(ReminderPopup.Choice.Later) },
+                )
             }
             Row(
                 Modifier.fillMaxWidth().padding(top = 2.dp),
@@ -329,71 +336,62 @@ internal fun ReminderCard(
     }
 }
 
-/** The meme: the picture, with outlined meme text across the top and bottom. */
+/**
+ * The meme, in the caption format: a white bar with the line in bold black
+ * above the GIF, and the GIF itself untouched below. Many GIFs carry their own
+ * text, and writing over them made both unreadable; above it, any GIF works.
+ */
 @Composable
 private fun MemePanel(top: String, punchline: String, meme: Drawable?, sticker: String) {
-    Box(
+    Column(
         Modifier
             .fillMaxWidth()
-            .height(200.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(Color(0xFF1E1E24)),
-        contentAlignment = Alignment.Center,
     ) {
-        if (meme != null) {
-            AndroidView(
-                factory = { ctx ->
-                    ImageView(ctx).apply {
-                        scaleType = ImageView.ScaleType.CENTER_CROP
-                        setImageDrawable(meme)
-                        (meme as? Animatable2)?.start()
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Sticker(sticker)
-        }
-        // A soft shade top and bottom, so the text reads on any frame.
+        Text(
+            text = if (top.endsWith("…")) "$top $punchline" else "$top. $punchline",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            lineHeight = 21.sp,
+            color = Color(0xFF111114),
+            textAlign = TextAlign.Center,
+            maxLines = 3,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(White)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+        )
+        // A dark rule under the caption, so a white-background GIF doesn't run
+        // into it.
+        Box(Modifier.fillMaxWidth().height(2.dp).background(Night))
         Box(
             Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Black.copy(alpha = 0.45f),
-                        0.3f to Color.Transparent,
-                        0.7f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.55f),
-                    ),
-                ),
-        )
-        MemeText(top, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
-        MemeText(punchline, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 12.dp, end = 12.dp))
-    }
-}
-
-/** Classic meme text: heavy white capitals with a black outline. */
-@Composable
-private fun MemeText(text: String, modifier: Modifier = Modifier) {
-    val caps = text.uppercase()
-    val style = TextStyle(
-        fontFamily = Poppins,
-        fontWeight = FontWeight.Bold,
-        fontSize = 19.sp,
-        lineHeight = 22.sp,
-        letterSpacing = 0.3.sp,
-        textAlign = TextAlign.Center,
-    )
-    Box(modifier) {
-        Text(
-            text = caps,
-            style = style.copy(
-                color = Color.Black,
-                drawStyle = Stroke(width = 7f, join = StrokeJoin.Round),
-            ),
-            maxLines = 2,
-        )
-        Text(text = caps, style = style.copy(color = White), maxLines = 2)
+                .fillMaxWidth()
+                .height(170.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (meme != null) {
+                AndroidView(
+                    factory = { ctx ->
+                        ImageView(ctx).apply {
+                            // The whole GIF, never cropped: many carry their own
+                            // text, and cropping cut it off. The dark panel fills
+                            // any room at the sides.
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            // And never drawn past its box, over the caption.
+                            cropToPadding = true
+                            setImageDrawable(meme)
+                            (meme as? Animatable2)?.start()
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Sticker(sticker)
+            }
+        }
     }
 }
 
@@ -459,45 +457,6 @@ private fun PopupButton(text: String, primary: Boolean, onClick: () -> Unit, mod
     ) {
         Text(
             text = text,
-            fontFamily = Poppins,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            color = White,
-            maxLines = 1,
-        )
-    }
-}
-
-/**
- * The snooze: "10 More", with however many the user picked. A thin gradient
- * outline and a gradient number, so it reads as the other choice beside the
- * solid "Take a break" rather than as a greyed-out one.
- */
-@Composable
-private fun MoreButton(snooze: Int, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(50)
-    val gradient = instaGradient()
-    Row(
-        Modifier
-            .height(50.dp)
-            .clip(shape)
-            .background(White.copy(alpha = 0.06f), shape)
-            .border(1.5.dp, gradient, shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = "$snooze",
-            style = TextStyle(brush = gradient),
-            fontFamily = Poppins,
-            fontWeight = FontWeight.Bold,
-            fontSize = 17.sp,
-            maxLines = 1,
-        )
-        Spacer(Modifier.width(5.dp))
-        Text(
-            text = "More",
             fontFamily = Poppins,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,

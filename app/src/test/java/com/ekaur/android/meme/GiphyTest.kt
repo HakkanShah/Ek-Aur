@@ -51,10 +51,25 @@ class GiphyTest {
     }
 
     @Test
-    fun `the search is family-safe and encodes the query`() {
-        val url = Giphy.searchUrl("KEY", "touch grass", offset = 7)
-        assertTrue(url.contains("q=touch+grass"))
-        assertTrue(url.contains("rating=g"))
-        assertTrue(url.contains("offset=7"))
+    fun `a GIF is fetched by its id`() {
+        val url = Giphy.byIdUrl("KEY", "abc123XYZ")
+        assertTrue(url.startsWith("https://api.giphy.com/v1/gifs?"))
+        assertTrue(url.contains("ids=abc123XYZ"))
     }
+
+    @Test
+    fun `the website list keeps only well-formed ids`() {
+        val ids = Giphy.parseIds("""{"ids":["q5jnZ0d18LEtOgAICr","bad id!","q5jnZ0d18LEtOgAICr","x","T7xwGxSMc1oUfvSRNh"]}""")
+        assertEquals(listOf("q5jnZ0d18LEtOgAICr", "T7xwGxSMc1oUfvSRNh"), ids)
+        assertEquals(emptyList<String>(), Giphy.parseIds("<html>502</html>"))
+    }
+
+    @Test
+    fun `the built-in list is sane`() {
+        val ids = CuratedMemes.BUILT_IN
+        assertTrue("a real choice of memes", ids.size >= 20)
+        assertEquals("no duplicates", ids.size, ids.toSet().size)
+        assertTrue("every id well-formed", ids.all(CuratedMemes::isValidId))
+    }
+
 }

@@ -7,25 +7,13 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Reading GIPHY's search results, and choosing what to download.
+ * Reading GIPHY's answers, and choosing what to download.
  *
  * Pure Kotlin, tested on the JVM. GIPHY returns each GIF in a dozen renditions;
  * the popup shows it about 190dp tall, so the 200px-tall one is plenty (memes are
  * grainy by nature) and its animated WebP is a fraction of the GIF's size.
  */
 object Giphy {
-
-    /** What the popup searches for. One is picked at random each time. */
-    val QUERIES = listOf(
-        "touch grass",
-        "stop scrolling",
-        "take a break",
-        "go outside",
-        "go to sleep",
-        "put the phone down",
-        "put your phone down",
-        "log off",
-    )
 
     /** One downloadable meme. */
     data class Candidate(val id: String, val url: String, val bytes: Long)
@@ -35,13 +23,19 @@ object Giphy {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /** One GIF by its id; answers in the same shape as a search, so [parse] reads it. */
+    fun byIdUrl(apiKey: String, id: String): String =
+        "https://api.giphy.com/v1/gifs?api_key=${enc(apiKey)}&ids=${enc(id)}"
+
     /**
-     * The search endpoint. `rating=g` keeps it family-safe; stickers and clips
-     * are left out, so it's GIFs only.
+     * The website's list of GIF ids ({"ids": [...]}), keeping only well-formed
+     * ids. Empty if the body isn't that shape.
      */
-    fun searchUrl(apiKey: String, query: String, offset: Int, limit: Int = 25): String =
-        "https://api.giphy.com/v1/gifs/search?api_key=${enc(apiKey)}&q=${enc(query)}" +
-            "&limit=$limit&offset=$offset&rating=g&lang=en&bundle=messaging_non_clips"
+    fun parseIds(body: String): List<String> = runCatching {
+        json.parseToJsonElement(body).jsonObject.getValue("ids").jsonArray
+            .mapNotNull { it.jsonPrimitive.content.takeIf(CuratedMemes::isValidId) }
+            .distinct()
+    }.getOrDefault(emptyList())
 
     /** The small renditions of each result, in the order GIPHY ranked them. */
     fun parse(body: String): List<Candidate> {

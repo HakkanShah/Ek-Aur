@@ -356,7 +356,9 @@ object SarcasmCatalogue {
      * The sticker shown when there is no GIF yet (no key, or offline before the
      * first one arrived): an emoji that does a little dance.
      */
-    private val stickers = listOf("🌱", "🥱", "😴", "🫠", "😵‍💫", "🧘", "🚶", "🫡")
+    // Emoji old enough to draw on every supported phone (Android 8 up): the
+    // newest ones (🫠, 🫡, 😵‍💫) show as empty boxes on Android 11 and older.
+    private val stickers = listOf("🌱", "😴", "🥱", "🙈", "💤", "🧘", "🚶", "📵")
 
     fun reminderSticker(): String = stickers.random()
 
