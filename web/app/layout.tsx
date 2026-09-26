@@ -50,10 +50,10 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/og.png?v=shorts",
+        url: "/og.png?v=reminders",
         width: 1200,
         height: 630,
-        alt: "Ek Aur — a floating counter for Instagram Reels and YouTube Shorts that cheers you on for one more",
+        alt: "Ek Aur — One more reel? Fine. We're counting. A reel and Shorts counter that memes you when you hit your limit",
       },
     ],
   },
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Ek Aur — the Reels and Shorts counter that roasts you",
     description,
-    images: ["/og.png?v=shorts"],
+    images: ["/og.png?v=reminders"],
   },
   icons: {
     icon: "/icon.svg",
@@ -101,7 +101,7 @@ const jsonLd = {
       operatingSystem: "Android 8.0+",
       url: SITE,
       downloadUrl: `${SITE}/api/download`,
-      image: `${SITE}/og.png?v=shorts`,
+      image: `${SITE}/og.png?v=reminders`,
       description,
       author: { "@type": "Person", name: "Hakkan", url: "https://hakkan.is-a.dev" },
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
