@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.service.KeepAlive
 import com.ekaur.android.service.ServiceControl
@@ -347,8 +349,15 @@ private fun KeepAliveStep(
     // Pressed "Open Autostart": coming back afterwards counts as done where
     // the phone can't tell us (most can't).
     var autostartOpened by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(permissions, autostartOpened) {
-        if (autostartOpened && permissions.autostart == null) onAutostartVisited()
+    // Counted on coming *back*, not on the press: marking it on the press
+    // skipped the step before the user had even seen the Autostart screen.
+    // Keyed on nothing: a key change would re-run it at once, while the app
+    // is still in front. It reads the latest values when it does run.
+    val latest by rememberUpdatedState(permissions)
+    val visited by rememberUpdatedState(onAutostartVisited)
+    LifecycleResumeEffect(Unit) {
+        if (autostartOpened && latest.autostart == null) visited()
+        onPauseOrDispose { }
     }
 
     val checklist: @Composable () -> Unit = {

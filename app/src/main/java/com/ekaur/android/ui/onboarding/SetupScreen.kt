@@ -35,6 +35,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -419,6 +422,14 @@ private fun PermissionsCard(
             onAction = { ServiceControl.openBatterySettings(context) },
         )
         if (permissions.autostartScreen) {
+            // Counted as done on coming back from that screen, not on the press.
+            var autostartOpened by rememberSaveable { mutableStateOf(false) }
+            val latest by rememberUpdatedState(permissions)
+            val visited by rememberUpdatedState(onAutostartOpened)
+            LifecycleResumeEffect(Unit) {
+                if (autostartOpened && latest.autostart == null) visited()
+                onPauseOrDispose { }
+            }
             PermRow(
                 icon = EkIcons.Refresh,
                 title = "Autostart",
@@ -428,7 +439,7 @@ private fun PermissionsCard(
                 primary = primaryRecommended == "autostart",
                 actionLabel = "Turn on",
                 onAction = {
-                    onAutostartOpened()
+                    autostartOpened = true
                     if (KeepAlive.openAutostart(context)) SetupGuide.start(context, SetupGuide.Kind.Autostart)
                 },
             )

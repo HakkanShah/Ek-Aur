@@ -114,6 +114,22 @@ class SimScope internal constructor(val t: Float, private val targets: SimTarget
     /** Opacity of something shown from [from] to [to], with short fades. */
     fun shown(from: Float, to: Float, fade: Float = 180f): Float =
         min(rampOf(t, from, fade), 1f - rampOf(t, to - fade, fade))
+
+    /**
+     * One scene of a film, on screen from [from] to [to].
+     *
+     * Off screen it isn't composed at all -- the loop redraws every frame,
+     * and in the floating guide that runs the whole time someone is in
+     * Settings. The one exception is a scene whose [targets] haven't been
+     * measured yet: it is laid out invisibly once, so the finger already
+     * knows where to go before the scene fades in.
+     */
+    @Composable
+    fun Scene(from: Float, to: Float, targets: List<String> = emptyList(), content: @Composable BoxScope.() -> Unit) {
+        val alpha = shown(from, to)
+        if (alpha <= 0f && targets.all { it in this.targets.rects }) return
+        Box(Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }, content = content)
+    }
 }
 
 internal fun rampOf(t: Float, start: Float, durationMs: Float): Float =
@@ -646,7 +662,7 @@ fun AccessibilitySim(
     )
     SimStage(9000, taps, captions, modifier, fixedTimeMs, scale, showCaption) {
         // 1: the accessibility list
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown(-1000f, 2650f) }) {
+        Scene(-1000f, 2650f, listOf("row")) {
             Column(Modifier.fillMaxSize()) {
                 StatusBar()
                 TopBar("Accessibility")
@@ -677,7 +693,7 @@ fun AccessibilitySim(
         }
         // 2: Ek Aur's page, then the popup, then on
         val on = rampOf(t, 5350f, 160f)
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown(2650f, 9200f) }) {
+        Scene(2650f, 9200f, listOf("switch")) {
             ServicePage(on = on, switchPressed = if (t in 3400f..3800f) 1f else 0f)
             FullControlDialog(alpha = shown(3700f, 5400f), pressed = t in 5150f..5400f)
         }
@@ -714,7 +730,7 @@ fun RestrictedSim(
     )
     SimStage(12500, taps, captions, modifier, fixedTimeMs, scale, showCaption) {
         // 1: the switch, and the wall
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown(-1000f, 2950f) }) {
+        Scene(-1000f, 2950f, listOf("switch")) {
             ServicePage(on = 0f, switchPressed = if (t in 900f..1300f) 1f else 0f)
             Box(Modifier.fillMaxSize()) {
                 Dialog(
@@ -728,7 +744,7 @@ fun RestrictedSim(
             }
         }
         // 2: App info and its menu
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown(2950f, 6550f) }) {
+        Scene(2950f, 6550f, listOf("more")) {
             Column(Modifier.fillMaxSize()) {
                 StatusBar()
                 TopBar("App info") {
@@ -799,7 +815,7 @@ fun RestrictedSim(
         }
         // 3: back to the switch, which now works
         val on = rampOf(t, 9150f, 160f)
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown(6550f, 12700f) }) {
+        Scene(6550f, 12700f, listOf("switch")) {
             ServicePage(on = on, switchPressed = if (t in 7500f..7900f) 1f else 0f)
             FullControlDialog(alpha = shown(7800f, 9200f), pressed = t in 8950f..9200f)
         }
@@ -870,7 +886,7 @@ fun OverlaySim(
     )
     SimStage(8000, taps, captions, modifier, fixedTimeMs, scale, showCaption) {
         val on = rampOf(t, 1750f, 160f)
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown(-1000f, 3100f) }) {
+        Scene(-1000f, 3100f, listOf("switch")) {
             Column(Modifier.fillMaxSize()) {
                 StatusBar()
                 TopBar("Display over other apps")
@@ -888,7 +904,7 @@ fun OverlaySim(
                 Blurb()
             }
         }
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown(3100f, 8200f) }) {
+        Scene(3100f, 8200f) {
             ReelWithPill(t - 3100f, endMs = 8000f - 3100f)
         }
     }

@@ -44,25 +44,36 @@ object KeepAlive {
     fun autostart(context: Context): Boolean? {
         if (kind() != Kind.Xiaomi) return null
         // MIUI's own helper, present on MIUI 12+ and HyperOS.
-        runCatching {
-            val utils = Class.forName("android.miui.AppOpsUtils")
-            val method = utils.getDeclaredMethod("getApplicationAutoStart", Context::class.java, String::class.java)
-            val mode = method.invoke(null, context, context.packageName) as Int
-            return mode == AppOpsManager.MODE_ALLOWED
+        miuiHelper?.let { method ->
+            runCatching { return (method.invoke(null, context, context.packageName) as Int) == AppOpsManager.MODE_ALLOWED }
         }
         // Older builds: the app op behind it, 10008.
+        checkOp?.let { method ->
+            runCatching {
+                val ops = context.getSystemService(AppOpsManager::class.java)
+                val mode = method.invoke(ops, XIAOMI_OP_AUTO_START, Process.myUid(), context.packageName) as Int
+                return mode == AppOpsManager.MODE_ALLOWED
+            }
+        }
+        return null
+    }
+
+    // Looked up once: setup reads Autostart on every return to the app.
+    private val miuiHelper by lazy {
         runCatching {
-            val ops = context.getSystemService(AppOpsManager::class.java)
-            val method = AppOpsManager::class.java.getMethod(
+            Class.forName("android.miui.AppOpsUtils")
+                .getDeclaredMethod("getApplicationAutoStart", Context::class.java, String::class.java)
+        }.getOrNull()
+    }
+    private val checkOp by lazy {
+        runCatching {
+            AppOpsManager::class.java.getMethod(
                 "checkOpNoThrow",
                 Int::class.javaPrimitiveType,
                 Int::class.javaPrimitiveType,
                 String::class.java,
             )
-            val mode = method.invoke(ops, XIAOMI_OP_AUTO_START, Process.myUid(), context.packageName) as Int
-            return mode == AppOpsManager.MODE_ALLOWED
-        }
-        return null
+        }.getOrNull()
     }
 
     /** True where this phone has a launch-control screen worth sending people to. */
