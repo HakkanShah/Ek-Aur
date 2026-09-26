@@ -57,9 +57,38 @@ class SettingsStore(context: Context) : SessionStore, com.ekaur.android.reminder
             .apply()
     }
 
-    fun saveAvatarVersion(version: Long) {
-        prefs.edit().putLong(KEY_AVATAR, version).apply()
+    fun saveAvatarVersion(version: Long) = saveAvatar(version, key = null)
+
+    /**
+     * This account's picture: [version] (null for none) and [key], the file
+     * it lives under when that isn't the account's own id (a recovered
+     * account keeps its old upload).
+     */
+    fun saveAvatar(version: Long?, key: String?) {
+        prefs.edit().apply {
+            if (version != null) putLong(KEY_AVATAR, version) else remove(KEY_AVATAR)
+            if (key != null) putString(KEY_AVATAR_KEY, key) else remove(KEY_AVATAR_KEY)
+        }.apply()
+        _avatar.value = readAvatar()
     }
+
+    private fun readAvatar(): AvatarRef? {
+        val version = avatarVersion ?: return null
+        val owner = prefs.getString(KEY_AVATAR_KEY, null) ?: userId ?: return null
+        return AvatarRef(owner, version)
+    }
+
+    private val _avatar = MutableStateFlow(readAvatar())
+
+    /** Where this account's picture is, or null for none. Screens follow it live. */
+    val avatar: StateFlow<AvatarRef?> = _avatar.asStateFlow()
+
+    /** The account whose history has been brought back onto this phone. */
+    var historyRestoredFor: String?
+        get() = prefs.getString(KEY_HISTORY_RESTORED, null)
+        set(value) {
+            prefs.edit().putString(KEY_HISTORY_RESTORED, value).apply()
+        }
 
     fun saveRecoveryCode(code: String) {
         prefs.edit().putString(KEY_RECOVERY, code).apply()
@@ -128,6 +157,16 @@ class SettingsStore(context: Context) : SessionStore, com.ekaur.android.reminder
         get() = prefs.getBoolean(KEY_AUTOSTART_CONFIRMED, false)
         set(value) {
             prefs.edit().putBoolean(KEY_AUTOSTART_CONFIRMED, value).apply()
+        }
+
+    /**
+     * The user said they allowed restricted settings. Used only where the
+     * phone won't report it; a phone that does report it is believed instead.
+     */
+    var unblockConfirmed: Boolean
+        get() = prefs.getBoolean(KEY_UNBLOCK_CONFIRMED, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_UNBLOCK_CONFIRMED, value).apply()
         }
 
     /**
@@ -305,6 +344,9 @@ class SettingsStore(context: Context) : SessionStore, com.ekaur.android.reminder
         const val KEY_AUTO_OFF = "auto_off_on_leave"
         const val KEY_AUTOSTART_CONFIRMED = "autostart_confirmed"
         const val KEY_RETURN_AFTER_CONNECT = "return_after_connect_at"
+        const val KEY_UNBLOCK_CONFIRMED = "unblock_confirmed"
+        const val KEY_AVATAR_KEY = "avatar_key"
+        const val KEY_HISTORY_RESTORED = "history_restored_for"
         const val KEY_WIZARD_SEEN = "setup_wizard_seen"
         const val KEY_CELEBRATED = "setup_celebrated"
         const val KEY_COUNT_PREFIX = "count_app_"
@@ -321,3 +363,6 @@ class SettingsStore(context: Context) : SessionStore, com.ekaur.android.reminder
         const val KEY_EXPIRES = "expires_at"
     }
 }
+
+/** A picture: the file it lives under, and the version that busts caches. */
+data class AvatarRef(val owner: String, val version: Long)

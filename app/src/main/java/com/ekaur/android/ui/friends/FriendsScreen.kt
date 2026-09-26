@@ -128,7 +128,7 @@ fun FriendsScreen(
     fun avatarUrlOf(row: LeaderboardRow): String? =
         row.avatarUrl ?: Avatar.urlFor(
             baseUrl = container.supabase.baseUrl,
-            userId = row.userId,
+            userId = row.avatarKey ?: row.userId,
             version = row.avatarVersion,
         )
 
@@ -153,7 +153,8 @@ fun FriendsScreen(
                 username = name,
                 reelCount = mine,
                 activeMs = 0L,
-                avatarVersion = container.settings.avatarVersion,
+                avatarVersion = container.settings.avatar.value?.version,
+                avatarKey = container.settings.avatar.value?.owner,
             )
         } else {
             real ?: emptyList()

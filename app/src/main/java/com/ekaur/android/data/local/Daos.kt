@@ -84,6 +84,12 @@ interface DailyCountDao {
     fun observeSince(from: String): Flow<List<DailyCountEntity>>
 
     /** Days changed since their last upload, oldest first. */
+    @Query("DELETE FROM daily_counts WHERE date = :date")
+    suspend fun deleteDate(date: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(rows: List<DailyCountEntity>)
+
     @Query("SELECT * FROM daily_counts WHERE dirty = 1 ORDER BY date ASC LIMIT :limit")
     suspend fun dirtyRows(limit: Int): List<DailyCountEntity>
 

@@ -147,7 +147,11 @@ private fun AppScaffold(container: AppContainer) {
         return
     }
 
-    fun readPermissions() = PermissionState.read(context, container.settings.autostartConfirmed)
+    fun readPermissions() = PermissionState.read(
+        context,
+        autostartConfirmed = container.settings.autostartConfirmed,
+        unblockConfirmed = container.settings.unblockConfirmed,
+    )
     var permissions by remember { mutableStateOf(readPermissions()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     val pagerState = rememberPagerState { BOTTOM_TABS.size }
@@ -204,6 +208,10 @@ private fun AppScaffold(container: AppContainer) {
                 permissions = readPermissions()
             },
             onReturnAfterConnect = { container.settings.returnAfterConnectAtMs = System.currentTimeMillis() },
+            onUnblockConfirmed = {
+                container.settings.unblockConfirmed = true
+                permissions = readPermissions()
+            },
             startInRecovery = wizardRecovery,
             onDone = close,
             onSkip = close,
@@ -221,6 +229,11 @@ private fun AppScaffold(container: AppContainer) {
 
     // Look for a newer build on GitHub once the app is open (throttled inside).
     LaunchedEffect(Unit) { container.updateManager.checkOnLaunch() }
+    // Phones that recovered their account before history came back with it
+    // (build 65) get it now, once.
+    LaunchedEffect(username) {
+        if (com.ekaur.android.sync.AccountRestore.due(container)) com.ekaur.android.sync.AccountRestore.run(container)
+    }
 
     UpdatePopup(container.updateManager)
 

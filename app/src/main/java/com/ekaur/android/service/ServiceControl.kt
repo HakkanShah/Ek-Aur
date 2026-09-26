@@ -251,6 +251,29 @@ object ServiceControl {
     }
 
     /**
+     * Opens where "Allow restricted settings" can actually be found.
+     *
+     * realme, OPPO, OnePlus and vivo answer the App info deep link with a
+     * cut-down page that has no ⋮ menu at all (seen on a realme, Android 13),
+     * while the same app opened from the Settings app list has it. On those
+     * the list is opened instead; everywhere else, App info directly.
+     */
+    fun openRestrictedSettingsPage(context: Context) {
+        if (oemHint().hedged) openAppManagement(context) else openAppInfo(context)
+    }
+
+    /**
+     * Opens the installed-apps list ("App management" on realme and OPPO,
+     * "Apps" elsewhere), where Ek Aur is one tap away with its full App info.
+     * Falls back to the all-apps list, then to App info.
+     */
+    fun openAppManagement(context: Context) {
+        val apps = Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(apps) }
+            .onFailure { openAppsList(context) }
+    }
+
+    /**
      * Opens the system's list of all apps, for finding this app's App info the
      * long way round.
      *

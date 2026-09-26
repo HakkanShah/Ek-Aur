@@ -141,6 +141,7 @@ fun HomeScreen(
         )
     }
 
+    val avatar by container.settings.avatar.collectAsState()
     val shown = count ?: 0
     val live = state == "InReels" && permissions.service
 
@@ -158,8 +159,8 @@ fun HomeScreen(
             username = username.orEmpty(),
             avatarUrl = Avatar.urlFor(
                 baseUrl = container.supabase.baseUrl,
-                userId = container.settings.userId.orEmpty(),
-                version = container.settings.avatarVersion,
+                userId = avatar?.owner.orEmpty(),
+                version = avatar?.version,
             ),
             onOpenAccount = onOpenAccount,
             modifier = Modifier.reveal(0),

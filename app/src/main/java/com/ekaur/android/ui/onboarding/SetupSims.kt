@@ -157,19 +157,23 @@ fun SimStage(
     fixedTimeMs: Float? = null,
     scale: Float = 1f,
     showCaption: Boolean = true,
+    /** Loop only this part of the film (a single hop of a longer one). */
+    window: ClosedFloatingPointRange<Float>? = null,
     content: @Composable SimScope.() -> Unit,
 ) {
+    val start = window?.start ?: 0f
+    val length = window?.let { (it.endInclusive - it.start).toInt() } ?: durationMs
     val t = if (fixedTimeMs != null) {
         fixedTimeMs
     } else {
         val loop = rememberInfiniteTransition(label = "sim")
         val v by loop.animateFloat(
             initialValue = 0f,
-            targetValue = durationMs.toFloat(),
-            animationSpec = infiniteRepeatable(tween(durationMs, easing = LinearEasing)),
+            targetValue = length.toFloat(),
+            animationSpec = infiniteRepeatable(tween(length, easing = LinearEasing)),
             label = "sim-clock",
         )
-        v
+        start + v
     }
     val targets = remember { SimTargets() }
     val phoneW = SimScreenWidth + Bezel * 2
@@ -713,6 +717,8 @@ fun RestrictedSim(
     fixedTimeMs: Float? = null,
     scale: Float = 1f,
     showCaption: Boolean = true,
+    /** 0: the switch and the popup. 1: App info, the dots, Allow. Null: all of it. */
+    part: Int? = null,
 ) {
     val taps = listOf(
         SimTap(1000f, "switch"),
@@ -724,11 +730,17 @@ fun RestrictedSim(
     )
     val captions = listOf(
         SimCaption(0f, 3000f, "Tap the switch, press OK"),
-        SimCaption(3000f, 6500f, "App info → ⋮ → Allow"),
+        SimCaption(3000f, 6500f, "App info → 3 dots → Allow"),
         SimCaption(6500f, 9800f, "Now switch it on"),
         SimCaption(9800f, 12500f, "Done: it's counting"),
     )
-    SimStage(12500, taps, captions, modifier, fixedTimeMs, scale, showCaption) {
+    val window = when (part) {
+        0 -> 0f..3000f
+        1 -> 2950f..6550f
+        else -> null
+    }
+    SimStage(12500, taps, captions.filter { c -> window == null || (c.fromMs < window.endInclusive && c.toMs > window.start) },
+        modifier, fixedTimeMs, scale, showCaption, window) {
         // 1: the switch, and the wall
         Scene(-1000f, 2950f, listOf("switch")) {
             ServicePage(on = 0f, switchPressed = if (t in 900f..1300f) 1f else 0f)

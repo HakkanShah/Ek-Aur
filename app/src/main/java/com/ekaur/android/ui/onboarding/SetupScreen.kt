@@ -991,7 +991,7 @@ private fun HelpCard(
         Expandable("Trouble installing?") {
             Bullet("\"App blocked\" by Play Protect: Play Store → profile → Play Protect → settings (gear) → turn off scanning, install, then turn it back on.")
             Bullet("\"App not installed\" means an older file over a newer one. Install the newest.")
-            Bullet("\"Restricted setting\" on the switch: tap the switch once and press OK, then App info → ⋮ → Allow restricted settings, then switch it on. The ⋮ item only appears after that first tap.")
+            Bullet("\"Restricted setting\" on the switch: tap the switch once and press OK, then App info (from App management on realme and OPPO) → the 3 dots → Allow restricted settings, then switch it on. The 3 dots only appear after that first tap.")
         }
         Spacer(Modifier.height(6.dp))
         Expandable("Developer") {

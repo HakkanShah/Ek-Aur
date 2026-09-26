@@ -104,12 +104,15 @@ fun UsernameScreen(
             }.getOrNull()
         }
         if (recovered != null) {
-            container.settings.saveUsername(recovered)
             withContext(Dispatchers.IO) {
                 runCatching { container.supabase.registerDevice(container.deviceKey) }
                     .getOrNull()
                     ?.let { container.settings.saveRecoveryCode(it) }
             }
+            // Photo and history back before Home opens, under this spinner,
+            // so the app comes back as it was rather than half-empty.
+            com.ekaur.android.sync.AccountRestore.run(container)
+            container.settings.saveUsername(recovered)
             com.ekaur.android.data.work.SyncWorker.schedule(appContext)
         }
         restoring = false
@@ -156,6 +159,8 @@ fun UsernameScreen(
             }
             claiming = false
             outcome.onSuccess {
+                // A brand-new account has nothing to bring back.
+                container.settings.historyRestoredFor = container.settings.userId
                 container.settings.saveUsername(name)
                 // Registered straight away, so the very first uninstall is
                 // already recoverable.
@@ -201,12 +206,13 @@ fun UsernameScreen(
             if (recovered == null) {
                 recoverError = "That code didn't work. Check it and try again."
             } else {
-                container.settings.saveUsername(recovered)
                 withContext(Dispatchers.IO) {
                     runCatching {
                         container.supabase.registerDevice(container.deviceKey)
                     }.getOrNull()?.let { container.settings.saveRecoveryCode(it) }
                 }
+                com.ekaur.android.sync.AccountRestore.run(container)
+                container.settings.saveUsername(recovered)
                 com.ekaur.android.data.work.SyncWorker.schedule(appContext)
             }
         }

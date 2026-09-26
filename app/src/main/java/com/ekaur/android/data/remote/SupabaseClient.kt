@@ -58,6 +58,14 @@ sealed interface SyncError {
 
 class SyncException(val error: SyncError) : Exception(error.toString())
 
+/** The fields of this account's own profile a reinstall needs back. */
+data class MyProfile(
+    val username: String,
+    val hidden: Boolean,
+    val avatarVersion: Long?,
+    val avatarKey: String?,
+)
+
 /** One person's day, as the leaderboard shows it. */
 data class LeaderboardRow(
     val userId: String,
@@ -73,6 +81,11 @@ data class LeaderboardRow(
      * real people, whose picture is built from [avatarVersion].
      */
     val avatarUrl: String? = null,
+    /**
+     * Where the picture file lives when it isn't under [userId] -- a recovered
+     * account keeps the file it uploaded before the move.
+     */
+    val avatarKey: String? = null,
     /** Instagram Reels' share of [reelCount]. */
     val reelsCount: Int = reelCount,
     /** YouTube Shorts' share of [reelCount]. */
@@ -310,7 +323,7 @@ class SupabaseClient(
             "$baseUrl/rest/v1/daily_counts" +
                 "?date=eq.$date" +
                 "&select=user_id,reel_count,reels_count,shorts_count,active_ms," +
-                "profiles!inner(username,hidden,avatar_version)" +
+                "profiles!inner(username,hidden,avatar_version,avatar_key)" +
                 "&order=reel_count.desc" +
                 "&limit=$limit"
         ).asArray("leaderboard")
@@ -332,6 +345,43 @@ class SupabaseClient(
                 reelsCount = split.reels,
                 shortsCount = split.shorts,
                 avatarVersion = profile["avatar_version"]?.jsonPrimitive?.contentOrNull?.toLongOrNull(),
+                avatarKey = profile["avatar_key"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() },
+            )
+        }
+    }
+
+    /** This account's own profile, for putting it back on a reinstalled phone. */
+    fun myProfile(): MyProfile? {
+        val userId = settings.userId
+            ?: throw SyncException(SyncError.Refused(401, "not signed in"))
+        val row = get(
+            "$baseUrl/rest/v1/profiles?id=eq.$userId&select=username,hidden,avatar_version,avatar_key"
+        ).asArray("profile").firstOrNull() as? JsonObject ?: return null
+        return MyProfile(
+            username = row["username"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            hidden = row["hidden"]?.jsonPrimitive?.contentOrNull == "true",
+            avatarVersion = row["avatar_version"]?.jsonPrimitive?.contentOrNull?.toLongOrNull(),
+            avatarKey = row["avatar_key"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    /** This account's daily totals, newest first -- its history, for a reinstall. */
+    fun myDays(limit: Int = 400): List<com.ekaur.android.sync.ServerDay> {
+        val userId = settings.userId
+            ?: throw SyncException(SyncError.Refused(401, "not signed in"))
+        return get(
+            "$baseUrl/rest/v1/daily_counts?user_id=eq.$userId" +
+                "&select=date,reel_count,reels_count,shorts_count,active_ms" +
+                "&order=date.desc&limit=$limit"
+        ).asArray("history").mapNotNull { element ->
+            val row = element as? JsonObject ?: return@mapNotNull null
+            val date = row["date"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            com.ekaur.android.sync.ServerDay(
+                date = date,
+                total = row["reel_count"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0,
+                reels = row["reels_count"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0,
+                shorts = row["shorts_count"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0,
+                activeMs = row["active_ms"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0L,
             )
         }
     }

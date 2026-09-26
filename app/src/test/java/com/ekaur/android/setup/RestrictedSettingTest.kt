@@ -55,4 +55,13 @@ class RestrictedSettingTest {
             assertTrue(v.name, RestrictedSetting.applies(v))
         }
     }
+
+    @Test
+    fun `only a known or likely gate is asked for up front`() {
+        assertEquals(true, RestrictedSetting.needsUnblockStep(Verdict.Restricted))
+        assertEquals(true, RestrictedSetting.needsUnblockStep(Verdict.LikelyRestricted))
+        assertEquals(false, RestrictedSetting.needsUnblockStep(Verdict.Cleared))
+        assertEquals(false, RestrictedSetting.needsUnblockStep(Verdict.Unknown))
+        assertEquals(false, RestrictedSetting.needsUnblockStep(Verdict.NotApplicable))
+    }
 }

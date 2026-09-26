@@ -3,6 +3,8 @@ package com.ekaur.android.ui.onboarding
 import android.content.Context
 import com.ekaur.android.service.KeepAlive
 import com.ekaur.android.service.ServiceControl
+import com.ekaur.android.setup.RestrictedSetting
+import com.ekaur.android.setup.Verdict
 
 /**
  * Every grant the app can ask for, read in one go so no two screens disagree.
@@ -27,6 +29,12 @@ data class PermissionState(
     val autostartScreen: Boolean = false,
     /** The user came back from the Autostart screen (for phones that can't be read). */
     val autostartConfirmed: Boolean = false,
+    /**
+     * "Allow restricted settings" still stands between the user and the
+     * accessibility switch (Android 13+, installed from a file, not yet
+     * allowed -- or not confirmed, where the phone won't say).
+     */
+    val unblockNeeded: Boolean = false,
 ) {
     /** Counting works and shows: started, and allowed to draw the pill. */
     val allGranted: Boolean get() = service && running && overlay
@@ -45,9 +53,24 @@ data class PermissionState(
     val requiredMissing: Int get() = listOf(service && running, overlay).count { !it }
 
     companion object {
+        /**
+         * The user's "I allowed it" only counts where the phone can't say.
+         * When Android reports the gate as still shut, Android is believed.
+         */
+        fun unblockNeeded(verdict: Verdict, confirmed: Boolean): Boolean = when {
+            !RestrictedSetting.needsUnblockStep(verdict) -> false
+            verdict == Verdict.Restricted -> true
+            else -> !confirmed
+        }
+
         /** There is no callback for any of these, so callers re-read on resume. */
-        fun read(context: Context, autostartConfirmed: Boolean = false): PermissionState {
+        fun read(
+            context: Context,
+            autostartConfirmed: Boolean = false,
+            unblockConfirmed: Boolean = false,
+        ): PermissionState {
             val running = ServiceControl.isAccessibilityServiceRunning(context)
+            val verdict = ServiceControl.restrictedVerdict(context)
             return PermissionState(
                 service = running || ServiceControl.isAccessibilityServiceEnabled(context),
                 running = running,
@@ -57,6 +80,7 @@ data class PermissionState(
                 autostart = KeepAlive.autostart(context),
                 autostartScreen = KeepAlive.hasAutostartScreen(),
                 autostartConfirmed = autostartConfirmed,
+                unblockNeeded = unblockNeeded(verdict, unblockConfirmed),
             )
         }
     }

@@ -69,9 +69,12 @@ import kotlinx.coroutines.launch
  * of the exact taps on screen the whole time they're in Settings, and watch
  * for the step to go through -- then it brings them back to the app by itself.
  *
- * Android hides other apps' windows on a few sensitive Settings screens (the
- * accessibility permission popup, for one). The card simply disappears there
- * and comes back after; nothing here fights that.
+ * Android hides other apps' windows on its own Settings screens -- App info,
+ * the accessibility pages, special app access -- so a card there only
+ * flickered on and vanished (reported on a realme, Android 13). The card is
+ * therefore shown only where it stays visible (the phone maker's Autostart
+ * list); for Settings steps the app just watches in the background and comes
+ * back by itself, and the step's own film has already shown the taps.
  */
 object SetupGuide {
 
@@ -90,11 +93,15 @@ object SetupGuide {
      */
     fun start(context: Context, what: Kind) {
         val app = context.applicationContext
+        remove()
         kind.value = what
         success.value = false
-        show(app)
+        if (what in VISIBLE_ON) show(app)
         watch(app, timeoutMs = 5 * 60_000L)
     }
+
+    /** Screens that don't hide other apps' windows, where a card is worth showing. */
+    private val VISIBLE_ON = setOf(Kind.Autostart)
 
     /**
      * Only watches: brings the app back when [done] turns true. For the
@@ -135,10 +142,10 @@ object SetupGuide {
                         return@launch
                     }
                     Kind.Restricted -> if (ServiceControl.restrictedSettingsOpMode(app) == AppOpsManager.MODE_ALLOWED) {
-                        // Unblocked: take them straight to the switch, and
-                        // change the card to match.
-                        kind.value = Kind.Accessibility
-                        ServiceControl.openAccessibilityServiceDetails(app)
+                        // Unblocked: back to the app, where the next step
+                        // (the switch itself) is waiting with its film.
+                        finish(app)
+                        return@launch
                     }
                     Kind.Autostart -> if (KeepAlive.autostart(app) == true) {
                         finish(app)
@@ -155,8 +162,11 @@ object SetupGuide {
     }
 
     private suspend fun finish(app: Context) {
-        success.value = true
-        delay(900)
+        if (view != null) {
+            // Let the card say "Done!" before it goes.
+            success.value = true
+            delay(900)
+        }
         bringBack(app)
         remove()
     }
@@ -240,7 +250,7 @@ object SetupGuide {
 /** What the floating card says for each step: a title and at most two short lines. */
 internal fun guideWords(kind: SetupGuide.Kind, listSection: String): Pair<String, List<String>> = when (kind) {
     SetupGuide.Kind.Accessibility -> "Switch on Ek Aur" to listOf("Find “$listSection” → Ek Aur", "Turn it on → Allow")
-    SetupGuide.Kind.Restricted -> "Unblock Ek Aur" to listOf("Tap ⋮ at the top right", "→ Allow restricted settings")
+    SetupGuide.Kind.Restricted -> "Unblock Ek Aur" to listOf("Tap the 3 dots, top right", "→ Allow restricted settings")
     SetupGuide.Kind.Restart -> "Restart Ek Aur" to listOf("Turn the switch off", "then on again → Allow")
     SetupGuide.Kind.Autostart -> "Turn on Autostart" to listOf("Find Ek Aur in the list", "Turn its switch on")
     SetupGuide.Kind.Usage -> "Allow usage access" to listOf("Find Ek Aur in the list", "Turn its switch on")

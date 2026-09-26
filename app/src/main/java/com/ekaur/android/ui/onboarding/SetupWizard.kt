@@ -1,6 +1,5 @@
 package com.ekaur.android.ui.onboarding
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -35,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -108,6 +108,7 @@ fun SetupWizard(
     onSkip: () -> Unit,
     onAutostartVisited: () -> Unit,
     onReturnAfterConnect: () -> Unit,
+    onUnblockConfirmed: () -> Unit = {},
     startInRecovery: Boolean = false,
     onClose: (() -> Unit)? = null,
     apps: Set<TrackedApp> = setOf(TrackedApp.Instagram),
@@ -116,12 +117,18 @@ fun SetupWizard(
 ) {
     var welcomed by rememberSaveable { mutableStateOf(startInRecovery || permissions.service) }
     var keepAliveSkipped by rememberSaveable { mutableStateOf(false) }
+    // "Saw Restricted setting?" from the accessibility step, or opened from
+    // Setup's fix button: show the unblock step even where the phone didn't
+    // say it was needed.
+    var forceUnblock by rememberSaveable { mutableStateOf(startInRecovery) }
+    val unblock = permissions.unblockNeeded || forceUnblock
     val step = SetupFlow.nextStep(
         welcomed = welcomed,
         overlay = permissions.overlay,
         keepAlive = permissions.keepAliveDone || keepAliveSkipped,
         service = permissions.service,
         running = permissions.running,
+        unblock = unblock,
     )
 
     Column(
@@ -133,7 +140,7 @@ fun SetupWizard(
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
             if (step != SetupStep.Welcome && step != SetupStep.Done) {
-                ProgressDots(SetupFlow.dotIndex(step))
+                ProgressDots(SetupFlow.dotIndex(step, unblock), SetupFlow.dotted(unblock).size)
             }
             Spacer(Modifier.weight(1f))
             if (onClose != null) {
@@ -172,8 +179,15 @@ fun SetupWizard(
                     onAutostartVisited = onAutostartVisited,
                     onSkip = { keepAliveSkipped = true },
                 )
+                SetupStep.Unblock -> UnblockStep(
+                    onAllowed = {
+                        forceUnblock = false
+                        onUnblockConfirmed()
+                    },
+                    onSkip = onSkip,
+                )
                 SetupStep.Accessibility -> AccessibilityStep(
-                    startInRecovery = startInRecovery,
+                    onSawRestricted = { forceUnblock = true },
                     onReturnAfterConnect = onReturnAfterConnect,
                     onSkip = onSkip,
                 )
@@ -398,59 +412,136 @@ private fun KeepAliveStep(
 
 @Composable
 private fun AccessibilityStep(
-    startInRecovery: Boolean,
+    onSawRestricted: () -> Unit,
     onReturnAfterConnect: () -> Unit,
     onSkip: () -> Unit,
 ) {
     val context = LocalContext.current
     val hint = remember { ServiceControl.oemHint() }
-    val verdict = remember { ServiceControl.restrictedVerdict(context) }
-    val gate = RestrictedSetting.applies(verdict) && verdict != Verdict.Cleared
-    // Pressed "Open Accessibility" once: coming back without it means the
-    // "Restricted setting" wall is the likeliest reason, so its film takes over.
-    var attempted by rememberSaveable { mutableStateOf(startInRecovery) }
-    var showWall by rememberSaveable { mutableStateOf(startInRecovery) }
-    val wall = showWall || (gate && attempted)
-    BackHandler(enabled = wall && !startInRecovery) {
-        showWall = false
-        attempted = false
+    val gate = remember { RestrictedSetting.applies(ServiceControl.restrictedVerdict(context)) }
+    StepLayout(
+        film = { AccessibilitySim(hint.listSection) },
+        title = "Switch on Ek Aur",
+        line = "It only sees the swipe to the next video.",
+        action = "Open Accessibility",
+        onAction = {
+            onReturnAfterConnect()
+            ServiceControl.openAccessibilityServiceDetails(context)
+            SetupGuide.start(context, SetupGuide.Kind.Accessibility)
+        },
+        quiet = if (gate) "Saw “Restricted setting”?" else "Skip setup",
+        onQuiet = { if (gate) onSawRestricted() else onSkip() },
+    )
+}
+
+/**
+ * "Allow restricted settings", asked for before the switch it blocks.
+ *
+ * Two hops, in order, because Android only adds the menu item after the
+ * blocked switch has been tapped once: tap the switch (it says "Restricted
+ * setting", press OK), then App info → ⋮ → Allow restricted settings. The
+ * button always says which hop is next, with one line for the screen it
+ * opens -- the floating guide can't be drawn over Settings, so this is what
+ * people carry with them.
+ */
+@Composable
+private fun UnblockStep(
+    onAllowed: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    val context = LocalContext.current
+    val hint = remember { ServiceControl.oemHint() }
+    // Whether the phone reports the gate: then allowing it moves the step on
+    // by itself, and "Done" is only a fallback.
+    val readable = remember { ServiceControl.restrictedVerdict(context) == Verdict.Restricted }
+    // 0: tap the switch next. 1: allow it next. 2: both pressed, and the
+    // phone can't tell us whether it worked, so the user says.
+    var hop by rememberSaveable { mutableIntStateOf(0) }
+
+    val (action, where) = when (hop) {
+        0 -> "Step 1: Tap the switch once" to
+            "It will say “Restricted setting”. Press OK, then come back."
+        1 -> "Step 2: Allow restricted settings" to
+            (if (hint.hedged) "App management → Ek Aur → the 3 dots at the top right → Allow restricted settings."
+            else "Tap the 3 dots at the top right → Allow restricted settings.")
+        else -> "Done, I allowed it" to
+            (if (readable) "Allowed it? This moves on by itself when you're back."
+            else "No 3 dots? Go back to step 1 and tap the switch again first.")
     }
 
-    fun openSwitch() {
-        attempted = true
-        onReturnAfterConnect()
-        ServiceControl.openAccessibilityServiceDetails(context)
-        SetupGuide.start(context, SetupGuide.Kind.Accessibility)
-    }
-
-    AnimatedContent(targetState = wall, label = "wall") { blocked ->
-        if (!blocked) {
-            StepLayout(
-                film = { AccessibilitySim(hint.listSection) },
-                title = "Switch on Ek Aur",
-                line = "It only sees the swipe to the next video.",
-                action = "Open Accessibility",
-                onAction = ::openSwitch,
-                quiet = if (gate) "Saw “Restricted setting”?" else "Skip setup",
-                onQuiet = { if (gate) showWall = true else onSkip() },
-            )
-        } else {
-            StepLayout(
-                film = { RestrictedSim() },
-                title = "Android blocked it. Normal!",
-                line = "Every app outside Play Store gets this once.",
-                action = "Open App info",
-                onAction = {
-                    onReturnAfterConnect()
-                    ServiceControl.openAppInfo(context)
+    StepLayout(
+        film = { RestrictedSim(part = if (hop == 0) 0 else 1) },
+        title = "First, unblock Ek Aur",
+        line = "Android does this to apps not from Play Store. Once.",
+        action = action,
+        onAction = {
+            when (hop) {
+                0 -> {
+                    hop = 1
+                    val before = ServiceControl.restrictedSettingsOpMode(context)
+                    ServiceControl.openAccessibilityServiceDetails(context)
+                    // The popup changes the gate's state: come back by itself.
+                    if (before != null) {
+                        SetupGuide.returnWhen(context) { ServiceControl.restrictedSettingsOpMode(it) != before }
+                    }
+                }
+                1 -> {
+                    hop = 2
+                    ServiceControl.openRestrictedSettingsPage(context)
                     SetupGuide.start(context, SetupGuide.Kind.Restricted)
-                },
-                quiet = "Open Accessibility",
-                onQuiet = ::openSwitch,
-                extra = { StuckHelp(verdict) },
-            )
-        }
-    }
+                }
+                else -> onAllowed()
+            }
+        },
+        quiet = when (hop) {
+            0 -> "Skip setup"
+            1 -> "Back to step 1"
+            else -> "Try step 2 again"
+        },
+        onQuiet = {
+            when (hop) {
+                0 -> onSkip()
+                1 -> hop = 0
+                else -> hop = 1
+            }
+        },
+        extra = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Chip("1  Tap switch", hop >= 1)
+                    Chip("2  Allow", hop >= 2)
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = where,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Chalk,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(SurfaceLav)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                )
+                if (hop >= 1) {
+                    Spacer(Modifier.height(4.dp))
+                    FlatButton(
+                        text = if (hint.hedged) "Open App info instead" else "No 3 dots? Open App management",
+                        quiet = true,
+                        onClick = {
+                            hop = 2
+                            if (hint.hedged) ServiceControl.openAppInfo(context) else ServiceControl.openAppManagement(context)
+                            SetupGuide.start(context, SetupGuide.Kind.Restricted)
+                        },
+                    )
+                }
+                if (hop >= 1) {
+                    Spacer(Modifier.height(4.dp))
+                    StuckHelp(remember { ServiceControl.restrictedVerdict(context) })
+                }
+            }
+        },
+    )
 }
 
 @Composable
@@ -626,9 +717,9 @@ private fun Chip(label: String, done: Boolean) {
 
 /** One dot per step, the current one stretched. */
 @Composable
-private fun ProgressDots(current: Int) {
+private fun ProgressDots(current: Int, total: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        repeat(SetupFlow.DOTTED.size) { i ->
+        repeat(total) { i ->
             val w by animateFloatAsState(
                 targetValue = if (i == current) 26f else 8f,
                 animationSpec = tween(260, easing = FastOutSlowInEasing),
@@ -643,7 +734,7 @@ private fun ProgressDots(current: Int) {
         }
         Spacer(Modifier.width(8.dp))
         Text(
-            text = "Step ${current + 1} of ${SetupFlow.DOTTED.size}",
+            text = "Step ${current + 1} of $total",
             style = MaterialTheme.typography.labelMedium,
             color = Smoke,
         )

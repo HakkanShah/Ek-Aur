@@ -87,7 +87,11 @@ object BugReport {
     suspend fun statusText(context: Context, container: AppContainer): String {
         val status = container.serviceStatus
         val settings = container.settings
-        val permissions = PermissionState.read(context, container.settings.autostartConfirmed)
+        val permissions = PermissionState.read(
+            context,
+            autostartConfirmed = container.settings.autostartConfirmed,
+            unblockConfirmed = container.settings.unblockConfirmed,
+        )
         val byApp = runCatching { container.counterRepository.observeTodayByApp().first() }.getOrDefault(emptyMap())
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         fun time(ms: Long) = if (ms <= 0) "never" else fmt.format(Date(ms))
@@ -102,6 +106,8 @@ object BugReport {
             val metrics = context.resources.displayMetrics
             line("screen", "${metrics.widthPixels}x${metrics.heightPixels} @ ${metrics.densityDpi}dpi")
             line("restricted", ServiceControl.restrictedVerdict(context))
+            line("restricted op", ServiceControl.restrictedSettingsOpMode(context))
+            line("unblock needed", permissions.unblockNeeded)
             append('\n')
 
             line("accessibility on", permissions.service)

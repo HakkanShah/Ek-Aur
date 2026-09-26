@@ -11,7 +11,8 @@ class SetupFlowTest {
         keepAlive: Boolean = false,
         service: Boolean = false,
         running: Boolean = false,
-    ) = SetupFlow.nextStep(welcomed, overlay, keepAlive, service, running)
+        unblock: Boolean = false,
+    ) = SetupFlow.nextStep(welcomed, overlay, keepAlive, service, running, unblock)
 
     @Test
     fun `a fresh install starts on welcome`() {
@@ -52,12 +53,32 @@ class SetupFlowTest {
     }
 
     @Test
-    fun `dots follow the steps`() {
-        assertEquals(-1, SetupFlow.dotIndex(SetupStep.Welcome))
-        assertEquals(0, SetupFlow.dotIndex(SetupStep.Overlay))
-        assertEquals(1, SetupFlow.dotIndex(SetupStep.KeepAlive))
-        assertEquals(2, SetupFlow.dotIndex(SetupStep.Accessibility))
-        assertEquals(2, SetupFlow.dotIndex(SetupStep.Restart))
+    fun `restricted settings are asked for before the switch they block`() {
+        assertEquals(SetupStep.Unblock, step(overlay = true, keepAlive = true, unblock = true))
+        assertEquals(SetupStep.Accessibility, step(overlay = true, keepAlive = true, unblock = false))
+        // Keep alive still comes first.
+        assertEquals(SetupStep.KeepAlive, step(overlay = true, unblock = true))
+    }
+
+    @Test
+    fun `a switch already on never asks to unblock`() {
+        assertEquals(SetupStep.Restart, step(overlay = true, keepAlive = true, service = true, unblock = true))
+        assertEquals(SetupStep.Done, step(overlay = true, service = true, running = true, unblock = true))
+    }
+
+    @Test
+    fun `dots follow the steps, with unblock only where it applies`() {
+        assertEquals(-1, SetupFlow.dotIndex(SetupStep.Welcome, unblock = false))
+        assertEquals(0, SetupFlow.dotIndex(SetupStep.Overlay, unblock = false))
+        assertEquals(1, SetupFlow.dotIndex(SetupStep.KeepAlive, unblock = false))
+        assertEquals(2, SetupFlow.dotIndex(SetupStep.Accessibility, unblock = false))
+        assertEquals(2, SetupFlow.dotIndex(SetupStep.Restart, unblock = false))
+        assertEquals(3, SetupFlow.dotted(unblock = false).size)
+
+        assertEquals(2, SetupFlow.dotIndex(SetupStep.Unblock, unblock = true))
+        assertEquals(3, SetupFlow.dotIndex(SetupStep.Accessibility, unblock = true))
+        assertEquals(3, SetupFlow.dotIndex(SetupStep.Restart, unblock = true))
+        assertEquals(4, SetupFlow.dotted(unblock = true).size)
     }
 
     @Test

@@ -48,4 +48,17 @@ class KeepAliveStateTest {
         assertTrue(PermissionState(battery = true).keepAliveDone)
         assertFalse(PermissionState(battery = true, autostartScreen = true).keepAliveDone)
     }
+
+    @Test
+    fun `an "I allowed it" only counts where the phone can't say`() {
+        // Android says still blocked: believe Android.
+        assertTrue(PermissionState.unblockNeeded(Verdict.Restricted, confirmed = true))
+        // Phone can't say: believe the user.
+        assertTrue(PermissionState.unblockNeeded(Verdict.LikelyRestricted, confirmed = false))
+        assertFalse(PermissionState.unblockNeeded(Verdict.LikelyRestricted, confirmed = true))
+        // Already allowed, or no gate on this phone.
+        assertFalse(PermissionState.unblockNeeded(Verdict.Cleared, confirmed = false))
+        assertFalse(PermissionState.unblockNeeded(Verdict.NotApplicable, confirmed = false))
+        assertFalse(PermissionState.unblockNeeded(Verdict.Unknown, confirmed = false))
+    }
 }

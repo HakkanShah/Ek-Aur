@@ -59,3 +59,22 @@ The availability check is advisory. Two people can pass it in the same second,
 so `profiles_username_unique` is the real guarantee and a `23505` is an ordinary
 outcome the screen phrases as "pick another". Verified: an exact duplicate, a
 hidden user's name, and a differently-cased duplicate all raise it.
+
+## Recovery keeps the picture; days never go down
+
+`recovery_keeps_avatar_and_counts_never_drop` (applied 2026-09-27):
+
+- `profiles.avatar_key` — the file a picture lives under when it isn't the
+  account's own id. `recover_account` moves a profile to a new user id, but the
+  picture stays at `avatars/<old id>.webp`; it now records that, and clients
+  build the URL from `avatar_key ?: id`. `touch_avatar` clears it, since a new
+  upload lands under the account's own id.
+- `profiles_guard_avatar_key` — only the `SECURITY DEFINER` functions may change
+  `avatar_key`; a user patching their own profile can't point their picture at
+  someone else's file. Verified: an `authenticated` update leaves it unchanged.
+- `daily_counts_never_lower` — an update can only raise a day's numbers. A
+  reinstall starts today at zero on the phone, and its first upload used to
+  overwrite the day already recorded. Verified: setting a 51 to 0 leaves 51.
+
+The app (build 65) reads the profile and history back after a recovery, so a
+reinstall comes back with its picture and stats.

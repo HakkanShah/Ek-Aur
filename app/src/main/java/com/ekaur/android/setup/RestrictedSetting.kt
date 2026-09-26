@@ -64,4 +64,13 @@ object RestrictedSetting {
 
     /** Whether the recovery steps should be offered at all. */
     fun applies(verdict: Verdict): Boolean = verdict != Verdict.NotApplicable
+
+    /**
+     * Whether setup should ask for "Allow restricted settings" up front, as
+     * its own step before the accessibility switch. Only where the gate is
+     * known or very likely: an unreadable phone still gets the "Saw
+     * Restricted setting?" way in from the accessibility step.
+     */
+    fun needsUnblockStep(verdict: Verdict): Boolean =
+        verdict == Verdict.Restricted || verdict == Verdict.LikelyRestricted
 }

@@ -16,15 +16,23 @@ package com.ekaur.android.setup
  *    before accessibility. Those phones refuse to start a service for an app
  *    they're restricting, which left people with the switch on and nothing
  *    counting, toggling it over and over.
- * 3. **Accessibility**, the switch itself.
- * 4. **Restart**, only if the switch is on but the phone never started it.
+ * 3. **Unblock** ("Allow restricted settings"), on Android 13+ phones that
+ *    installed the app from a file -- asked for up front, before the switch
+ *    that it blocks, rather than after people hit the wall.
+ * 4. **Accessibility**, the switch itself.
+ * 5. **Restart**, only if the switch is on but the phone never started it.
  */
-enum class SetupStep { Welcome, Overlay, KeepAlive, Accessibility, Restart, Done }
+enum class SetupStep { Welcome, Overlay, KeepAlive, Unblock, Accessibility, Restart, Done }
 
 object SetupFlow {
 
-    /** The steps with a progress dot, in order. */
-    val DOTTED = listOf(SetupStep.Overlay, SetupStep.KeepAlive, SetupStep.Accessibility)
+    /** The steps with a progress dot, in order; Unblock only where it applies. */
+    fun dotted(unblock: Boolean): List<SetupStep> = buildList {
+        add(SetupStep.Overlay)
+        add(SetupStep.KeepAlive)
+        if (unblock) add(SetupStep.Unblock)
+        add(SetupStep.Accessibility)
+    }
 
     /**
      * The step to show now.
@@ -33,7 +41,8 @@ object SetupFlow {
      * this time round; it exists only so the intro is not skipped for a fresh
      * install, and never pins the flow to something already granted.
      * [keepAlive] is true once battery and Autostart are handled -- or the
-     * user chose to skip them.
+     * user chose to skip them. [unblock] is true while restricted settings
+     * still need allowing.
      */
     fun nextStep(
         welcomed: Boolean,
@@ -41,23 +50,28 @@ object SetupFlow {
         keepAlive: Boolean,
         service: Boolean,
         running: Boolean,
+        unblock: Boolean = false,
     ): SetupStep = when {
         service && running && overlay -> SetupStep.Done
         !welcomed && !(service && running) -> SetupStep.Welcome
         !overlay -> SetupStep.Overlay
         !keepAlive && !running -> SetupStep.KeepAlive
+        // Once the switch is on, restricted settings no longer matter.
+        unblock && !service -> SetupStep.Unblock
         !service -> SetupStep.Accessibility
         !running -> SetupStep.Restart
         else -> SetupStep.Done
     }
 
     /** Which dot the step sits on; the restart shares accessibility's. */
-    fun dotIndex(step: SetupStep): Int = when (step) {
-        SetupStep.Welcome -> -1
-        SetupStep.Overlay -> 0
-        SetupStep.KeepAlive -> 1
-        SetupStep.Accessibility, SetupStep.Restart -> 2
-        SetupStep.Done -> 3
+    fun dotIndex(step: SetupStep, unblock: Boolean): Int {
+        val dots = dotted(unblock)
+        return when (step) {
+            SetupStep.Welcome -> -1
+            SetupStep.Restart -> dots.indexOf(SetupStep.Accessibility)
+            SetupStep.Done -> dots.size
+            else -> dots.indexOf(step)
+        }
     }
 
     /** "1 step left" / "2 steps left" / "You're all set." */

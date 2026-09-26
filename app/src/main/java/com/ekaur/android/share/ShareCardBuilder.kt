@@ -63,10 +63,11 @@ object ShareCardBuilder {
      * which still looks like a card.
      */
     private suspend fun avatarFor(container: AppContainer, context: Context): Bitmap? {
+        val avatar = container.settings.avatar.value
         val url = Avatar.urlFor(
             baseUrl = container.supabase.baseUrl,
-            userId = container.settings.userId.orEmpty(),
-            version = container.settings.avatarVersion,
+            userId = avatar?.owner.orEmpty(),
+            version = avatar?.version,
         ) ?: return null
 
         return runCatching {

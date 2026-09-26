@@ -124,7 +124,8 @@ fun AccountScreen(
     var renameOk by remember { mutableStateOf(false) }
     var editingName by remember { mutableStateOf(false) }
     var recoveryCode by remember { mutableStateOf(container.settings.recoveryCode) }
-    var avatarVersion by remember { mutableStateOf(container.settings.avatarVersion) }
+    val avatar by container.settings.avatar.collectAsState()
+    val avatarVersion = avatar?.version
     var uploading by remember { mutableStateOf(false) }
     var avatarNote by remember { mutableStateOf<String?>(null) }
     var avatarOk by remember { mutableStateOf(false) }
@@ -161,7 +162,6 @@ fun AccountScreen(
             uploading = false
             result.onSuccess { (version, bytes) ->
                 pendingPhoto = null
-                avatarVersion = version
                 container.settings.saveAvatarVersion(version)
                 avatarOk = true
                 avatarNote = "Done (${bytes / 1024} KB)"
@@ -271,7 +271,7 @@ fun AccountScreen(
                             username = username.orEmpty(),
                             url = Avatar.urlFor(
                                 baseUrl = container.supabase.baseUrl,
-                                userId = container.settings.userId.orEmpty(),
+                                userId = avatar?.owner.orEmpty(),
                                 version = avatarVersion,
                             ),
                             size = 96.dp,

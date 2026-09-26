@@ -25,6 +25,27 @@ class CounterRepository(
 ) : MilestoneLog {
 
     /**
+     * Writes back the server's days where the server has more than the phone
+     * (a reinstall, a recovered account). Never lowers a day. Returns how many
+     * days were written.
+     */
+    suspend fun restoreDays(days: List<com.ekaur.android.sync.ServerDay>, nowMs: Long): Int {
+        if (days.isEmpty()) return 0
+        return db.withTransaction {
+            val dao = db.dailyCounts()
+            val local = dao.forDates(days.map { it.date }.distinct())
+            val totals = local.groupBy { it.date }.mapValues { (_, rows) -> rows.sumOf { it.reelCount } }
+            val activeByDate = local.groupBy { it.date }.mapValues { (_, rows) -> rows.sumOf { it.activeMs } }
+            val toWrite = com.ekaur.android.sync.RestorePlan.daysToWrite(days, totals)
+            toWrite.forEach { day ->
+                dao.deleteDate(day.date)
+                dao.insertAll(com.ekaur.android.sync.RestorePlan.rowsFor(day, activeByDate[day.date] ?: 0L, nowMs))
+            }
+            toWrite.size
+        }
+    }
+
+    /**
      * Records one scrolled reel.
      *
      * Raw event, hour bucket and day total are written together so a crash

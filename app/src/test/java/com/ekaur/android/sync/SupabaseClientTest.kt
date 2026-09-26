@@ -345,4 +345,56 @@ class SupabaseClientTest {
 
         assertEquals(SyncError.SignupDisabled, (thrown as SyncException).error)
     }
+
+    private fun signedIn() {
+        settings.userId = "user-1"
+        settings.refreshToken = "rt"
+        settings.accessToken = "at"
+        settings.expiresAtMs = 9_000_000L
+    }
+
+    @Test
+    fun `a recovered account reads back its own profile and picture location`() {
+        signedIn()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """[{"username":"hakkan","hidden":false,"avatar_version":1790455567,"avatar_key":"old-id"}]"""
+            )
+        )
+        val profile = client.myProfile()!!
+        assertEquals("hakkan", profile.username)
+        assertEquals(1790455567L, profile.avatarVersion)
+        assertEquals("old-id", profile.avatarKey)
+        assertTrue(server.takeRequest().path!!.contains("id=eq.user-1"))
+    }
+
+    @Test
+    fun `history comes back day by day, split and all`() {
+        signedIn()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """[{"date":"2026-09-26","reel_count":51,"reels_count":0,"shorts_count":51,"active_ms":1200},
+                   {"date":"2026-09-20","reel_count":700,"reels_count":0,"shorts_count":0,"active_ms":null}]"""
+            )
+        )
+        val days = client.myDays()
+        assertEquals(2, days.size)
+        assertEquals(ServerDay("2026-09-26", 51, 0, 51, 1200), days[0])
+        assertEquals(ServerDay("2026-09-20", 700, 0, 0, 0), days[1])
+        assertTrue(server.takeRequest().path!!.contains("user_id=eq.user-1"))
+    }
+
+    @Test
+    fun `leaderboard rows carry where a recovered picture lives`() {
+        signedIn()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """[{"user_id":"new-id","reel_count":5,"reels_count":5,"shorts_count":0,"active_ms":0,
+                    "profiles":{"username":"hakkan","hidden":false,"avatar_version":7,"avatar_key":"old-id"}}]"""
+            )
+        )
+        val row = client.leaderboard("2026-09-26").single()
+        assertEquals("old-id", row.avatarKey)
+        assertEquals("new-id", row.userId)
+    }
 }

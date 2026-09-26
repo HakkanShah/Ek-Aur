@@ -199,4 +199,27 @@ class CounterRepositoryTest {
 
         assertEquals(emptySet<String>(), repo.firedOn("2026-09-21"))
     }
+
+    @Test
+    fun `a reinstall gets its history back without lowering anything`() = runTest {
+        // Counted on this phone since the reinstall: 5 today.
+        val today = at(2026, 9, 26, 21)
+        repeat(5) { repo.onReelScrolled(reel(today + it)) }
+
+        val written = repo.restoreDays(
+            listOf(
+                com.ekaur.android.sync.ServerDay("2026-09-26", total = 3, reels = 3, shorts = 0, activeMs = 0),
+                com.ekaur.android.sync.ServerDay("2026-09-25", total = 900, reels = 600, shorts = 300, activeMs = 60_000),
+            ),
+            nowMs = today,
+        )
+
+        assertEquals(1, written) // yesterday only; today the phone already has more
+        assertEquals(5, repo.observeTodayCount(today).first())
+        val yesterday = db.dailyCounts().forDate("2026-09-25")
+        assertEquals(900, yesterday.sumOf { it.reelCount })
+        assertTrue(yesterday.none { it.dirty }) // not sent straight back
+        // And running it again changes nothing.
+        assertEquals(0, repo.restoreDays(listOf(com.ekaur.android.sync.ServerDay("2026-09-25", 900, 600, 300, 60_000)), today))
+    }
 }
