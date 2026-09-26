@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Logo } from "./Logo";
 import { Pill } from "./Pill";
@@ -8,8 +9,8 @@ import { Bar, Finger, Switch, ease, type Scene } from "./PlayProtectSim";
 /**
  * The scroll reminder, drawn after the app: set a number on Home, scroll, the
  * meme popup lands at the number, "10 More" pushes it back, "Take a break"
- * closes the app. The meme here is a dancing emoji sticker under the
- * "Doomscroll reminder" header -- the app fills the same panel with a GIF.
+ * closes the app. The memes are real GIPHY GIFs under the "Doomscroll
+ * reminder" header, the same panel the app fills.
  */
 
 const SET_ON = 900;
@@ -94,8 +95,21 @@ export const REMINDER_SCENES: Scene[] = [
   },
 ];
 
+/** The two memes the demo shows, straight from GIPHY's CDN. */
+const MEMES = {
+  enough: { src: "https://media.giphy.com/media/QgcQLZa6glP2w/200.webp", alt: "Cat: that's enough internet for today" },
+  bed: { src: "https://media.giphy.com/media/x8lRvcyGCU0Zo0pn0E/200.webp", alt: "Penguin: go to bed" },
+};
+type Meme = (typeof MEMES)[keyof typeof MEMES];
+
 export function ReminderSim({ scene, t }: { scene: number; t: number }) {
   const s = REMINDER_SCENES[scene];
+  // Warm both GIFs so the popup never lands on an empty panel.
+  useEffect(() => {
+    Object.values(MEMES).forEach(({ src }) => {
+      new Image().src = src;
+    });
+  }, []);
   return (
     <div className="absolute inset-0 select-none font-sans">
       <AnimatePresence initial={false} mode="popLayout">
@@ -318,7 +332,7 @@ function MemeScene({ t }: { t: number }) {
           <MemeCard
             key="m1"
             count={100}
-            sticker="🌱"
+            meme={MEMES.enough}
             minutes="1 h 12 min"
             pressed={t >= 2800 ? "more" : null}
           />
@@ -343,7 +357,7 @@ function MoreScene({ t }: { t: number }) {
           <MemeCard
             key="m2"
             count={110}
-            sticker="🥱"
+            meme={MEMES.bed}
             minutes="1 h 16 min"
             pressed={null}
           />
@@ -363,7 +377,7 @@ function BreakScene({ t }: { t: number }) {
             <Feed swipes={8} count={110} dim />
             <MemeCard
               count={110}
-              sticker="🥱"
+              meme={MEMES.bed}
               minutes="1 h 16 min"
               pressed={t >= 1150 ? "break" : null}
               still
@@ -391,13 +405,13 @@ function BreakScene({ t }: { t: number }) {
 
 function MemeCard({
   count,
-  sticker,
+  meme,
   minutes,
   pressed,
   still = false,
 }: {
   count: number;
-  sticker: string;
+  meme: Meme;
   minutes: string;
   pressed: "more" | "break" | null;
   still?: boolean;
@@ -424,18 +438,14 @@ function MemeCard({
             <span className="flex-1 truncate text-[10px] font-bold text-white">Doomscroll reminder</span>
             <span className="rounded-full bg-black/30 px-[7px] py-[2px] text-[8.5px] font-bold text-white">{count}</span>
           </div>
-          <div className="relative grid h-[112px] place-items-center" style={{ background: "radial-gradient(circle at 50% 50%, #3A2150, #1E1E24 70%)" }}>
-            <motion.span
-              className="text-[46px] leading-none"
-              animate={{ rotate: [-10, 10, -10], y: [0, -7, 0] }}
-              transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut" }}
-            >
-              {sticker}
-            </motion.span>
+          <div className="relative h-[112px] bg-black">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={meme.src} alt={meme.alt} className="h-full w-full object-contain" draggable={false} />
           </div>
         </div>
         <div className="mt-[3%] flex items-center justify-between px-[2%] text-[7.5px] font-semibold text-white/55">
           <span>⏱ {minutes} today</span>
+          <span className="text-white/40">Powered by GIPHY</span>
         </div>
         <div className="mt-[3%] flex gap-[3%]">
           <motion.span
