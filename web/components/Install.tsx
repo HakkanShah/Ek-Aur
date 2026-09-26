@@ -26,7 +26,7 @@ function Step({
 
 export function Install() {
   return (
-    <section id="install" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 md:py-28">
+    <section id="install" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-14 md:py-20">
       <Reveal>
         <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
           Installing it (the honest version)

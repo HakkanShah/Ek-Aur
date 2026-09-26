@@ -1,4 +1,3 @@
-import { AppBadge } from "./AppBadge";
 import { CountSim } from "./CountSim";
 import { DownloadButton } from "./DownloadButton";
 import { Reveal } from "./Reveal";
@@ -18,12 +17,11 @@ export function Hero() {
         <div>
           <Reveal>
             <a
-              href="#shorts"
+              href="#reminders"
               className="group inline-flex items-center gap-2 rounded-full border border-hairline bg-white/70 py-1 pl-1 pr-3 text-xs font-semibold text-smoke shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
-              <span className="rounded-full bg-[#FDECEC] px-2 py-0.5 font-bold text-[#C4001A]">NEW</span>
-              <AppBadge app="shorts" size={16} />
-              Now counting YouTube Shorts
+              <span className="rounded-full bg-[#FDEEF4] px-2 py-0.5 font-bold text-[#C13584]">NEW</span>
+              Scroll reminders, with memes 🌱
               <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
             </a>
           </Reveal>
@@ -45,8 +43,8 @@ export function Hero() {
           <Reveal delay={0.18}>
             <p className="mt-4 max-w-md text-[15px] leading-relaxed text-smoke">
               No lectures, no streaks to protect, no wellness sermon. A floating counter over
-              Instagram and YouTube, an honest dashboard, a global leaderboard, and a dry roast every
-              milestone. The graph does the judging.
+              Instagram and YouTube, a dry roast every milestone, and a meme when you hit the limit you
+              set. The graph does the judging.
             </p>
           </Reveal>
 

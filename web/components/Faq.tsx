@@ -15,12 +15,16 @@ export const FAQS: { q: string; a: string }[] = [
     a: "Yes. Ek Aur counts Instagram Reels and YouTube Shorts into the same number, and you choose which ones in Setup. It even changes its look to match: Instagram colours, Shorts red, or a mix of both. It only sees the swipe in those two apps — never the screen, never any other app. Already installed? Update, then tap Count Shorts on Home or switch it on in Setup → Apps.",
   },
   {
+    q: "What are scroll reminders?",
+    a: "Pick a number on Home — say 100. When today's Reels + Shorts hit it, a meme pops up over the feed. Take a break closes Instagram or YouTube for you; “10 More” (or 20, 30, 50 — your pick) brings it back that many later; Not today quiets it until midnight. It's off until you switch it on.",
+  },
+  {
     q: "Is Ek Aur free?",
     a: "Yes, completely free. No ads, no subscription, no account required to just count — you only pick a username if you want to appear on the global leaderboard.",
   },
   {
     q: "Does it read my screen or my messages?",
-    a: "No. It can only see the swipe gesture that moves to the next reel — never the screen, your DMs, or what you're watching. The only thing that ever leaves your phone is your name and a daily total, and only if you join the leaderboard.",
+    a: "No. It can only see the swipe gesture that moves to the next reel — never the screen, your DMs, or what you're watching. The only thing about you that ever leaves your phone is your name and a daily total, for the leaderboard. (With scroll reminders on, the app also fetches memes from GIPHY — the request carries nothing about you.)",
   },
   {
     q: "Why isn't it on the Play Store?",
@@ -73,7 +77,7 @@ export function Faq() {
   };
 
   return (
-    <section id="faq" className="mx-auto max-w-3xl scroll-mt-24 px-5 py-20 md:py-24">
+    <section id="faq" className="mx-auto max-w-3xl scroll-mt-24 px-5 py-14 md:py-20">
       <Reveal>
         <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
           Questions, answered

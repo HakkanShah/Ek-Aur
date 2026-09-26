@@ -1,6 +1,7 @@
 import { Nav } from "@/components/Nav";
 import { Hero } from "@/components/Hero";
 import { Pitch } from "@/components/Pitch";
+import { Reminders } from "@/components/Reminders";
 import { Shorts } from "@/components/Shorts";
 import { Features } from "@/components/Features";
 import { MotionSection } from "@/components/MotionSection";
@@ -17,9 +18,10 @@ export default function Home() {
       <main>
         <Hero />
         <Pitch />
-        <Shorts />
+        <Reminders />
         <Features />
         <MotionSection />
+        <Shorts />
         <Install />
         <Faq />
         <DownloadCTA />

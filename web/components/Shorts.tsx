@@ -201,7 +201,7 @@ function RaceMock() {
 
 export function Shorts() {
   return (
-    <section id="shorts" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 py-16 md:py-24">
+    <section id="shorts" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 py-14 md:py-20">
       <Reveal>
         <div className="mx-auto max-w-2xl text-center">
           <div className="mb-5 flex justify-center gap-2">
@@ -209,10 +209,10 @@ export function Shorts() {
             <AppBadge app="shorts" size={48} />
           </div>
           <span className="inline-flex items-center gap-2 rounded-full bg-[#FDECEC] px-3 py-1 text-xs font-bold text-[#C4001A]">
-            NEW · v0.22
+            Reels + Shorts
           </span>
           <h2 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">
-            Now counting <span className="bg-gradient-to-r from-[#D0001A] to-[#FF7A45] bg-clip-text text-transparent">YouTube Shorts</span>.
+            Counts <span className="bg-gradient-to-r from-[#D0001A] to-[#FF7A45] bg-clip-text text-transparent">YouTube Shorts</span> too.
           </h2>
           <p className="mt-4 text-[17px] leading-relaxed text-smoke">
             Half of you said &ldquo;I don&apos;t use Reels.&rdquo; Cool. Switching apps doesn&apos;t get

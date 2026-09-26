@@ -10,8 +10,8 @@ export function Nav() {
         </a>
 
         <div className="hidden items-center gap-1 text-sm font-medium text-ink/70 md:flex">
-          <a href="#shorts" className="rounded-full px-3.5 py-2 transition-colors hover:bg-lav/70 hover:text-ink">
-            Shorts
+          <a href="#reminders" className="rounded-full px-3.5 py-2 transition-colors hover:bg-lav/70 hover:text-ink">
+            Reminders
           </a>
           <a href="#features" className="rounded-full px-3.5 py-2 transition-colors hover:bg-lav/70 hover:text-ink">
             Features

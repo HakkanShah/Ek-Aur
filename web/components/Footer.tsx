@@ -34,7 +34,8 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col gap-4 border-t border-hairline pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-lg text-xs text-ash">
-            Only your name and daily total ever leave the phone. Everything else stays on it. Not
+            Only your name and daily total ever leave the phone (plus a meme request to GIPHY, if
+            reminders are on). Everything else stays on it. Not
             affiliated with Instagram or Meta.
           </p>
           <p className="shrink-0 text-xs font-medium text-smoke">

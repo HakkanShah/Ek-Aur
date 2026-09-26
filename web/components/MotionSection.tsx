@@ -23,9 +23,14 @@ function SimRow({
   return (
     <div
       id={id}
-      className="grid scroll-mt-24 items-center gap-10 md:grid-cols-2 md:gap-14"
+      // The phone and its words sit together in the middle, rather than each
+      // drifting to the far side of a half-width column.
+      className={
+        "grid scroll-mt-24 items-center gap-8 md:justify-center md:gap-16 " +
+        (flip ? "md:grid-cols-[minmax(0,420px)_280px]" : "md:grid-cols-[280px_minmax(0,420px)]")
+      }
     >
-      <Reveal className={flip ? "md:order-2" : ""}>
+      <Reveal className={"mx-auto w-full max-w-[250px] md:max-w-none " + (flip ? "md:order-2" : "")}>
         <div className="animate-floaty [animation-duration:7s]">{sim}</div>
       </Reveal>
       <Reveal delay={0.08} className={flip ? "md:order-1" : ""}>
@@ -53,17 +58,17 @@ export function MotionSection() {
         <div className="absolute left-0 bottom-1/4 h-80 w-80 rounded-full bg-g1/10 blur-[100px]" />
       </div>
 
-      <div className="mx-auto max-w-6xl px-5 py-20 md:py-28">
-        <Reveal>
-          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+      <div className="mx-auto max-w-6xl px-5 py-14 md:py-20">
+        <Reveal className="text-center">
+          <h2 className="mx-auto max-w-2xl text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
             Three taps to set up. Then it just runs.
           </h2>
-          <p className="mt-3 max-w-xl text-[15px] text-smoke">
+          <p className="mx-auto mt-3 max-w-xl text-[15px] text-smoke">
             Live simulations, not screenshots — this is exactly what the app does.
           </p>
         </Reveal>
 
-        <div className="mt-16 space-y-24 md:space-y-28">
+        <div className="mt-12 space-y-16 md:mt-16 md:space-y-20">
           <SimRow
             id="how"
             sim={<SetupSim />}

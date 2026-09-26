@@ -89,7 +89,7 @@ function RaceRow({
 
 export function Features() {
   return (
-    <section id="features" className="mx-auto max-w-6xl px-5 py-20 md:py-28">
+    <section id="features" className="mx-auto max-w-6xl px-5 py-14 md:py-20">
       <Reveal>
         <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
           It counts. It roasts. It never lectures.
@@ -139,9 +139,9 @@ export function Features() {
         <Reveal delay={0.05}>
           <Card
             title="Milestone roasts"
-            desc="Round numbers and the small hours earn a dry line — once a day, never a nag. It's cheering for the wrong team."
+            desc="Round numbers, the small hours, and the numbers that are only funny on the dot: 69, 99, 420, and Kohli's 973. Once a day, never a nag."
           >
-            <Pill count={100} message="triple digits 💀" />
+            <Pill count={69} message="69. nice. 😏" />
           </Card>
         </Reveal>
 
