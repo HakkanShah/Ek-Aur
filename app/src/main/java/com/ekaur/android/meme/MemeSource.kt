@@ -8,6 +8,8 @@ import android.graphics.drawable.Drawable
 import android.os.Build
 import com.ekaur.android.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -35,17 +37,48 @@ class MemeSource(context: Context) {
 
     val hasKey: Boolean get() = BuildConfig.GIPHY_API_KEY.isNotBlank()
 
-    /** Tops the stash up. Safe to call often; does nothing without a key. */
-    suspend fun refill() {
-        if (!hasKey) return
-        withContext(Dispatchers.IO) { runCatching { cache.refill() } }
+    /** One download at a time, whether the service or a background job asks. */
+    private val lock = Mutex()
+
+    /**
+     * The next meme, already decoded, waiting in memory. An animated WebP
+     * decodes to a small object (the compressed bytes and one frame buffer),
+     * so holding one costs little, and the popup can go up the instant the
+     * reminder fires -- no disk, no decode, no network in that moment.
+     */
+    @Volatile
+    private var prepared: Drawable? = null
+
+    /**
+     * Tops the stash up. Safe to call often; does nothing without a key. True
+     * once full, so a background job knows whether to try again later.
+     */
+    suspend fun refill(): Boolean {
+        if (!hasKey) return true
+        val full = withContext(Dispatchers.IO) {
+            lock.withLock { runCatching { cache.refill() }.getOrDefault(false) }
+        }
+        prepare()
+        return full
+    }
+
+    /** Decodes the next meme into memory, if one isn't waiting already. Off the main thread. */
+    fun prepare() {
+        if (prepared != null) return
+        prepared = next()
     }
 
     /**
-     * The next meme, decoded and ready to play, or null for the emoji
-     * fallback. Call off the main thread.
+     * The meme for the popup: the prepared one if waiting, else straight off
+     * disk; null for the emoji fallback. Each drawable is used once.
      */
-    fun next(): Drawable? {
+    fun take(): Drawable? {
+        val ready = prepared
+        prepared = null
+        return ready ?: next()
+    }
+
+    private fun next(): Drawable? {
         val file = runCatching { cache.pick() }.getOrNull() ?: return null
         return decode(file)
     }

@@ -33,28 +33,34 @@ class MemeCache(
         return file
     }
 
-    /** Downloads until there are [SIZE] memes, plus one fresh if all are worn. */
-    suspend fun refill() {
+    /**
+     * Downloads until there are [SIZE] memes, plus one fresh if all are worn.
+     * True once the stash is full -- false tells a background job to retry.
+     */
+    suspend fun refill(): Boolean {
         dir.mkdirs()
         var tries = 0
         while (size < SIZE && tries < SIZE + 2) {
             tries++
-            if (!add()) return
+            if (!add()) return false
         }
         val all = files()
         if (all.size >= SIZE && all.all { shownAt(it) > 0L }) {
-            val worn = all.maxByOrNull { timesShown(it) } ?: return
+            val worn = all.maxByOrNull { timesShown(it) } ?: return size >= SIZE
             if (add()) {
                 worn.delete()
                 shownFile(worn).delete()
             }
         }
+        return size >= SIZE
     }
 
     private suspend fun add(): Boolean {
         val have = files().map { it.name.removeSuffix(EXT) }.toSet()
         val (id, bytes) = fetchOne(have) ?: return false
-        if (bytes.isEmpty()) return false
+        // Only a real animated image is kept: a cut-off download or an error
+        // page saved as a meme would show as an empty panel.
+        if (!isAnimatedImage(bytes)) return false
         val safe = id.filter { it.isLetterOrDigit() }.ifEmpty { return false }
         val tmp = File(dir, "$safe.tmp")
         tmp.writeBytes(bytes)
@@ -74,5 +80,17 @@ class MemeCache(
     companion object {
         const val SIZE = 3
         const val EXT = ".webp"
+
+        /** "RIFF....WEBP" or "GIF8": the two formats GIPHY serves. */
+        fun isAnimatedImage(bytes: ByteArray): Boolean {
+            if (bytes.size < 12) return false
+            val riff = bytes[0] == 'R'.code.toByte() && bytes[1] == 'I'.code.toByte() &&
+                bytes[2] == 'F'.code.toByte() && bytes[3] == 'F'.code.toByte() &&
+                bytes[8] == 'W'.code.toByte() && bytes[9] == 'E'.code.toByte() &&
+                bytes[10] == 'B'.code.toByte() && bytes[11] == 'P'.code.toByte()
+            val gif = bytes[0] == 'G'.code.toByte() && bytes[1] == 'I'.code.toByte() &&
+                bytes[2] == 'F'.code.toByte() && bytes[3] == '8'.code.toByte()
+            return riff || gif
+        }
     }
 }

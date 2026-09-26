@@ -102,7 +102,11 @@ fun ReminderCard(
     val day = ReminderPlan.dayFor(settings, stored, today)
     val status = ReminderPlan.status(settings, day, count)
 
-    fun update(next: ReminderSettings) = store.updateReminder(next, today)
+    fun update(next: ReminderSettings) {
+        store.updateReminder(next, today)
+        // Switched on: start fetching memes now, so the first popup has one.
+        if (next.enabled && !settings.enabled) com.ekaur.android.meme.MemePrefetchWorker.schedule(context)
+    }
 
     val (line, progress) = when (status) {
         ReminderPlan.Status.Off -> "Get a popup when you hit a number you pick." to 0f

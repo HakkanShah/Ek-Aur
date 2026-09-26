@@ -142,20 +142,28 @@ class EkAurAccessibilityService : AccessibilityService() {
             today = { dayClock.dateOf(System.currentTimeMillis()) },
             // The meme is decoded off the main thread, then the card goes up
             // with it; a replacement is fetched afterwards, never while it waits.
+            // The meme is normally decoded and waiting in memory already, so the
+            // card goes up at once. Then the next one is prepared from what is
+            // on the phone, and a background job tops the stash back up.
             onRemind = { count ->
                 s.launch(Dispatchers.IO) {
-                    val meme = runCatching { memes?.next() }.getOrNull()
+                    val meme = runCatching { memes?.take() }.getOrNull()
                     main.post { showReminder(count, dayClock, meme) }
-                    memes?.refill()
+                    runCatching { memes?.prepare() }
+                    com.ekaur.android.meme.MemePrefetchWorker.schedule(this@EkAurAccessibilityService)
                 }
             },
         )
-        val memeSource = com.ekaur.android.meme.MemeSource(this)
+        val memeSource = container.memes
         memes = memeSource
-        // Keep a few memes on the phone while the reminder is on, so the popup
-        // never waits on the network.
+        // While the reminder is on: have the next meme decoded and waiting,
+        // and keep the stash full in the background.
         s.launch {
-            settings.reminder.collect { r -> if (r.enabled) launch(Dispatchers.IO) { memeSource.refill() } }
+            settings.reminder.collect { r ->
+                if (!r.enabled) return@collect
+                com.ekaur.android.meme.MemePrefetchWorker.schedule(this@EkAurAccessibilityService)
+                launch(Dispatchers.IO) { runCatching { memeSource.prepare() } }
+            }
         }
 
         tickJob = s.launch {

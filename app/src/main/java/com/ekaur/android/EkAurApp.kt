@@ -16,5 +16,9 @@ class EkAurApp : Application() {
         // invisible and just looks like the app quietly stopping.
         container.crashReporter.install()
         PruneWorker.schedule(this)
+        // The reminder popup's memes are fetched well before they're needed.
+        if (container.settings.reminderSettings.enabled) {
+            com.ekaur.android.meme.MemePrefetchWorker.schedule(this)
+        }
     }
 }

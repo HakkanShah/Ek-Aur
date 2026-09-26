@@ -58,4 +58,7 @@ class AppContainer(appContext: Context) {
 
     /** Checks the app's GitHub releases and drives the in-app updater. */
     val updateManager: UpdateManager by lazy { UpdateManager(appContext) }
+
+    /** The reminder popup's memes: one stash and one download lock for the whole app. */
+    val memes: com.ekaur.android.meme.MemeSource by lazy { com.ekaur.android.meme.MemeSource(appContext) }
 }
