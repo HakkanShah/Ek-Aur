@@ -76,7 +76,7 @@ class OverlayController(
      * state actually changed -- otherwise this would launch a few coroutines a
      * second just to re-decide the same thing.
      */
-    fun onDetectionState(state: DetectionState) {
+    fun onDetectionState(state: DetectionState, leftPlayer: Boolean = false) {
         // Refreshed on every report, not only on entering: the grace below is
         // "20s after the player was last seen", and a long sitting that only
         // stamped this once lost the pill the instant it left the player.
@@ -90,8 +90,13 @@ class OverlayController(
             // here, and none of them mean the user is done watching reels, so
             // the pill outlives them.
             DetectionState.InApp -> {
-                val sinceReels = System.currentTimeMillis() - lastInReelsAtMs
-                hideAfter((STICKY_AFTER_REELS_MS - sinceReels).coerceAtLeast(0))
+                if (leftPlayer) {
+                    // YouTube moved to another screen: certainly not Shorts.
+                    hideAfter(LEFT_PLAYER_GRACE_MS)
+                } else {
+                    val sinceReels = System.currentTimeMillis() - lastInReelsAtMs
+                    hideAfter((STICKY_AFTER_REELS_MS - sinceReels).coerceAtLeast(0))
+                }
             }
 
             // Left Instagram entirely -- but a notification or a glance at
@@ -147,6 +152,9 @@ class OverlayController(
          * while the user was simply watching a video through.
          */
         const val STICKY_AFTER_REELS_MS = 20_000L
+
+        /** The player certainly went away; just long enough not to blink. */
+        const val LEFT_PLAYER_GRACE_MS = 600L
 
         /** Covers a notification, a quick app switch, or a glance at something else. */
         const val IDLE_GRACE_MS = 2_000L

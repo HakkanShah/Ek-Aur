@@ -482,13 +482,13 @@ private fun statusLook(
     val current = TrackedApp.forPackage(lastPackage)?.takeIf { it in apps }
     return when {
         !permissions.service ->
-            StatusLook(Heat, "Counting is off", "Turn on accessibility to start counting.", false)
-        !connected ->
-            StatusLook(Heat, "Not connected yet", "It's on — open $names to wake it up.", false)
+            StatusLook(Heat, "Counting is off", "Finish setup to start counting.", false)
+        !permissions.running && !connected ->
+            StatusLook(Heat, "Not counting yet", "Your phone didn't start it. Tap below to fix it.", false)
         !permissions.overlay ->
             StatusLook(Heat, "The pill is hidden", "Counting works. Allow overlay to see it float.", true)
-        !permissions.battery ->
-            StatusLook(Heat, "Battery may stop it", "Counting now, but battery saver can kill it.", true)
+        !permissions.keepAliveDone ->
+            StatusLook(Heat, "Your phone may stop it", "Counting now, but battery saver can kill it.", true)
         else -> when (state) {
             "InReels" -> StatusLook(
                 Good, "Counting",
@@ -547,13 +547,13 @@ private fun StatusCard(
             !permissions.allGranted -> {
                 Spacer(Modifier.height(16.dp))
                 FlatButton(
-                    text = "Finish setup",
+                    text = if (permissions.notRunning) "Fix it" else "Finish setup",
                     emphasised = true,
                     modifier = Modifier.fillMaxWidth(),
                     onClick = onOpenWizard,
                 )
             }
-            !permissions.recommendedDone -> {
+            !permissions.keepAliveDone -> {
                 Spacer(Modifier.height(14.dp))
                 FlatButton(
                     text = "Keep it running reliably",

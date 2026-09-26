@@ -95,6 +95,18 @@ data class AppRules(
      * app whose pager reports positions, which is always preferred.
      */
     val pageFlipClassHints: List<String> = emptyList(),
+
+    /**
+     * A screen change inside the app means the player is gone.
+     *
+     * True for YouTube: a device dump showed no window events at all while
+     * Shorts were being swiped, only when YouTube moved between screens --
+     * opening a long video, going home, opening a channel. Its long-video
+     * page scrolls nested views together exactly like the Shorts screen
+     * does, so without this the pill could follow the user onto a normal
+     * video. False for Instagram, which fires window events inside Reels.
+     */
+    val windowChangeLeavesPlayer: Boolean = false,
 ) {
     fun matchesPackage(pkg: String): Boolean = pkg == packageName
 
@@ -185,6 +197,7 @@ object DetectorRules {
         // Shorts run up to three minutes, and YouTube is silent while one
         // plays; 45s took the pill down mid-video.
         playerIdleExitMs = 240_000,
+        windowChangeLeavesPlayer = true,
     )
 
     val all: List<AppRules> = listOf(Instagram, YouTube)

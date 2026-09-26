@@ -34,6 +34,12 @@ sealed interface DetectionEvent {
 data class DetectionResult(
     val events: List<DetectionEvent>,
     val state: DetectionState,
+    /**
+     * The player certainly just went away (YouTube switched screens), rather
+     * than merely going quiet. The pill can come down at once instead of
+     * riding out the grace that protects a detour into comments.
+     */
+    val leftPlayer: Boolean = false,
 )
 
 /** Where the detector currently thinks the user is. */

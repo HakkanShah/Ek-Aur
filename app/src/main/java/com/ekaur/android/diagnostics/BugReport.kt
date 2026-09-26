@@ -87,7 +87,7 @@ object BugReport {
     suspend fun statusText(context: Context, container: AppContainer): String {
         val status = container.serviceStatus
         val settings = container.settings
-        val permissions = PermissionState.read(context)
+        val permissions = PermissionState.read(context, container.settings.autostartConfirmed)
         val byApp = runCatching { container.counterRepository.observeTodayByApp().first() }.getOrDefault(emptyMap())
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         fun time(ms: Long) = if (ms <= 0) "never" else fmt.format(Date(ms))
@@ -105,9 +105,16 @@ object BugReport {
             append('\n')
 
             line("accessibility on", permissions.service)
+            line("switch in settings", ServiceControl.isAccessibilitySwitchOn(context))
             line("service running", status.connected.value)
+            line("bound by system", permissions.running)
             line("overlay", permissions.overlay)
             line("battery exempt", permissions.battery)
+            line("autostart", when {
+                !permissions.autostartScreen -> "n/a"
+                permissions.autostart != null -> permissions.autostart
+                else -> "unknown (visited: ${permissions.autostartConfirmed})"
+            })
             line("usage access", permissions.usage)
             line("auto-off", settings.autoOffOnLeave)
             line("last auto-off", settings.lastAutoOff?.let {

@@ -11,6 +11,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -118,6 +122,7 @@ fun AccountScreen(
     var renaming by remember { mutableStateOf(false) }
     var renameNote by remember { mutableStateOf<String?>(null) }
     var renameOk by remember { mutableStateOf(false) }
+    var editingName by remember { mutableStateOf(false) }
     var recoveryCode by remember { mutableStateOf(container.settings.recoveryCode) }
     var avatarVersion by remember { mutableStateOf(container.settings.avatarVersion) }
     var uploading by remember { mutableStateOf(false) }
@@ -211,8 +216,16 @@ fun AccountScreen(
 
     val nameCheck = rememberNameCheck(container, newName, current = username)
     var hideError by remember { mutableStateOf<String?>(null) }
-    val pickPhoto = {
-        if (!uploading) picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    // One way to change the photo. The system photo picker where the phone
+    // has it (it browses files too); the plain file chooser where it doesn't.
+    val pickPhoto: () -> Unit = {
+        if (!uploading) {
+            if (ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(context)) {
+                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            } else {
+                files.launch("image/*")
+            }
+        }
     }
 
     Column(
@@ -224,13 +237,16 @@ fun AccountScreen(
     ) {
         ScreenHeader(
             title = "Account",
-            subtitle = "Your name, your photo, your way back in.",
+            subtitle = "Tap your photo or name to change them.",
             onBack = onClose,
         )
 
-        // Who you are
+        // Who you are: the photo (tap it to change), the name (pencil to
+        // edit it right there), and whether you're on the board. One card, so
+        // there's nothing to hunt for.
         Card(Modifier.reveal(0)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.height(4.dp))
                 Box {
                     val interaction = remember { MutableInteractionSource() }
                     Box(
@@ -248,7 +264,7 @@ fun AccountScreen(
                             .padding(3.dp)
                             .clip(CircleShape)
                             .background(Color.White)
-                            .padding(2.dp),
+                            .padding(3.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         UserAvatar(
@@ -258,171 +274,146 @@ fun AccountScreen(
                                 userId = container.settings.userId.orEmpty(),
                                 version = avatarVersion,
                             ),
-                            size = 72.dp,
+                            size = 96.dp,
                         )
                         if (uploading) {
                             Box(
                                 Modifier
-                                    .size(72.dp)
+                                    .size(96.dp)
                                     .clip(CircleShape)
                                     .background(Color.White.copy(alpha = 0.7f)),
                                 contentAlignment = Alignment.Center,
-                            ) { Spinner(size = 26.dp, stroke = 3.dp) }
+                            ) { Spinner(size = 30.dp, stroke = 3.dp) }
                         }
                     }
-                    // The edit badge, so the picture reads as tappable.
+                    // A camera-ish badge, so the picture reads as tappable.
                     Box(
                         Modifier
                             .align(Alignment.BottomEnd)
-                            .size(26.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(Color.White)
-                            .padding(2.dp)
+                            .padding(3.dp)
                             .clip(CircleShape)
-                            .background(brush = buttonGradient()),
+                            .background(brush = buttonGradient())
+                            .clickable(role = Role.Button, onClick = pickPhoto),
                         contentAlignment = Alignment.Center,
                     ) {
-                        EkIcon(EkIcons.Pencil, tint = Ink, size = 13.dp)
+                        EkIcon(EkIcons.Image, tint = Ink, size = 15.dp)
                     }
                 }
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = "@" + username.orEmpty(),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = Chalk,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    StatusChip(
-                        text = when {
-                            uploading -> "Uploading photo…"
-                            hidden -> "Hidden from the leaderboard"
-                            else -> "On the leaderboard"
-                        },
-                        tone = if (hidden) ChipTone.Neutral else ChipTone.Good,
-                    )
-                }
-            }
-            AnimatedVisibility(visible = avatarNote != null) {
-                Column {
-                    Spacer(Modifier.height(12.dp))
-                    InfoBanner(
-                        text = avatarNote.orEmpty(),
-                        tone = if (avatarOk) BannerTone.Good else BannerTone.Warn,
-                        icon = if (avatarOk) EkIcons.Check else EkIcons.Warning,
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FlatButton(
-                    text = if (avatarVersion == null) "Add photo" else "New photo",
-                    icon = EkIcons.Image,
-                    enabled = !uploading,
-                    modifier = Modifier.weight(1f),
-                    onClick = pickPhoto,
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (avatarVersion == null) "Add a photo" else "Change photo",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Acid,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable(enabled = !uploading, role = Role.Button, onClick = pickPhoto)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
-                FlatButton(
-                    text = "From files",
-                    icon = EkIcons.Folder,
-                    enabled = !uploading,
-                    modifier = Modifier.weight(1f),
-                    onClick = { if (!uploading) files.launch("image/*") },
-                )
-            }
-        }
+                AnimatedVisibility(visible = avatarNote != null) {
+                    Column {
+                        Spacer(Modifier.height(8.dp))
+                        InfoBanner(
+                            text = avatarNote.orEmpty(),
+                            tone = if (avatarOk) BannerTone.Good else BannerTone.Warn,
+                            icon = if (avatarOk) EkIcons.Check else EkIcons.Warning,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
 
-        Spacer(Modifier.height(12.dp))
-
-        // Name
-        Card(Modifier.reveal(1)) {
-            SectionLabel("Name")
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "You can change it once every 14 days.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Smoke,
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceLav)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("@", style = MaterialTheme.typography.titleLarge, color = Smoke)
-                Spacer(Modifier.width(4.dp))
-                BasicTextField(
-                    value = newName,
-                    onValueChange = { newName = Username.normalise(it).take(Username.MAX) },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.titleLarge.copy(color = Chalk),
-                    cursorBrush = SolidColor(Acid),
-                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
-                    modifier = Modifier.weight(1f),
-                    decorationBox = { inner ->
-                        if (newName.isEmpty()) {
-                            Text("new name", style = MaterialTheme.typography.titleLarge, color = Ash)
-                        }
-                        inner()
-                    },
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            NameStatusLine(nameCheck.state)
-            AnimatedVisibility(visible = renameNote != null) {
-                Column {
-                    Spacer(Modifier.height(10.dp))
-                    InfoBanner(
-                        text = renameNote.orEmpty(),
-                        tone = if (renameOk) BannerTone.Good else BannerTone.Warn,
-                        icon = if (renameOk) EkIcons.Check else EkIcons.Warning,
-                    )
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            FlatButton(
-                text = "Change name",
-                emphasised = nameCheck.state is NameState.Free,
-                enabled = nameCheck.state is NameState.Free,
-                loading = renaming,
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    if (nameCheck.state !is NameState.Free || renaming) return@FlatButton
-                    renaming = true
-                    renameNote = null
-                    scope.launch {
-                        val result = withContext(Dispatchers.IO) {
-                            runCatching { container.supabase.changeUsername(newName) }
-                        }
-                        renaming = false
-                        result.onSuccess { applied ->
-                            container.settings.saveUsername(applied)
-                            newName = ""
-                            renameOk = true
-                            renameNote = "Done. You're @$applied now."
-                        }.onFailure { thrown ->
-                            renameOk = false
-                            renameNote = when (val cause = (thrown as? SyncException)?.error) {
-                                is SyncError.Cooldown -> "Not yet — ${cause.daysLeft} days to go."
-                                SyncError.NameTaken -> {
-                                    nameCheck.markTaken(newName)
-                                    "Someone just took it."
+                AnimatedContent(targetState = editingName, label = "name") { editing ->
+                    if (!editing) {
+                        Row(
+                            Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable(role = Role.Button, onClickLabel = "Edit name") {
+                                    newName = ""
+                                    renameNote = null
+                                    editingName = true
                                 }
-                                SyncError.Offline -> "No internet. Try again when you're online."
-                                else -> "That didn't work. Try again."
-                            }
+                                .padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "@" + username.orEmpty(),
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = Chalk,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Box(
+                                Modifier.size(32.dp).clip(CircleShape).background(SurfaceLav),
+                                contentAlignment = Alignment.Center,
+                            ) { EkIcon(EkIcons.Pencil, tint = Chalk, size = 15.dp) }
                         }
+                    } else {
+                        NameEditor(
+                            value = newName,
+                            onValue = { newName = Username.normalise(it).take(Username.MAX) },
+                            check = nameCheck.state,
+                            busy = renaming,
+                            onCancel = {
+                                editingName = false
+                                newName = ""
+                            },
+                            onSave = {
+                                if (nameCheck.state !is NameState.Free || renaming) return@NameEditor
+                                renaming = true
+                                renameNote = null
+                                scope.launch {
+                                    val result = withContext(Dispatchers.IO) {
+                                        runCatching { container.supabase.changeUsername(newName) }
+                                    }
+                                    renaming = false
+                                    result.onSuccess { applied ->
+                                        container.settings.saveUsername(applied)
+                                        newName = ""
+                                        editingName = false
+                                        renameOk = true
+                                        renameNote = "Done. You're @$applied now."
+                                    }.onFailure { thrown ->
+                                        renameOk = false
+                                        renameNote = when (val cause = (thrown as? SyncException)?.error) {
+                                            is SyncError.Cooldown -> "Not yet: ${cause.daysLeft} days to go."
+                                            SyncError.NameTaken -> {
+                                                nameCheck.markTaken(newName)
+                                                "Someone just took it."
+                                            }
+                                            SyncError.Offline -> "No internet. Try again when you're online."
+                                            else -> "That didn't work. Try again."
+                                        }
+                                    }
+                                }
+                            },
+                        )
                     }
-                },
-            )
+                }
+                AnimatedVisibility(visible = renameNote != null) {
+                    Column {
+                        Spacer(Modifier.height(8.dp))
+                        InfoBanner(
+                            text = renameNote.orEmpty(),
+                            tone = if (renameOk) BannerTone.Good else BannerTone.Warn,
+                            icon = if (renameOk) EkIcons.Check else EkIcons.Warning,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                StatusChip(
+                    text = when {
+                        uploading -> "Uploading photo…"
+                        hidden -> "Hidden from the leaderboard"
+                        else -> "On the leaderboard"
+                    },
+                    tone = if (hidden) ChipTone.Neutral else ChipTone.Good,
+                )
+                Spacer(Modifier.height(4.dp))
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -548,5 +539,71 @@ fun AccountScreen(
         )
 
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/**
+ * Editing the name in place: the field (focused, keyboard up), the live
+ * "free / taken" line, and Cancel / Save side by side.
+ */
+@Composable
+private fun NameEditor(
+    value: String,
+    onValue: (String) -> Unit,
+    check: NameState,
+    busy: Boolean,
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(SurfaceLav)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("@", style = MaterialTheme.typography.titleLarge, color = Smoke)
+            Spacer(Modifier.width(4.dp))
+            BasicTextField(
+                value = value,
+                onValueChange = onValue,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.titleLarge.copy(color = Chalk),
+                cursorBrush = SolidColor(Acid),
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (check is NameState.Free) onSave() }),
+                modifier = Modifier.weight(1f).focusRequester(focus),
+                decorationBox = { inner ->
+                    if (value.isEmpty()) {
+                        Text("new name", style = MaterialTheme.typography.titleLarge, color = Ash)
+                    }
+                    inner()
+                },
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        NameStatusLine(check)
+        Text(
+            text = "You can change it once every 14 days.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Smoke,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlatButton("Cancel", quiet = true, modifier = Modifier.weight(1f), onClick = onCancel)
+            FlatButton(
+                text = "Save",
+                emphasised = check is NameState.Free,
+                enabled = check is NameState.Free,
+                loading = busy,
+                modifier = Modifier.weight(1f),
+                onClick = onSave,
+            )
+        }
     }
 }

@@ -69,6 +69,7 @@ import com.ekaur.android.ui.friends.UsernameScreen
 import com.ekaur.android.ui.home.HomeScreen
 import com.ekaur.android.ui.onboarding.PermissionState
 import com.ekaur.android.ui.onboarding.SetupScreen
+import com.ekaur.android.ui.onboarding.SetupGuide
 import com.ekaur.android.ui.onboarding.SetupWizard
 import com.ekaur.android.ui.share.ShareScreen
 import com.ekaur.android.ui.stats.StatsScreen
@@ -146,7 +147,8 @@ private fun AppScaffold(container: AppContainer) {
         return
     }
 
-    var permissions by remember { mutableStateOf(PermissionState.read(context)) }
+    fun readPermissions() = PermissionState.read(context, container.settings.autostartConfirmed)
+    var permissions by remember { mutableStateOf(readPermissions()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     val pagerState = rememberPagerState { BOTTOM_TABS.size }
     val scope = rememberCoroutineScope()
@@ -154,8 +156,21 @@ private fun AppScaffold(container: AppContainer) {
     // Every grant, read in one go whenever the app comes forward -- the one
     // source of truth for Home, Setup and the wizard, so they never disagree.
     LifecycleResumeEffect(Unit) {
-        permissions = PermissionState.read(context)
+        permissions = readPermissions()
+        // Back in the app: the floating guide over Settings has done its job.
+        SetupGuide.stop()
         onPauseOrDispose { }
+    }
+    // The service starting (or stopping) changes what every screen should
+    // say, and can happen while the app is open -- re-read when it does.
+    val serviceUp by container.serviceStatus.connected.collectAsState()
+    LaunchedEffect(serviceUp) {
+        permissions = readPermissions()
+        // The system's bound list can lag the connect by a moment.
+        if (serviceUp && !permissions.running) {
+            kotlinx.coroutines.delay(700)
+            permissions = readPermissions()
+        }
     }
 
     // The guided setup fronts the app until accessibility is on or it has been
@@ -163,7 +178,7 @@ private fun AppScaffold(container: AppContainer) {
     var wizardSeen by remember { mutableStateOf(container.settings.setupWizardSeen) }
     var wizardOpen by remember { mutableStateOf(false) }
     var wizardRecovery by remember { mutableStateOf(false) }
-    if (wizardOpen || (!permissions.service && !wizardSeen)) {
+    if (wizardOpen || (!permissions.allGranted && !wizardSeen)) {
         val apps by container.settings.countedApps.collectAsState()
         // A first run starts with whatever the phone has installed ticked, so
         // most people just press on.
@@ -184,6 +199,11 @@ private fun AppScaffold(container: AppContainer) {
         BackHandler(onBack = close)
         SetupWizard(
             permissions = permissions,
+            onAutostartVisited = {
+                container.settings.autostartConfirmed = true
+                permissions = readPermissions()
+            },
+            onReturnAfterConnect = { container.settings.returnAfterConnectAtMs = System.currentTimeMillis() },
             startInRecovery = wizardRecovery,
             onDone = close,
             onSkip = close,

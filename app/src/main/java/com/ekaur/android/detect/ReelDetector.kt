@@ -37,7 +37,19 @@ class ReelDetector(
      * or didn't count -- so an event dump explains itself.
      */
     private val trace: ((packageName: String, line: String) -> Unit)? = null,
+    /**
+     * Keeps the learned Shorts page height across restarts. Until it is
+     * known, the first-page guess is the only thing telling a Short from a
+     * long video's page, so the less often it is needed the better.
+     */
+    private val pageMemory: PageMemory? = null,
 ) {
+
+    /** Somewhere to keep a learned page height, per app and screen height. */
+    interface PageMemory {
+        fun load(packageName: String, screenHeightPx: Int): Int?
+        fun save(packageName: String, screenHeightPx: Int, pageHeightPx: Int)
+    }
 
     /**
      * Driven from the accessibility callback on the main thread and from the
@@ -128,8 +140,19 @@ class ReelDetector(
 
         // Everything below is scroll-driven. Window and content events are
         // deliberately inert: letting them change state is what broke the first
-        // version.
-        if (signal.kind != ScrollSignal.Kind.ViewScrolled) return DetectionResult(events, state)
+        // version. The one exception is an app whose screen changes are known
+        // never to happen inside its player (YouTube): there a window event
+        // while in the player means the user went somewhere else.
+        if (signal.kind != ScrollSignal.Kind.ViewScrolled) {
+            if (signal.kind == ScrollSignal.Kind.WindowStateChanged &&
+                signalRules.windowChangeLeavesPlayer &&
+                state == DetectionState.InReels
+            ) {
+                state = DetectionState.InApp
+                return DetectionResult(events, state, leftPlayer = true)
+            }
+            return DetectionResult(events, state)
+        }
 
         when (signalRules.shapeOf(signal)) {
             ScrollShape.Player -> {
@@ -298,10 +321,13 @@ class ReelDetector(
 
     private fun trackerFor(pkg: String, appRules: AppRules): PageTracker =
         pageTrackers.getOrPut(pkg) {
+            val screen = screenHeightPx()
             PageTracker(
                 screenHeight = screenHeightPx,
                 preferredClassHints = appRules.pageFlipClassHints,
                 settleWindowMs = appRules.settleWindowMs,
+                initialPageHeight = pageMemory?.load(pkg, screen),
+                onLearned = { page -> pageMemory?.save(pkg, screenHeightPx(), page) },
             )
         }
 
@@ -321,9 +347,12 @@ class ReelDetector(
         val result = pageTrackers[pkg]?.settleIfDue(nowMs, force) ?: return
         trace?.invoke(pkg, result.trace)
 
-        if (result.flips > 0 || result.echo) {
-            // On the Shorts screen: a flip, or a touch that moved its
-            // containers (a drag that snapped back, a panel opening).
+        if (result.flips > 0 || (result.echo && state == DetectionState.InReels)) {
+            // Only a real page flip puts us on the Shorts screen. A touch that
+            // moved its containers (a drag that snapped back, a panel opening)
+            // keeps us there, but cannot bring us in: YouTube's long-video
+            // page moves nested views together the same way, and treating
+            // that as Shorts put the pill over normal videos.
             state = DetectionState.InReels
             lastPlayerScrollMs = result.atMs
             lastReelsActivityMs = result.atMs

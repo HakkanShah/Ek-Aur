@@ -31,6 +31,10 @@ class PageTracker(
     private val screenHeight: () -> Int,
     private val preferredClassHints: List<String> = emptyList(),
     private val settleWindowMs: Long = 300,
+    /** A page height remembered from an earlier run, if any. */
+    initialPageHeight: Int? = null,
+    /** Told whenever the page height is learned, so it can be remembered. */
+    private val onLearned: ((Int) -> Unit)? = null,
 ) {
 
     /** What a settled burst came to. */
@@ -48,8 +52,11 @@ class PageTracker(
     )
 
     /** The page height, once proven. Survives leaving the app. */
-    var pageHeight: Int? = null
-        private set
+    var pageHeight: Int? = initialPageHeight
+        private set(value) {
+            if (value != null && value != field) onLearned?.invoke(value)
+            field = value
+        }
 
     // Views that have moved by whole pages: the pager, however it reports itself.
     private val pagerClasses = mutableSetOf<String>()
@@ -288,14 +295,19 @@ class PageTracker(
         /** How long a half-finished swipe waits for the rest of it. */
         const val CARRY_MS = 4_000L
 
-        /** A repeat must be at least this share of the screen to prove a page. */
-        const val MIN_PAIR_OF_SCREEN = 0.25f
+        /**
+         * A repeat must be at least this share of the screen to prove a page.
+         * A Short fills the screen bar the status bar and YouTube's tabs; at a
+         * quarter, two equal scrolls of a long video's page (710px) passed
+         * as Shorts and put the pill over a normal video.
+         */
+        const val MIN_PAIR_OF_SCREEN = 0.7f
 
         /** A held-over part of a swipe must be at least this share of a page. */
         const val CARRY_MIN_OF_PAGE = 0.25f
 
         /** Before the page is known, a move this big is treated as a whole page. */
-        const val PAGE_OF_SCREEN_MIN = 0.5f
+        const val PAGE_OF_SCREEN_MIN = PageFlip.MIN_PAGE_OF_SCREEN
 
         /** Nobody swipes back further than this to rewatch; a bound, not a rule. */
         const val MAX_BEHIND = 50

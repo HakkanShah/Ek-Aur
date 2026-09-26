@@ -74,7 +74,9 @@ object PageFlip {
     private fun tolerance(expected: Int): Int = maxOf(24, (expected * 0.03f).toInt())
 
     // The page is the screen minus whatever YouTube keeps around it (status
-    // bar, its bottom tabs): 2100 of 2400 on the dump's phone.
-    private const val MIN_PAGE_OF_SCREEN = 0.5f
+    // bar, its bottom tabs): 2100 of 2400 on the dump's phone. Half the
+    // screen let two scrolls of a long video's page, joined, pass as a
+    // first Short.
+    const val MIN_PAGE_OF_SCREEN = 0.7f
     private const val MAX_PAGE_OF_SCREEN = 1.2f
 }

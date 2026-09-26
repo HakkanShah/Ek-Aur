@@ -68,6 +68,42 @@ object ServiceControl {
         return false
     }
 
+    /**
+     * Whether Android actually started the service -- not just whether the
+     * switch is on. The system's own list of bound services, so it holds
+     * whatever process is asking. A switch that is on while this is false is
+     * the phone refusing to launch the app ([KeepAlive]).
+     */
+    fun isAccessibilityServiceRunning(context: Context): Boolean {
+        val expected = ComponentName(context, EkAurAccessibilityService::class.java)
+        val manager = context.getSystemService(AccessibilityManager::class.java) ?: return false
+        val bound = runCatching {
+            manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        }.getOrNull() ?: return false
+        return bound.any { info ->
+            info.resolveInfo?.serviceInfo?.let {
+                it.packageName == expected.packageName && it.name == expected.className
+            } == true
+        }
+    }
+
+    /** Whether the switch is on in Settings, whether or not the service started. */
+    fun isAccessibilitySwitchOn(context: Context): Boolean {
+        val expected = ComponentName(context, EkAurAccessibilityService::class.java)
+        val enabled = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+        ) ?: return false
+        val splitter = TextUtils.SimpleStringSplitter(':').apply { setString(enabled) }
+        for (entry in splitter) {
+            val component = ComponentName.unflattenFromString(entry) ?: continue
+            if (component.packageName != expected.packageName) continue
+            val name = component.className
+            if (name == expected.className || expected.className.endsWith(name)) return true
+        }
+        return false
+    }
+
     fun openAccessibilitySettings(context: Context) {
         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

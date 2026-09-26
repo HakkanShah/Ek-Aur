@@ -94,11 +94,11 @@ class PageTrackerTest {
     }
 
     @Test
-    fun `a page smaller than half the screen is learned from a repeat`() {
-        // 900px pages on a 2400px screen, and no echo at all.
-        swipe(600, 300, echo = false); idle(1_000)
-        swipe(600, 300, echo = false); idle(1_000)
-        swipe(600, 300, echo = false); idle(1_000)
+    fun `a page is learned from a repeat even with no echo`() {
+        // 1800px pages on a 2400px screen, and no echo at all.
+        swipe(1100, 700, echo = false); idle(1_000)
+        swipe(1100, 700, echo = false); idle(1_000)
+        swipe(1100, 700, echo = false); idle(1_000)
         assertEquals(3, counted.size)
     }
 
@@ -167,5 +167,66 @@ class PageTrackerTest {
         swipe(1275, 820, 5); idle(1_000)                   // still new: 2
 
         assertEquals(2, counted.size)
+    }
+
+    // --- long videos (a friend's report: the pill sat over a normal video) --
+
+    private fun window() {
+        val r = detector.onSignal(ScrollSignal(yt, ScrollSignal.Kind.WindowStateChanged, t, className = frame))
+        lastLeft = r.leftPlayer
+    }
+    private var lastLeft = false
+
+    @Test
+    fun `a long video's page scrolling its nested views never shows the pill`() {
+        // The watch page: the list and its containers move together, by
+        // amounts that are not pages. Echo, but no flip.
+        repeat(6) { swipe(400, 250, 60); idle(1_000) }
+        swipe(-300, -120); idle(1_000)
+        assertEquals(DetectionState.InApp, detector.state)
+        assertEquals(0, counted.size)
+    }
+
+    @Test
+    fun `opening a long video from Shorts takes the pill down at once`() {
+        swipe(1275, 820, 5); idle(1_000)
+        assertEquals(DetectionState.InReels, detector.state)
+        window() // YouTube switches to the watch page
+        assertEquals(DetectionState.InApp, detector.state)
+        assertEquals(true, lastLeft)
+        // Scrolling the watch page afterwards does not bring it back.
+        repeat(3) { swipe(400, 250, 60); idle(1_000) }
+        assertEquals(DetectionState.InApp, detector.state)
+        // Back in Shorts, the next swipe does.
+        swipe(1275, 820, 5); idle(1_000)
+        assertEquals(DetectionState.InReels, detector.state)
+        assertEquals(2, counted.size)
+    }
+
+    @Test
+    fun `a window event outside the player changes nothing`() {
+        window()
+        assertEquals(false, lastLeft)
+        swipe(1275, 820, 5); idle(1_000)
+        assertEquals(1, counted.size)
+    }
+
+    @Test
+    fun `a learned page is remembered and used after a restart`() {
+        val saved = mutableMapOf<String, Int>()
+        val memory = object : ReelDetector.PageMemory {
+            override fun load(packageName: String, screenHeightPx: Int) = saved["$packageName/$screenHeightPx"]
+            override fun save(packageName: String, screenHeightPx: Int, pageHeightPx: Int) {
+                saved["$packageName/$screenHeightPx"] = pageHeightPx
+            }
+        }
+        val first = ReelDetector(pageMemory = memory)
+        first.onSignal(ScrollSignal(yt, ScrollSignal.Kind.ViewScrolled, 10, className = rv, scrollDeltaY = 2100))
+        first.onSignal(ScrollSignal(yt, ScrollSignal.Kind.ViewScrolled, 11, className = group, scrollDeltaY = 7))
+        first.onTick(2_000)
+        assertEquals(2100, saved["$yt/2400"])
+        val second = ReelDetector(pageMemory = memory)
+        second.onSignal(ScrollSignal(yt, ScrollSignal.Kind.ViewScrolled, 10, className = rv, scrollDeltaY = 1))
+        assertEquals(2100, second.pageHeightFor(yt))
     }
 }

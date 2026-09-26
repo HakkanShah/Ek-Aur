@@ -59,6 +59,7 @@ import com.ekaur.android.detect.TrackedApp
 import com.ekaur.android.di.AppContainer
 import com.ekaur.android.diagnostics.BugReport
 import com.ekaur.android.overlay.OverlayPrefs
+import com.ekaur.android.service.KeepAlive
 import com.ekaur.android.service.ServiceControl
 import com.ekaur.android.setup.SetupFlow
 import com.ekaur.android.ui.common.AppBadge
@@ -143,11 +144,9 @@ fun SetupScreen(
             modifier = Modifier.reveal(1),
         )
         Spacer(Modifier.height(12.dp))
-        // Switched on in Settings isn't the same as running: after a crash, or
-        // some phones' handling of a self-switch-off, the flag stays on with
-        // nothing behind it. Only said after a moment, since the service can
-        // take a second to connect when the app starts.
-        val connected by container.serviceStatus.connected.collectAsState()
+        // Switched on in Settings isn't the same as running: on Xiaomi the
+        // phone can refuse to start the app with the switch on. Only said
+        // after a moment, since the service can take a second to connect.
         var settled by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) {
             delay(3_000)
@@ -155,8 +154,9 @@ fun SetupScreen(
         }
         PermissionsCard(
             permissions = permissions,
-            notRunning = permissions.service && !connected && settled,
-            onFixRestricted = { onGuidedSetup(true) },
+            notRunning = permissions.notRunning && settled,
+            onGuidedSetup = { onGuidedSetup(false) },
+            onAutostartOpened = { container.settings.autostartConfirmed = true },
             modifier = Modifier.reveal(2),
         )
         Spacer(Modifier.height(12.dp))
@@ -197,7 +197,12 @@ private fun StatusHero(
     val haptics = rememberHaptics()
     val required = permissions.requiredMissing
     val allDone = permissions.allGranted
-    val recommendedOn = listOf(permissions.battery, permissions.usage).count { it }
+    val extras = buildList {
+        add(permissions.battery)
+        if (permissions.autostartScreen) add(permissions.autostartDone)
+        add(permissions.usage)
+    }
+    val recommendedOn = extras.count { it }
 
     // Confetti once, on the moment both required switches come on -- seen
     // happen, not merely found true on opening the app.
@@ -216,22 +221,27 @@ private fun StatusHero(
         Card {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ProgressRing(
-                    fraction = (SetupFlow.REQUIRED - required).toFloat() / SetupFlow.REQUIRED,
+                    fraction = (2 - required).toFloat() / 2,
                     done = allDone,
-                    label = "${SetupFlow.REQUIRED - required}/${SetupFlow.REQUIRED}",
+                    label = "${2 - required}/${2}",
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = if (allDone) "You're all set." else SetupFlow.statusLine(required),
+                        text = when {
+                            allDone -> "You're all set."
+                            permissions.notRunning -> "Not counting yet"
+                            else -> SetupFlow.statusLine(required)
+                        },
                         style = MaterialTheme.typography.headlineSmall,
                         color = Chalk,
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = when {
-                            !allDone -> "Two switches and it starts counting. The guided setup walks you through both."
-                            recommendedOn < 2 -> "Counting works. $recommendedOn of 2 extras on — they stop your phone killing it."
+                            permissions.notRunning -> "It's switched on, but your phone didn't start it. Takes a minute to fix."
+                            !allDone -> "A few switches and it starts counting. We'll show you each tap."
+                            recommendedOn < extras.size -> "Counting works. $recommendedOn of ${extras.size} extras on: they stop your phone killing it."
                             else -> "Counting, and nothing's going to stop it. Go scroll."
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -242,7 +252,7 @@ private fun StatusHero(
             if (!allDone) {
                 Spacer(Modifier.height(16.dp))
                 FlatButton(
-                    text = "Guided setup",
+                    text = if (permissions.notRunning) "Fix it" else "Guided setup",
                     icon = EkIcons.Sparkle,
                     emphasised = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -315,7 +325,8 @@ private fun ProgressRing(
 private fun PermissionsCard(
     permissions: PermissionState,
     notRunning: Boolean,
-    onFixRestricted: () -> Unit,
+    onGuidedSetup: () -> Unit,
+    onAutostartOpened: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -324,6 +335,7 @@ private fun PermissionsCard(
     val primaryRecommended = when {
         !permissions.allGranted -> null
         !permissions.battery -> "battery"
+        !permissions.autostartDone -> "autostart"
         !permissions.usage -> "usage"
         else -> null
     }
@@ -372,25 +384,15 @@ private fun PermissionsCard(
             icon = EkIcons.Person,
             title = "Accessibility",
             why = if (notRunning) {
-                "Switched on, but not running. Turn it off and on again."
+                "On, but your phone didn't start it."
             } else {
                 "Counts your Reels and Shorts. Sees the swipe, nothing else."
             },
-            done = permissions.service && !notRunning,
+            done = permissions.service && permissions.running,
             required = true,
-            actionLabel = if (notRunning) "Restart it" else "Turn on",
-            onAction = { ServiceControl.openAccessibilityServiceDetails(context) },
-        ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notRunning) {
-                Spacer(Modifier.height(10.dp))
-                InfoBanner(
-                    text = "Blocked by \"Restricted setting\"? That's normal.",
-                    icon = EkIcons.Lock,
-                    action = "Fix it",
-                    onAction = onFixRestricted,
-                )
-            }
-        }
+            actionLabel = if (notRunning) "Fix it" else "Turn on",
+            onAction = onGuidedSetup,
+        )
         PermRow(
             icon = EkIcons.FloatingButton,
             title = "Overlay",
@@ -398,7 +400,10 @@ private fun PermissionsCard(
             done = permissions.overlay,
             required = true,
             actionLabel = "Allow",
-            onAction = { ServiceControl.openOverlaySettings(context) },
+            onAction = {
+                ServiceControl.openOverlaySettings(context)
+                SetupGuide.returnWhen(context) { ServiceControl.canDrawOverlay(it) }
+            },
         )
 
         Spacer(Modifier.height(8.dp))
@@ -406,13 +411,28 @@ private fun PermissionsCard(
         PermRow(
             icon = EkIcons.Battery,
             title = "Battery",
-            why = "Stops Realme, Xiaomi, Oppo and Vivo killing it in the background.",
+            why = "Stops your phone killing it in the background.",
             done = permissions.battery,
             required = false,
             primary = primaryRecommended == "battery",
             actionLabel = "Allow",
             onAction = { ServiceControl.openBatterySettings(context) },
         )
+        if (permissions.autostartScreen) {
+            PermRow(
+                icon = EkIcons.Refresh,
+                title = "Autostart",
+                why = "Lets your phone start it. Without it, it can stay off.",
+                done = permissions.autostartDone,
+                required = false,
+                primary = primaryRecommended == "autostart",
+                actionLabel = "Turn on",
+                onAction = {
+                    onAutostartOpened()
+                    if (KeepAlive.openAutostart(context)) SetupGuide.start(context, SetupGuide.Kind.Autostart)
+                },
+            )
+        }
         PermRow(
             icon = EkIcons.Activity,
             title = "Usage access",
@@ -421,7 +441,10 @@ private fun PermissionsCard(
             required = false,
             primary = primaryRecommended == "usage",
             actionLabel = "Allow",
-            onAction = { ServiceControl.openUsageAccessSettings(context) },
+            onAction = {
+                ServiceControl.openUsageAccessSettings(context)
+                SetupGuide.start(context, SetupGuide.Kind.Usage)
+            },
         )
             }
         }

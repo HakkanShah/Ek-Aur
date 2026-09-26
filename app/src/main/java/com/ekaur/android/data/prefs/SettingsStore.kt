@@ -120,6 +120,27 @@ class SettingsStore(context: Context) : SessionStore, com.ekaur.android.reminder
             prefs.edit().putBoolean(KEY_WIZARD_SEEN, value).apply()
         }
 
+    /**
+     * The user has been to the Autostart screen. Most phones don't say
+     * whether Autostart is on, so coming back from it is the best signal.
+     */
+    var autostartConfirmed: Boolean
+        get() = prefs.getBoolean(KEY_AUTOSTART_CONFIRMED, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AUTOSTART_CONFIRMED, value).apply()
+        }
+
+    /**
+     * When setup last sent the user to switch accessibility on. The service,
+     * once started within a few minutes of this, brings the app back to the
+     * front so nobody has to find their way back from Settings.
+     */
+    var returnAfterConnectAtMs: Long
+        get() = prefs.getLong(KEY_RETURN_AFTER_CONNECT, 0L)
+        set(value) {
+            prefs.edit().putLong(KEY_RETURN_AFTER_CONNECT, value).apply()
+        }
+
     private val _countedApps = MutableStateFlow(readCountedApps())
 
     /**
@@ -282,6 +303,8 @@ class SettingsStore(context: Context) : SessionStore, com.ekaur.android.reminder
         const val KEY_RECOVERY = "recovery_code"
         const val KEY_AVATAR = "avatar_version"
         const val KEY_AUTO_OFF = "auto_off_on_leave"
+        const val KEY_AUTOSTART_CONFIRMED = "autostart_confirmed"
+        const val KEY_RETURN_AFTER_CONNECT = "return_after_connect_at"
         const val KEY_WIZARD_SEEN = "setup_wizard_seen"
         const val KEY_CELEBRATED = "setup_celebrated"
         const val KEY_COUNT_PREFIX = "count_app_"

@@ -5,37 +5,59 @@ import org.junit.Test
 
 class SetupFlowTest {
 
+    private fun step(
+        welcomed: Boolean = true,
+        overlay: Boolean = false,
+        keepAlive: Boolean = false,
+        service: Boolean = false,
+        running: Boolean = false,
+    ) = SetupFlow.nextStep(welcomed, overlay, keepAlive, service, running)
+
     @Test
     fun `a fresh install starts on welcome`() {
-        assertEquals(SetupStep.Welcome, SetupFlow.nextStep(welcomed = false, service = false, overlay = false))
+        assertEquals(SetupStep.Welcome, step(welcomed = false))
     }
 
     @Test
-    fun `welcome gives way to accessibility once pressed through`() {
-        assertEquals(SetupStep.Accessibility, SetupFlow.nextStep(welcomed = true, service = false, overlay = false))
+    fun `overlay comes first, so the guide can float over Settings`() {
+        assertEquals(SetupStep.Overlay, step())
     }
 
     @Test
-    fun `a granted step is never shown again`() {
-        // Accessibility on (in Settings, while the app was in the background):
-        // the flow moves straight to overlay, welcomed or not.
-        assertEquals(SetupStep.Overlay, SetupFlow.nextStep(welcomed = false, service = true, overlay = false))
-        assertEquals(SetupStep.Overlay, SetupFlow.nextStep(welcomed = true, service = true, overlay = false))
-        // Overlay granted first (an old install): accessibility is still the step.
-        assertEquals(SetupStep.Accessibility, SetupFlow.nextStep(welcomed = true, service = false, overlay = true))
+    fun `the phone's own limits are cleared before accessibility`() {
+        assertEquals(SetupStep.KeepAlive, step(overlay = true))
+        assertEquals(SetupStep.Accessibility, step(overlay = true, keepAlive = true))
     }
 
     @Test
-    fun `both grants is done regardless of welcome`() {
-        assertEquals(SetupStep.Done, SetupFlow.nextStep(welcomed = false, service = true, overlay = true))
-        assertEquals(SetupStep.Done, SetupFlow.nextStep(welcomed = true, service = true, overlay = true))
+    fun `a switch that is on but never started asks for a restart`() {
+        assertEquals(SetupStep.Restart, step(overlay = true, keepAlive = true, service = true))
     }
 
     @Test
-    fun `progress counts the required grants`() {
-        assertEquals(0, SetupFlow.requiredDone(service = false, overlay = false))
-        assertEquals(1, SetupFlow.requiredDone(service = true, overlay = false))
-        assertEquals(2, SetupFlow.requiredDone(service = true, overlay = true))
+    fun `on but not running, with the phone's limits still on, fixes those first`() {
+        // The Xiaomi report: switch on, service never started, battery restricted.
+        assertEquals(SetupStep.KeepAlive, step(overlay = true, service = true))
+    }
+
+    @Test
+    fun `running and overlay is done, whatever else`() {
+        assertEquals(SetupStep.Done, step(welcomed = false, overlay = true, service = true, running = true))
+        assertEquals(SetupStep.Done, step(overlay = true, keepAlive = false, service = true, running = true))
+    }
+
+    @Test
+    fun `a running service without overlay only asks for overlay`() {
+        assertEquals(SetupStep.Overlay, step(welcomed = false, service = true, running = true))
+    }
+
+    @Test
+    fun `dots follow the steps`() {
+        assertEquals(-1, SetupFlow.dotIndex(SetupStep.Welcome))
+        assertEquals(0, SetupFlow.dotIndex(SetupStep.Overlay))
+        assertEquals(1, SetupFlow.dotIndex(SetupStep.KeepAlive))
+        assertEquals(2, SetupFlow.dotIndex(SetupStep.Accessibility))
+        assertEquals(2, SetupFlow.dotIndex(SetupStep.Restart))
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.ekaur.android.service
 
+import android.content.Intent
 import android.accessibilityservice.AccessibilityService
 import android.os.Build
 import android.view.accessibility.AccessibilityEvent
@@ -46,6 +47,17 @@ class EkAurAccessibilityService : AccessibilityService() {
             if (::eventLog.isInitialized) eventLog.note(pkg, line)
             if (::status.isInitialized) {
                 PAGE_SIZE.find(line)?.groupValues?.get(1)?.toIntOrNull()?.let { status.onPageSize(pkg, it) }
+            }
+        },
+        // Only read when a tracker is first needed, by which time the service
+        // is attached and has a context.
+        pageMemory = object : ReelDetector.PageMemory {
+            private val prefs by lazy { getSharedPreferences("detector", MODE_PRIVATE) }
+            private fun key(pkg: String, screen: Int) = "page_${pkg}_$screen"
+            override fun load(packageName: String, screenHeightPx: Int): Int? =
+                prefs.getInt(key(packageName, screenHeightPx), 0).takeIf { it > 0 }
+            override fun save(packageName: String, screenHeightPx: Int, pageHeightPx: Int) {
+                prefs.edit().putInt(key(packageName, screenHeightPx), pageHeightPx).apply()
             }
         },
     )
@@ -109,6 +121,7 @@ class EkAurAccessibilityService : AccessibilityService() {
         // switches itself off after the grace rather than staying on for ever.
         lastTrackedForegroundMs = System.currentTimeMillis()
         toast("Ek Aur is on")
+        returnToAppIfSettingUp()
 
         val s = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         scope = s
@@ -176,7 +189,7 @@ class EkAurAccessibilityService : AccessibilityService() {
                 val nowMs = System.currentTimeMillis()
                 val result = detector.onTick(nowMs)
                 handle(result.events)
-                overlay?.onDetectionState(result.state)
+                overlay?.onDetectionState(result.state, result.leftPlayer)
                 checkForeground(nowMs)
             }
         }
@@ -373,10 +386,27 @@ class EkAurAccessibilityService : AccessibilityService() {
 
         status.onEvent(packageName, now, result.state.name)
         handle(result.events)
-        overlay?.onDetectionState(result.state)
+        overlay?.onDetectionState(result.state, result.leftPlayer)
     }
 
     override fun onInterrupt() = Unit
+
+    /**
+     * Setup sent the user into Settings to switch this on a moment ago: now
+     * that it's running, bring them back to the app instead of leaving them
+     * to find their way. An accessibility service may start an activity from
+     * the background.
+     */
+    private fun returnToAppIfSettingUp() {
+        val sentAt = settings.returnAfterConnectAtMs
+        if (sentAt == 0L) return
+        settings.returnAfterConnectAtMs = 0L
+        if (System.currentTimeMillis() - sentAt > RETURN_WINDOW_MS) return
+        val intent = Intent(this, com.ekaur.android.MainActivity::class.java).addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+        )
+        main.postDelayed({ runCatching { startActivity(intent) } }, 700)
+    }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         // Fires however the service was switched off -- floating button, tile,
@@ -477,6 +507,9 @@ class EkAurAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TICK_INTERVAL_MS = 250L
+
+        /** How long after setup sent the user to Settings a connect still means "bring them back". */
+        private const val RETURN_WINDOW_MS = 10 * 60_000L
 
         /** The tick while the detector has nothing pending: fewer wake-ups, same behaviour. */
         private const val RESTING_TICK_INTERVAL_MS = 1_000L
