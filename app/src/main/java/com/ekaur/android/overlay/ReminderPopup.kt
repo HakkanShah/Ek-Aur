@@ -308,12 +308,7 @@ internal fun ReminderCard(
                     modifier = Modifier.weight(1f),
                     onClick = { onChoice(ReminderPopup.Choice.Break) },
                 )
-                PopupButton(
-                    // The snooze, in the app's own words.
-                    text = "Ek aur $snooze 😏",
-                    primary = false,
-                    onClick = { onChoice(ReminderPopup.Choice.Later) },
-                )
+                MoreButton(snooze = snooze, onClick = { onChoice(ReminderPopup.Choice.Later) })
             }
             Row(
                 Modifier.fillMaxWidth().padding(top = 2.dp),
@@ -464,6 +459,45 @@ private fun PopupButton(text: String, primary: Boolean, onClick: () -> Unit, mod
     ) {
         Text(
             text = text,
+            fontFamily = Poppins,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            color = White,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * The snooze: "10 More", with however many the user picked. A thin gradient
+ * outline and a gradient number, so it reads as the other choice beside the
+ * solid "Take a break" rather than as a greyed-out one.
+ */
+@Composable
+private fun MoreButton(snooze: Int, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(50)
+    val gradient = instaGradient()
+    Row(
+        Modifier
+            .height(50.dp)
+            .clip(shape)
+            .background(White.copy(alpha = 0.06f), shape)
+            .border(1.5.dp, gradient, shape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "$snooze",
+            style = TextStyle(brush = gradient),
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontSize = 17.sp,
+            maxLines = 1,
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = "More",
             fontFamily = Poppins,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
