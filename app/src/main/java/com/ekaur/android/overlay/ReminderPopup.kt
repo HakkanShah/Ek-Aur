@@ -109,16 +109,20 @@ class ReminderPopup(private val context: Context) {
             // Back closes the card; the next reminder is already set.
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
                 if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-                    if (event.action == KeyEvent.ACTION_UP) dismiss()
+                    if (event.action == KeyEvent.ACTION_UP) main.post { dismiss() }
                     return true
                 }
                 return super.dispatchKeyEvent(event)
             }
         }
+        // The owners go on the frame, the window's root: Compose builds its
+        // recomposer from the root view and looks for the lifecycle there, so
+        // set only on the ComposeView inside it, the popup crashed the app the
+        // moment it appeared (build 56). The ComposeView finds them by walking up.
+        frame.setViewTreeLifecycleOwner(lifecycle)
+        frame.setViewTreeViewModelStoreOwner(lifecycle)
+        frame.setViewTreeSavedStateRegistryOwner(lifecycle)
         val compose = ComposeView(context).apply {
-            setViewTreeLifecycleOwner(lifecycle)
-            setViewTreeViewModelStoreOwner(lifecycle)
-            setViewTreeSavedStateRegistryOwner(lifecycle)
             setContent {
                 ReminderCard(
                     count = count,
@@ -126,9 +130,13 @@ class ReminderPopup(private val context: Context) {
                     minutesToday = minutesToday,
                     snooze = snooze,
                     line = line,
+                    // Closed on the next frame, not from inside the tap that is
+                    // still being handled by the view being removed.
                     onChoice = { choice ->
-                        dismiss()
-                        onChoice(choice)
+                        main.post {
+                            dismiss()
+                            onChoice(choice)
+                        }
                     },
                 )
             }

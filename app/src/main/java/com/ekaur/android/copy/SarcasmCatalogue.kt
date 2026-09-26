@@ -314,6 +314,9 @@ object SarcasmCatalogue {
      * Picks from [pool], avoiding the last few lines shown across every pool, so
      * back-to-back milestones never echo each other or themselves.
      */
+    // The service's reminder and the milestone announcer pick from different
+    // threads, and share the memory of what was said.
+    @Synchronized
     private fun pick(pool: List<String>): String {
         val choices = pool.filterNot { it in recent }.ifEmpty { pool }
         return choices.random().also { chosen ->
